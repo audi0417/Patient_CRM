@@ -29,6 +29,7 @@ const patientRoutes = require('./routes/patients');
 const healthRoutes = require('./routes/health');
 const appointmentRoutes = require('./routes/appointments');
 const goalRoutes = require('./routes/goals');
+const consultationRoutes = require('./routes/consultations');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -36,6 +37,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/consultations', consultationRoutes);
 
 // 健康檢查端點
 app.get('/api/health-check', (req, res) => {

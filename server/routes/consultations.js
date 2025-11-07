@@ -1,0 +1,131 @@
+const express = require('express');
+const router = express.Router();
+const { db } = require('../database/db');
+const { authenticateToken } = require('../middleware/auth');
+
+router.use(authenticateToken);
+
+// 獲取諮詢記錄
+router.get('/', (req, res) => {
+  try {
+    const { patientId } = req.query;
+    let query = 'SELECT * FROM consultations';
+    let params = [];
+
+    if (patientId) {
+      query += ' WHERE patientId = ?';
+      params.push(patientId);
+    }
+
+    query += ' ORDER BY date DESC, createdAt DESC';
+
+    const records = db.prepare(query).all(...params);
+    res.json(records);
+  } catch (error) {
+    console.error('Get consultations error:', error);
+    res.status(500).json({ error: '獲取諮詢記錄失敗' });
+  }
+});
+
+// 根據 ID 獲取諮詢記錄
+router.get('/:id', (req, res) => {
+  try {
+    const record = db.prepare('SELECT * FROM consultations WHERE id = ?').get(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({ error: '諮詢記錄不存在' });
+    }
+
+    res.json(record);
+  } catch (error) {
+    console.error('Get consultation error:', error);
+    res.status(500).json({ error: '獲取諮詢記錄失敗' });
+  }
+});
+
+// 創建諮詢記錄
+router.post('/', (req, res) => {
+  try {
+    const { patientId, date, type, chiefComplaint, assessment, plan, notes } = req.body;
+
+    if (!patientId || !date) {
+      return res.status(400).json({ error: '患者ID和日期為必填欄位' });
+    }
+
+    const now = new Date().toISOString();
+    const id = `consultation_${Date.now()}`;
+
+    db.prepare(`
+      INSERT INTO consultations (id, patientId, date, type, chiefComplaint, assessment, plan, notes, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      patientId,
+      date,
+      type || null,
+      chiefComplaint || null,
+      assessment || null,
+      plan || null,
+      notes || null,
+      now,
+      now
+    );
+
+    const newRecord = db.prepare('SELECT * FROM consultations WHERE id = ?').get(id);
+    res.status(201).json(newRecord);
+  } catch (error) {
+    console.error('Create consultation error:', error);
+    res.status(500).json({ error: '創建諮詢記錄失敗' });
+  }
+});
+
+// 更新諮詢記錄
+router.put('/:id', (req, res) => {
+  try {
+    const { date, type, chiefComplaint, assessment, plan, notes } = req.body;
+    const now = new Date().toISOString();
+
+    const result = db.prepare(`
+      UPDATE consultations
+      SET date = ?, type = ?, chiefComplaint = ?, assessment = ?, plan = ?, notes = ?, updatedAt = ?
+      WHERE id = ?
+    `).run(
+      date,
+      type || null,
+      chiefComplaint || null,
+      assessment || null,
+      plan || null,
+      notes || null,
+      now,
+      req.params.id
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: '諮詢記錄不存在' });
+    }
+
+    const updatedRecord = db.prepare('SELECT * FROM consultations WHERE id = ?').get(req.params.id);
+    res.json(updatedRecord);
+  } catch (error) {
+    console.error('Update consultation error:', error);
+    res.status(500).json({ error: '更新諮詢記錄失敗' });
+  }
+});
+
+// 刪除諮詢記錄
+router.delete('/:id', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM consultations WHERE id = ?').run(req.params.id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: '諮詢記錄不存在' });
+    }
+
+    res.json({ success: true, message: '諮詢記錄已刪除' });
+  } catch (error) {
+    console.error('Delete consultation error:', error);
+    res.status(500).json({ error: '刪除諮詢記錄失敗' });
+  }
+});
+
+module.exports = router;

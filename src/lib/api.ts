@@ -197,6 +197,16 @@ export const api = {
         method: 'GET',
       });
     },
+
+    /**
+     * 修改密碼
+     */
+    changePassword: async (oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+      return apiRequest('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ oldPassword, newPassword }),
+      });
+    },
   },
 
   /**
@@ -487,6 +497,61 @@ export const api = {
      */
     delete: async (id: string): Promise<{ success: boolean; message: string }> => {
       return apiRequest(`/appointments/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  /**
+   * 諮詢記錄 API
+   */
+  consultations: {
+    /**
+     * 獲取諮詢記錄列表
+     */
+    getByPatientId: async (patientId: string): Promise<any[]> => {
+      return apiRequest(`/consultations?patientId=${patientId}`);
+    },
+
+    /**
+     * 獲取所有諮詢記錄
+     */
+    getAll: async (): Promise<any[]> => {
+      return apiRequest('/consultations');
+    },
+
+    /**
+     * 根據 ID 獲取諮詢記錄
+     */
+    getById: async (id: string): Promise<any> => {
+      return apiRequest(`/consultations/${id}`);
+    },
+
+    /**
+     * 創建諮詢記錄
+     */
+    create: async (consultation: any): Promise<any> => {
+      return apiRequest('/consultations', {
+        method: 'POST',
+        body: JSON.stringify(consultation),
+      });
+    },
+
+    /**
+     * 更新諮詢記錄
+     */
+    update: async (id: string, consultation: any): Promise<any> => {
+      return apiRequest(`/consultations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(consultation),
+      });
+    },
+
+    /**
+     * 刪除諮詢記錄
+     */
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+      return apiRequest(`/consultations/${id}`, {
         method: 'DELETE',
       });
     },

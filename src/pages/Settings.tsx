@@ -1,11 +1,14 @@
 import { DatabaseManagement } from "@/components/DatabaseManagement";
 import GroupManagement from "@/components/GroupManagement";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Info, Users } from "lucide-react";
+import { Settings as SettingsIcon, Info, Users, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Settings() {
   const isElectron = window.electronAPI?.isElectron === true;
   const appVersion = "1.0.0";
+  const { user } = useAuth();
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -16,6 +19,29 @@ export default function Settings() {
           <p className="text-muted-foreground">管理您的應用程式設定與資料</p>
         </div>
       </div>
+
+      {/* 帳號安全 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            帳號安全
+          </CardTitle>
+          <CardDescription>
+            管理您的帳號安全設定
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">當前登入使用者</p>
+            <p className="text-sm text-muted-foreground">{user?.username} ({user?.name})</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">密碼管理</p>
+            <ChangePasswordDialog />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 群組管理 */}
       <Card>

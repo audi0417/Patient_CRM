@@ -119,4 +119,72 @@ router.get('/me', authenticateToken, (req, res) => {
   }
 });
 
+// 修改密碼 (使用者自己修改)
+router.post('/change-password', [
+  authenticateToken,
+  body('oldPassword').notEmpty().withMessage('舊密碼不能為空'),
+  body('newPassword').notEmpty().withMessage('新密碼不能為空')
+    .isLength({ min: 8 }).withMessage('密碼長度至少需要 8 個字元')
+    .matches(/[A-Z]/).withMessage('密碼需包含至少一個大寫字母')
+    .matches(/[a-z]/).withMessage('密碼需包含至少一個小寫字母')
+    .matches(/[0-9]/).withMessage('密碼需包含至少一個數字')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: errors.array()[0].msg
+    });
+  }
+
+  const { oldPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // 獲取使用者
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '使用者不存在'
+      });
+    }
+
+    // 驗證舊密碼
+    const hashedOldPassword = crypto.createHash('sha256').update(oldPassword).digest('hex');
+    if (user.password !== hashedOldPassword) {
+      return res.status(401).json({
+        success: false,
+        message: '舊密碼錯誤'
+      });
+    }
+
+    // 檢查新密碼是否與舊密碼相同
+    const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+    if (hashedOldPassword === hashedNewPassword) {
+      return res.status(400).json({
+        success: false,
+        message: '新密碼不能與舊密碼相同'
+      });
+    }
+
+    // 更新密碼
+    const now = new Date().toISOString();
+    db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?')
+      .run(hashedNewPassword, now, userId);
+
+    res.json({
+      success: true,
+      message: '密碼已成功更新'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: '密碼更新失敗，請稍後再試'
+    });
+  }
+});
+
 module.exports = router;

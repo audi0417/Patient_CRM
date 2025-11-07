@@ -122,9 +122,8 @@ export const getUserPermissions = (user: User | null) => {
   return ROLE_PERMISSIONS[user.role];
 };
 
-// 修改密碼（此函數暫時保留，實際應該透過 API 實現）
+// 修改密碼（使用者自己修改）
 export const changePassword = async (
-  userId: string,
   oldPassword: string,
   newPassword: string
 ): Promise<{ success: boolean; message: string }> => {
@@ -134,11 +133,9 @@ export const changePassword = async (
     return { success: false, message: passwordValidation.message || "密碼格式不正確" };
   }
 
-  // TODO: 需要後端實現 change-password API 端點
-  // 目前暫時使用 resetPassword
   try {
-    await api.users.resetPassword(userId, newPassword);
-    return { success: true, message: "密碼已成功更新" };
+    const result = await api.auth.changePassword(oldPassword, newPassword);
+    return result;
   } catch (error) {
     return {
       success: false,

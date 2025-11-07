@@ -1,6 +1,7 @@
 import { Patient, HealthRecord, Appointment, PatientGoal, InitialAssessment, BodyCompositionRecord, VitalSignsRecord, Tag, PatientGroup, ConsultationRecord } from "@/types/patient";
 import { api } from "./api";
 
+const HEALTH_RECORDS_KEY = "hospital_crm_health_records";
 const ASSESSMENTS_KEY = "hospital_crm_assessments";
 const TAGS_KEY = "hospital_crm_tags";
 const GROUPS_KEY = "hospital_crm_groups";
@@ -412,23 +413,32 @@ export const removePatientFromGroup = async (groupId: string, patientId: string)
 
 // Consultation Records
 export const getConsultationRecords = async (patientId?: string): Promise<ConsultationRecord[]> => {
-  const data = localStorage.getItem(CONSULTATIONS_KEY);
-  const records: ConsultationRecord[] = data ? JSON.parse(data) : [];
-  return patientId ? records.filter((r) => r.patientId === patientId) : records;
+  if (patientId) {
+    return api.consultations.getByPatientId(patientId);
+  }
+  return api.consultations.getAll();
+};
+
+export const getConsultationById = async (id: string): Promise<ConsultationRecord | undefined> => {
+  try {
+    return await api.consultations.getById(id);
+  } catch (error) {
+    return undefined;
+  }
 };
 
 export const saveConsultationRecord = async (record: ConsultationRecord): Promise<void> => {
-  const records = await getConsultationRecords();
-  const index = records.findIndex((r) => r.id === record.id);
-  if (index >= 0) {
-    records[index] = { ...record, updatedAt: new Date().toISOString() };
+  const isNew = !record.id || record.id.startsWith('temp_');
+
+  if (isNew) {
+    const { id, createdAt, updatedAt, ...recordData } = record;
+    await api.consultations.create(recordData);
   } else {
-    records.push(record);
+    const { createdAt, updatedAt, ...recordData } = record;
+    await api.consultations.update(record.id, recordData);
   }
-  localStorage.setItem(CONSULTATIONS_KEY, JSON.stringify(records));
 };
 
 export const deleteConsultationRecord = async (id: string): Promise<void> => {
-  const records = (await getConsultationRecords()).filter((r) => r.id !== id);
-  localStorage.setItem(CONSULTATIONS_KEY, JSON.stringify(records));
+  await api.consultations.delete(id);
 };
