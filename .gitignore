@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+release/
+out/
+
+# Electron
+*.log
+electron.log
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.bak
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+*.key
+*.cert
+.cache/
+temp/
+tmp/

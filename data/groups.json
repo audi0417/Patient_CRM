@@ -1,0 +1,53 @@
+[
+  {
+    "id": "group_001",
+    "name": "2025減肥課程",
+    "description": "2025年減重課程學員",
+    "color": "#10b981",
+    "patientIds": [
+      "patient_1762421852031_qw3n7ypvu",
+      "patient_1762421852031_3aii60w6r"
+    ],
+    "createdAt": "2025-11-06T09:37:32.030Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "group_002",
+    "name": "慢性病管理",
+    "description": "糖尿病、高血壓等慢性病患者",
+    "color": "#ef4444",
+    "patientIds": [
+      "patient_1762421852031_jaeb5joei",
+      "patient_1762421852031_gidhv84ct",
+      "patient_1762421852031_2cmkv16zm"
+    ],
+    "createdAt": "2025-11-06T09:37:32.030Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "group_003",
+    "name": "運動訓練班",
+    "description": "運動員與健身愛好者",
+    "color": "#3b82f6",
+    "patientIds": [
+      "patient_1762421852031_qw3n7ypvu",
+      "patient_1762421852031_sju67ypl2",
+      "patient_1762421852031_6jln7tnvw"
+    ],
+    "createdAt": "2025-11-06T09:37:32.030Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "group_004",
+    "name": "營養調理",
+    "description": "需要營養諮詢與飲食調理",
+    "color": "#8b5cf6",
+    "patientIds": [
+      "patient_1762421852031_sju67ypl2",
+      "patient_1762421852031_2cmkv16zm",
+      "patient_1762421852031_oe5n53nsf"
+    ],
+    "createdAt": "2025-11-06T09:37:32.030Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  }
+]

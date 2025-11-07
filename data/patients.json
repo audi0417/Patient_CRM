@@ -1,0 +1,194 @@
+[
+  {
+    "id": "patient_1762421852031_jaeb5joei",
+    "name": "王小明",
+    "gender": "male",
+    "birthDate": "1985-03-15",
+    "phone": "0912-345-678",
+    "email": "wang.xiaoming@email.com",
+    "address": "台北市信義區信義路五段7號",
+    "emergencyContact": "王小明家屬",
+    "emergencyPhone": "0912-345-679",
+    "bloodType": "A",
+    "allergies": [
+      "花生",
+      "青黴素"
+    ],
+    "tags": [
+      "糖尿病",
+      "高血壓"
+    ],
+    "groupIds": [
+      "group_002"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_qw3n7ypvu",
+    "name": "李美玲",
+    "gender": "female",
+    "birthDate": "1990-07-22",
+    "phone": "0923-456-789",
+    "email": "li.meiling@email.com",
+    "address": "新北市板橋區文化路一段123號",
+    "emergencyContact": "李美玲家屬",
+    "emergencyPhone": "0923-456-780",
+    "bloodType": "B",
+    "allergies": [
+      "海鮮"
+    ],
+    "tags": [
+      "減重計畫",
+      "健身"
+    ],
+    "groupIds": [
+      "group_001",
+      "group_003"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_gidhv84ct",
+    "name": "陳建國",
+    "gender": "male",
+    "birthDate": "1978-11-08",
+    "phone": "0934-567-890",
+    "email": "chen.jianguo@email.com",
+    "address": "台中市西屯區台灣大道三段99號",
+    "emergencyContact": "陳建國家屬",
+    "emergencyPhone": "0934-567-891",
+    "bloodType": "O",
+    "allergies": [],
+    "tags": [
+      "高血壓",
+      "心臟病史"
+    ],
+    "groupIds": [
+      "group_002"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_sju67ypl2",
+    "name": "林雅婷",
+    "gender": "female",
+    "birthDate": "1995-02-14",
+    "phone": "0945-678-901",
+    "email": "lin.yating@email.com",
+    "address": "高雄市左營區博愛二路777號",
+    "emergencyContact": "林雅婷家屬",
+    "emergencyPhone": "0945-678-902",
+    "bloodType": "AB",
+    "allergies": [
+      "塵蟎",
+      "花粉"
+    ],
+    "tags": [
+      "運動員",
+      "營養諮詢"
+    ],
+    "groupIds": [
+      "group_003",
+      "group_004"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_3aii60w6r",
+    "name": "張志豪",
+    "gender": "male",
+    "birthDate": "1988-09-30",
+    "phone": "0956-789-012",
+    "email": "zhang.zhihao@email.com",
+    "address": "台南市東區東門路二段88號",
+    "emergencyContact": "張志豪家屬",
+    "emergencyPhone": "0956-789-013",
+    "bloodType": "A",
+    "allergies": [
+      "阿斯匹靈"
+    ],
+    "tags": [
+      "減重計畫"
+    ],
+    "groupIds": [
+      "group_001"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_2cmkv16zm",
+    "name": "黃淑芬",
+    "gender": "female",
+    "birthDate": "1982-05-18",
+    "phone": "0967-890-123",
+    "email": "huang.shufen@email.com",
+    "address": "桃園市中壢區中央西路二段50號",
+    "emergencyContact": "黃淑芬家屬",
+    "emergencyPhone": "0967-890-124",
+    "bloodType": "O",
+    "allergies": [
+      "磺胺類藥物"
+    ],
+    "tags": [
+      "糖尿病",
+      "營養諮詢"
+    ],
+    "groupIds": [
+      "group_002",
+      "group_004"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_6jln7tnvw",
+    "name": "劉俊傑",
+    "gender": "male",
+    "birthDate": "1992-12-25",
+    "phone": "0978-901-234",
+    "email": "liu.junjie@email.com",
+    "address": "新竹市東區光復路一段321號",
+    "emergencyContact": "劉俊傑家屬",
+    "emergencyPhone": "0978-901-235",
+    "bloodType": "B",
+    "allergies": [],
+    "tags": [
+      "健身",
+      "增肌計畫"
+    ],
+    "groupIds": [
+      "group_003"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  },
+  {
+    "id": "patient_1762421852031_oe5n53nsf",
+    "name": "吳佩珊",
+    "gender": "female",
+    "birthDate": "1987-08-03",
+    "phone": "0989-012-345",
+    "email": "wu.peishan@email.com",
+    "address": "台北市大安區敦化南路二段66號",
+    "emergencyContact": "吳佩珊家屬",
+    "emergencyPhone": "0989-012-346",
+    "bloodType": "A",
+    "allergies": [
+      "乳製品"
+    ],
+    "tags": [
+      "產後恢復",
+      "營養諮詢"
+    ],
+    "groupIds": [
+      "group_004"
+    ],
+    "createdAt": "2025-11-06T09:37:32.031Z",
+    "updatedAt": "2025-11-06T09:37:32.031Z"
+  }
+]

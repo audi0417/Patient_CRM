@@ -1,0 +1,217 @@
+PATIENT CRM - DATA STRUCTURE FILE LOCATIONS
+============================================
+
+ROOT DIRECTORY: /Users/audi1/Documents/Patient_CRM/
+
+DATA MODELS & TYPES
+===================
+src/types/patient.ts
+  - Patient interface
+  - BodyCompositionRecord interface
+  - VitalSignsRecord interface
+  - Appointment interface
+  - PatientGoal interface
+  - InitialAssessment interface
+  - Tag interface
+  - PatientGroup interface
+
+src/types/user.ts
+  - User authentication types
+
+src/types/electron.d.ts
+  - Electron API type definitions
+  - ElectronAPI interface
+
+
+STORAGE LAYER
+=============
+src/lib/storage.ts (446 lines)
+  - getPatients() / savePatient() / deletePatient()
+  - getBodyCompositionRecords() / saveBodyCompositionRecord()
+  - getVitalSignsRecords() / saveVitalSignsRecord()
+  - getAppointments() / saveAppointment() / getUpcomingAppointments()
+  - getGoals() / saveGoal() / updateGoalProgress()
+  - getAssessment() / saveAssessment()
+  - getTags() / saveTag() / deleteTag()
+  - getGroups() / saveGroup() / deleteGroup()
+  - backupDatabase() / restoreDatabase() / exportDatabaseJSON()
+
+
+UI COMPONENTS & PAGES
+=====================
+src/pages/PatientForm.tsx
+  - Patient create/edit form
+  - Route: /patient/new, /patient/{id}
+  - Integrates: savePatient(), getTags(), getGroups()
+
+src/pages/PatientList.tsx
+  - Displays all patients
+  - Route: /
+  - Filtering by name, gender, tags
+  - Integrates: getPatients()
+
+src/pages/PatientDetail.tsx
+  - Patient detailed view
+  - Health records, goals, appointments tabs
+  - Route: /patient/{id}
+  - Integrates: getPatientById(), getHealthRecords(), getAppointments(), getGoals()
+
+src/pages/HealthAnalytics.tsx
+  - Cross-patient health analytics
+  - Route: /health-analytics
+  - Integrates: getPatients(), getBodyCompositionRecords(), getVitalSignsRecords()
+
+src/pages/Appointments.tsx
+  - Appointment calendar and management
+  - Route: /appointments
+  - Integrates: getAppointments(), saveAppointment()
+
+src/components/PatientCard.tsx
+  - Reusable patient card display
+
+src/components/PatientHealthDashboard.tsx
+  - Health metrics dashboard for patient
+
+src/components/BodyCompositionForm.tsx
+  - Body composition data entry
+  - Integrates: saveBodyCompositionRecord()
+
+src/components/VitalSignsForm.tsx
+  - Vital signs data entry
+  - Integrates: saveVitalSignsRecord()
+
+src/components/AppointmentForm.tsx
+  - Appointment scheduling
+  - Integrates: saveAppointment()
+
+src/components/GoalForm.tsx
+  - Goal creation/editing
+  - Integrates: saveGoal()
+
+src/components/InitialAssessmentForm.tsx
+  - Initial assessment entry
+  - Integrates: saveAssessment()
+
+src/components/DatabaseManagement.tsx
+  - Database operations (backup, restore, export)
+  - Integrates: backupDatabase(), restoreDatabase(), exportDatabaseJSON()
+
+src/components/TagGroupManagement.tsx
+  - Tag and group management
+  - Integrates: getTags(), saveTag(), deleteTag(), getGroups(), saveGroup()
+
+
+DATA STORAGE (PERSISTENT)
+=========================
+data/users.json
+  - User accounts with encrypted passwords
+  - Location: /data/users.json
+  - Format: [{id, username, password, fullName, email, role, isActive, createdAt, updatedAt}]
+
+LOCALSTORAGE KEYS (Web/Browser):
+  - hospital_crm_patients
+  - hospital_crm_health_records
+  - hospital_crm_body_composition
+  - hospital_crm_vital_signs
+  - hospital_crm_appointments
+  - hospital_crm_goals
+  - hospital_crm_assessments
+  - hospital_crm_tags
+  - hospital_crm_groups
+
+
+SCRIPTS & UTILITIES
+===================
+scripts/createSuperAdmin.js
+  - Interactive CLI for creating admin users
+  - Usage: npm run create-admin
+  - Stores in: /data/users.json
+  - Dependencies: bcryptjs, readline
+
+scripts/README.md
+  - Documentation for all scripts
+
+
+AUTHENTICATION
+==============
+src/lib/auth.ts
+  - Authentication utilities
+  - Password validation
+  - User login/logout logic
+
+src/contexts/AuthContext.tsx
+  - React context for authentication state
+
+
+CONFIGURATION & BUILD
+=====================
+package.json
+  - Project metadata
+  - Dependencies
+  - Build scripts
+  - npm run create-admin (existing)
+  - npm run seed-data (TO BE CREATED)
+
+vite.config.ts
+  - Vite build configuration
+
+tsconfig.json
+  - TypeScript configuration
+
+tailwind.config.ts
+  - Tailwind CSS configuration
+
+electron/main.js
+  - Electron main process entry point
+
+electron/preload.js
+  - Electron preload script (contextBridge configuration)
+  - Currently sets isElectron: false (uses localStorage)
+
+
+MOCKUP/SEED DATA LOCATION (RECOMMENDATIONS)
+============================================
+scripts/seedPatients.js (TO BE CREATED)
+  - Generate 5-10 mock patients
+  - Create health records
+  - Create appointments and goals
+  - Usage: npm run seed-data
+
+data/patients.json (TO BE CREATED)
+  - Persistent storage for seed data
+  - Referenced by seedPatients.js
+
+
+KEY INTEGRATION POINTS
+======================
+1. Patient creation flows: PatientForm.tsx -> savePatient() -> localStorage
+2. Patient display flows: PatientList.tsx -> getPatients() -> localStorage
+3. Health record entry: Various Forms -> save*Record() -> localStorage
+4. Analytics/Views: *Analytics.tsx -> get*Records() -> localStorage
+5. Tag/Group mgmt: TagGroupManagement.tsx -> save/deleteTag/Group() -> localStorage
+
+
+DEPENDENCY GRAPH (Storage-centric)
+==================================
+
+All Components & Pages
+         |
+         v
+src/lib/storage.ts (abstraction layer)
+         |
+    +----|----+
+    |        |
+    v        v
+localStorage   Electron API
+    |        |
+    +----|----+
+         |
+         v
+JSON Data Objects
+
+
+SEARCH PATTERNS
+===============
+Storage functions: grep "export const" /src/lib/storage.ts
+Patient operations: grep "Patient\|patient" /src/types/patient.ts
+Component usage: grep "import.*storage" /src/pages/*.tsx

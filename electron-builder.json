@@ -1,0 +1,45 @@
+{
+  "appId": "com.patientcrm.app",
+  "productName": "患者管理系統",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "public",
+      "to": "public",
+      "filter": ["**/*"]
+    }
+  ],
+  "mac": {
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.medical",
+    "icon": "build/icon.icns",
+    "artifactName": "${productName}-${version}-mac.${ext}"
+  },
+  "win": {
+    "target": ["nsis", "portable"],
+    "icon": "build/icon.ico",
+    "artifactName": "${productName}-${version}-win.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Office",
+    "icon": "build/icon.png",
+    "artifactName": "${productName}-${version}-linux.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "患者管理系統",
+    "installerLanguages": ["zh_TW", "en_US"]
+  }
+}
