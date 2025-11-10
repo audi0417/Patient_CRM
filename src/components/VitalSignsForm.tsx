@@ -13,6 +13,7 @@ import { saveVitalSignsRecord } from "@/lib/storage";
 import { VitalSignsRecord } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getTodayDateString } from "@/lib/utils";
 
 interface VitalSignsFormProps {
   patientId: string;
@@ -22,7 +23,7 @@ interface VitalSignsFormProps {
 const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayDateString(),
     bloodPressureSystolic: "",
     bloodPressureDiastolic: "",
     heartRate: "",

@@ -20,6 +20,7 @@ import { saveGoal } from "@/lib/storage";
 import { PatientGoal } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getTodayDateString } from "@/lib/utils";
 
 interface GoalFormProps {
   patientId: string;
@@ -35,7 +36,7 @@ const GoalForm = ({ patientId, onClose }: GoalFormProps) => {
     currentValue: "",
     targetValue: "",
     unit: "kg",
-    startDate: new Date().toISOString().split("T")[0],
+    startDate: getTodayDateString(),
     targetDate: "",
   });
 

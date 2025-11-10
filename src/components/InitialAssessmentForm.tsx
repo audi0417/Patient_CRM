@@ -19,6 +19,7 @@ import {
 import { saveAssessment } from "@/lib/storage";
 import { InitialAssessment } from "@/types/patient";
 import { toast } from "sonner";
+import { getTodayDateString } from "@/lib/utils";
 
 interface InitialAssessmentFormProps {
   patientId: string;
@@ -28,7 +29,7 @@ interface InitialAssessmentFormProps {
 
 const InitialAssessmentForm = ({ patientId, existingAssessment, onClose }: InitialAssessmentFormProps) => {
   const [formData, setFormData] = useState({
-    assessmentDate: existingAssessment?.assessmentDate || new Date().toISOString().split("T")[0],
+    assessmentDate: existingAssessment?.assessmentDate || getTodayDateString(),
     baselineWeight: existingAssessment?.baselineWeight?.toString() || "",
     baselineHeight: existingAssessment?.baselineHeight?.toString() || "",
     baselineBodyFat: existingAssessment?.baselineBodyFat?.toString() || "",

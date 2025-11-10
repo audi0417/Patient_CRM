@@ -20,6 +20,7 @@ import { saveBodyCompositionRecord } from "@/lib/storage";
 import { BodyCompositionRecord } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getTodayDateString } from "@/lib/utils";
 
 interface BodyCompositionFormProps {
   patientId: string;
@@ -47,7 +48,7 @@ const BodyCompositionForm = ({ patientId, onClose, existingRecord }: BodyComposi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<MetricType | "">("");
   const [formData, setFormData] = useState({
-    date: existingRecord?.date || new Date().toISOString().split("T")[0],
+    date: existingRecord?.date || getTodayDateString(),
     weight: existingRecord?.weight?.toString() || "",
     height: existingRecord?.height?.toString() || "",
     bodyFat: existingRecord?.bodyFat?.toString() || "",

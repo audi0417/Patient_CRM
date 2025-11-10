@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { saveAppointment, getPatients } from "@/lib/storage";
 import { Appointment, Patient } from "@/types/patient";
 import { toast } from "sonner";
-import { addDays, addWeeks, addMonths, addYears, isBefore } from "date-fns";
+import { addDays, addWeeks, addMonths, addYears, isBefore, format } from "date-fns";
 
 interface RecurringAppointmentFormProps {
   patientId?: string;
@@ -148,7 +148,7 @@ const RecurringAppointmentForm = ({
           const appointment: Appointment = {
             id: '', // Let backend generate ID
             patientId: formData.patientId,
-            date: dates[i].toISOString().split("T")[0],
+            date: format(dates[i], "yyyy-MM-dd"), // 使用 date-fns format 避免時區問題
             time: formData.time,
             type: formData.type,
             notes: formData.notes || undefined,

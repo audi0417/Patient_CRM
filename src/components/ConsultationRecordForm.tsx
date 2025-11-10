@@ -12,6 +12,7 @@ import {
 import { saveConsultationRecord } from "@/lib/storage";
 import { ConsultationRecord } from "@/types/patient";
 import { toast } from "sonner";
+import { getTodayDateString } from "@/lib/utils";
 
 interface ConsultationRecordFormProps {
   patientId: string;
@@ -23,7 +24,7 @@ const ConsultationRecordForm = ({ patientId, onClose, existingRecord }: Consulta
   const isEditMode = !!existingRecord;
 
   const [formData, setFormData] = useState({
-    date: existingRecord?.date || new Date().toISOString().split("T")[0],
+    date: existingRecord?.date || getTodayDateString(),
     notes: existingRecord?.notes || "",
   });
 

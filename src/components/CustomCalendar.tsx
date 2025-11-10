@@ -418,8 +418,8 @@ const CustomCalendar = ({
   const renderMonthCells = (monthToRender: Date) => {
     const monthStart = startOfMonth(monthToRender);
     const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart, { locale: zhTW });
-    const endDate = endOfWeek(monthEnd, { locale: zhTW });
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // 週日開始
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 }); // 週日開始
 
     const rows = [];
     let days = [];

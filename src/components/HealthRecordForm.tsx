@@ -13,6 +13,7 @@ import { saveHealthRecord } from "@/lib/storage";
 import { HealthRecord } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getTodayDateString } from "@/lib/utils";
 
 interface HealthRecordFormProps {
   patientId: string;
@@ -22,7 +23,7 @@ interface HealthRecordFormProps {
 const HealthRecordForm = ({ patientId, onClose }: HealthRecordFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayDateString(),
     weight: "",
     height: "",
     bodyFat: "",

@@ -18,7 +18,7 @@ import {
 
 /**
  * 動態取得 API Base URL
- * 支援 localhost、外部 IP、devtunnel 和雲部署
+ * 支援 localhost、外部 IP 和 devtunnel 存取
  */
 const getApiBaseUrl = (): string => {
   // 如果設定了環境變數，優先使用
@@ -26,15 +26,15 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
 
-  // 在開發環境中，使用相對路徑讓 Vite proxy 處理
   // 這樣可以支援 localhost、外部 IP 和 devtunnel
   if (import.meta.env.DEV) {
     return '/api';
   }
 
-  // 生產環境中，使用相對路徑（前端和後端在同一個應用上）
-  // 這適用於所有部署方式（本地、Zeabur、Docker 等）
-  return '/api';
+  // 生產環境中，根據當前 hostname 動態產生 API URL
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:3001/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();
