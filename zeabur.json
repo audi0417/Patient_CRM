@@ -1,0 +1,50 @@
+{
+  "services": {
+    "app": {
+      "build": {
+        "context": ".",
+        "dockerfile": "Dockerfile"
+      },
+      "ports": [
+        {
+          "port": 3001,
+          "expose": true
+        }
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3001"
+      },
+      "healthcheck": {
+        "test": ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health-check', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"],
+        "interval": 30,
+        "timeout": 3,
+        "retries": 3,
+        "start_period": 5
+      }
+    },
+    "postgres": {
+      "image": "postgres:15-alpine",
+      "env": {
+        "POSTGRES_DB": "patient_crm",
+        "POSTGRES_USER": "patient_user",
+        "POSTGRES_PASSWORD": "changeme123"
+      },
+      "ports": [
+        {
+          "port": 5432,
+          "expose": false
+        }
+      ],
+      "volumes": [
+        {
+          "mount": "/var/lib/postgresql/data",
+          "name": "postgres_data"
+        }
+      ]
+    }
+  },
+  "volumes": {
+    "postgres_data": {}
+  }
+}
