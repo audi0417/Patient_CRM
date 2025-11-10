@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json 需要包含在部署中（用於 npm ci）
 
 # Build outputs
 dist/
