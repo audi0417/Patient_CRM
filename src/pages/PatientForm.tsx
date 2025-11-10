@@ -106,7 +106,7 @@ const PatientForm = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8">
+      <div className="container max-w-[90vw] py-8">
         <Button
           variant="ghost"
           onClick={() => navigate("/")}

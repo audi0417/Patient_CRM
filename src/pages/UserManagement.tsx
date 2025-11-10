@@ -238,7 +238,7 @@ const UserManagement = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8">
+      <div className="container max-w-[90vw] py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">使用者管理</h1>

@@ -108,7 +108,7 @@ const PatientDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8">
+      <div className="container max-w-[90vw] py-8">
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" onClick={() => navigate("/")}>
             <ArrowLeft className="mr-2 h-4 w-4" />

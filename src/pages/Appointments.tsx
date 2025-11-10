@@ -25,7 +25,7 @@ const Appointments = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8 space-y-6">
+      <div className="container max-w-[90vw] py-8 space-y-6">
         {/* 頁面標題 */}
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">回診管理</h1>

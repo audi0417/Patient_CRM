@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Users, X } from "lucide-react";
+import { Plus, Search, Filter, Users, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,8 @@ const PatientList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,6 +67,17 @@ const PatientList = () => {
     });
   }, [patients, searchTerm, selectedGroup, genderFilter]);
 
+  // 分頁邏輯
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPatients = filteredPatients.slice(startIndex, endIndex);
+
+  // 當篩選條件改變時，重置回第一頁
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGroup, genderFilter]);
+
   const calculateAge = (birthDate: string) => {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -87,7 +100,7 @@ const PatientList = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8">
+      <div className="container max-w-[90vw] py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">患者管理</h1>
@@ -234,7 +247,7 @@ const PatientList = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPatients.map((patient) => {
+                  {paginatedPatients.map((patient) => {
                     return (
                       <TableRow
                         key={patient.id}
@@ -298,12 +311,50 @@ const PatientList = () => {
           </Card>
         )}
 
-        {/* 統計資訊 */}
+        {/* 分頁控制 */}
         {filteredPatients.length > 0 && (
-          <div className="mt-4 text-sm text-muted-foreground">
-            顯示 {filteredPatients.length} 位患者
-            {(searchTerm || selectedGroup !== "all" || genderFilter !== "all") &&
-              ` (共 ${patients.length} 位)`}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              顯示第 {startIndex + 1} - {Math.min(endIndex, filteredPatients.length)} 位患者，共 {filteredPatients.length} 位
+              {(searchTerm || selectedGroup !== "all" || genderFilter !== "all") &&
+                ` (全部患者 ${patients.length} 位)`}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[36px]"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

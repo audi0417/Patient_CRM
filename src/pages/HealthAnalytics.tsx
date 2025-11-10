@@ -192,7 +192,7 @@ const HealthAnalytics = () => {
   if (selectedPatient) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container py-8">
+        <div className="container max-w-[90vw] py-8">
           {/* 返回按鈕和個案資訊 */}
           <div className="mb-6">
             <Button
@@ -262,7 +262,7 @@ const HealthAnalytics = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-8">
+      <div className="container max-w-[90vw] py-8">
         {/* 頁面標題 */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">健康數據分析</h1>
