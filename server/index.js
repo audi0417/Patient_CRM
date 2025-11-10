@@ -32,6 +32,7 @@ const healthRoutes = require('./routes/health');
 const appointmentRoutes = require('./routes/appointments');
 const goalRoutes = require('./routes/goals');
 const consultationRoutes = require('./routes/consultations');
+const seedRoutes = require('./routes/seed');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -40,6 +41,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/consultations', consultationRoutes);
+app.use('/api/seed', seedRoutes);
 
 // ========================================
 // 健康檢查端點
