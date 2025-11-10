@@ -58,12 +58,7 @@ console.log('📁 前端文件位置:', distPath);
 app.use(express.static(distPath));
 
 // React Router 支援 - 所有非 API 請求重定向到 index.html
-app.get('*', (req, res) => {
-  // 排除 API 路由
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  
+app.get(/^(?!\/api).*/, (req, res) => {
   // 其他所有請求服務 index.html（用於 React Router）
   const indexPath = path.join(distPath, 'index.html');
   res.sendFile(indexPath, (err) => {
