@@ -57,6 +57,7 @@ const CustomCalendar = ({
   // 使用 ref 來立即檢查是否正在處理切換,避免 state 更新延遲
   const isProcessingRef = useRef(false);
   const lastTriggerTimeRef = useRef(0);
+  const dragCountRef = useRef(0); // 追蹤拖曳計數
 
   const handleDragOverEdge = (e: React.DragEvent) => {
     const now = Date.now();
@@ -87,7 +88,7 @@ const CustomCalendar = ({
     }
 
     // 獲取 Card 容器的位置
-    const cardElement = document.querySelector('[data-calendar-wrapper] .relative') as HTMLElement;
+    const cardElement = document.querySelector('[data-calendar-wrapper] > div') as HTMLElement;
     if (!cardElement) return;
 
     const cardRect = cardElement.getBoundingClientRect();
@@ -130,17 +131,15 @@ const CustomCalendar = ({
         });
         setTransitionDirection(null);
 
-        // 等待瀏覽器完成渲染
+        // 等待瀏覽器完成渲染 - 單層 RAF 足夠
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (container) {
-              container.style.transition = '';
-            }
-            setIsTransitioning(false);
-            setPendingTimeouts([]);
-            isProcessingRef.current = false;
-            // 不隱藏 isDragging，讓用戶可以繼續拖曳到其他月份
-          });
+          if (container) {
+            container.style.transition = '';
+          }
+          setIsTransitioning(false);
+          setPendingTimeouts([]);
+          isProcessingRef.current = false;
+          // 不隱藏 isDragging，讓用戶可以繼續拖曳到其他月份
         });
       }, 500);
 
@@ -176,17 +175,15 @@ const CustomCalendar = ({
         });
         setTransitionDirection(null);
 
-        // 等待瀏覽器完成渲染
+        // 等待瀏覽器完成渲染 - 單層 RAF 足夠
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (container) {
-              container.style.transition = '';
-            }
-            setIsTransitioning(false);
-            setPendingTimeouts([]);
-            isProcessingRef.current = false;
-            // 不隱藏 isDragging，讓用戶可以繼續拖曳到其他月份
-          });
+          if (container) {
+            container.style.transition = '';
+          }
+          setIsTransitioning(false);
+          setPendingTimeouts([]);
+          isProcessingRef.current = false;
+          // 不隱藏 isDragging，讓用戶可以繼續拖曳到其他月份
         });
       }, 500);
 
@@ -254,6 +251,26 @@ const CustomCalendar = ({
       }
     }
   }, [appointments]);
+
+  // 監控拖曳狀態，防止卡住
+  useEffect(() => {
+    if (!isDragging) return;
+
+    // 添加全局 drop 和 dragend 監聽器
+    const handleGlobalDragEnd = () => {
+      console.log("🔚 全局拖曳結束");
+      setIsDragging(false);
+      dragCountRef.current = 0;
+    };
+
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
+    };
+  }, [isDragging]);
 
   const getPatientName = (patientId: string) => {
     const patient = patients.find((p) => p.id === patientId);
@@ -325,6 +342,7 @@ const CustomCalendar = ({
               if (isTransitioning) return;
               setIsTransitioning(true);
               setTransitionDirection("right");
+              setLastMonthSwitch(Date.now());
               setTimeout(() => {
                 const container = document.querySelector('[data-calendar-container]') as HTMLElement;
                 if (container) {
@@ -351,6 +369,7 @@ const CustomCalendar = ({
               if (isTransitioning) return;
               setIsTransitioning(true);
               setTransitionDirection("left");
+              setLastMonthSwitch(Date.now());
               setTimeout(() => {
                 const container = document.querySelector('[data-calendar-container]') as HTMLElement;
                 if (container) {
@@ -486,10 +505,12 @@ const CustomCalendar = ({
                       e.dataTransfer!.effectAllowed = "move";
                       e.dataTransfer!.setData("appointmentId", apt.id);
                       e.currentTarget.style.opacity = "0.5";
+                      dragCountRef.current += 1;
                       setIsDragging(true);
                     }}
                     onDragEnd={(e) => {
                       e.currentTarget.style.opacity = "1";
+                      dragCountRef.current = 0;
                       setIsDragging(false);
                     }}
                     onDragOver={(e) => {
