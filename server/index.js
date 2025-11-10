@@ -22,7 +22,9 @@ app.use(express.urlencoded({ extended: true }));
 const db = require('./database/db');
 db.initialize();
 
-// Routes
+// ========================================
+// API 路由
+// ========================================
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const patientRoutes = require('./routes/patients');
@@ -39,12 +41,42 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/consultations', consultationRoutes);
 
+// ========================================
 // 健康檢查端點
+// ========================================
 app.get('/api/health-check', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ========================================
+// 前端靜態文件服務
+// ========================================
+const distPath = path.join(__dirname, '../dist');
+console.log('📁 前端文件位置:', distPath);
+
+// 提供靜態文件
+app.use(express.static(distPath));
+
+// React Router 支援 - 所有非 API 請求重定向到 index.html
+app.get('*', (req, res) => {
+  // 排除 API 路由
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
+  // 其他所有請求服務 index.html（用於 React Router）
+  const indexPath = path.join(distPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('發送 index.html 時出錯:', err);
+      res.status(404).json({ error: 'Page not found' });
+    }
+  });
+});
+
+// ========================================
 // 錯誤處理中介層
+// ========================================
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
@@ -55,19 +87,41 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 啟動伺服器 - 綁定到所有網路介面 (0.0.0.0)
-app.listen(PORT, '0.0.0.0', () => {
+// ========================================
+// 啟動伺服器
+// ========================================
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║   Patient CRM Backend Server          ║
+║   Patient CRM Backend & Frontend      ║
 ╠════════════════════════════════════════╣
-║   Status: Running                      ║
-║   Port: ${PORT}                         ║
-║   Local: http://localhost:${PORT}       ║
-║   Network: http://0.0.0.0:${PORT}       ║
-║   API: /api                            ║
+║   Status: ✓ Running                    ║
+║   Backend API Port: ${PORT}             ║
+║   Frontend URL: http://0.0.0.0:${PORT}  ║
+║   API Endpoint: /api                   ║
+║   Database: SQLite/PostgreSQL          ║
 ╚════════════════════════════════════════╝
   `);
+  console.log('📡 後端服務已啟動');
+  console.log('🌐 前端已就緒');
+  console.log('✓ 雙服務已啟動\n');
+});
+
+// 優雅關閉
+process.on('SIGTERM', () => {
+  console.log('收到 SIGTERM 信號，優雅關閉伺服器...');
+  server.close(() => {
+    console.log('伺服器已關閉');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('\n收到 SIGINT 信號，優雅關閉伺服器...');
+  server.close(() => {
+    console.log('伺服器已關閉');
+    process.exit(0);
+  });
 });
 
 module.exports = app;
