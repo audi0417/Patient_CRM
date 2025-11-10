@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const db = require('../database/db');
+const { db } = require('../database/db');
 const bcrypt = require('bcryptjs');
 
 // 產生隨機日期 (過去 N 天到今天)
@@ -49,7 +49,7 @@ router.post('/', async (req, res) => {
     const hashedPassword = await bcrypt.hash('password123', 10);
 
     const userStmt = db.prepare(`
-      INSERT OR IGNORE INTO users (id, username, password, role, name, email, created_at, updated_at)
+      INSERT OR IGNORE INTO users (id, username, password, role, name, email, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
     // 2. 插入患者資料
     console.log('📝 正在插入患者資料...');
     const patientStmt = db.prepare(`
-      INSERT INTO patients (id, name, gender, birth_date, phone, email, address, tags, emergency_contact, emergency_phone, created_at, updated_at)
+      INSERT INTO patients (id, name, gender, birthDate, phone, email, address, tags, emergencyContact, emergencyPhone, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -142,7 +142,7 @@ router.post('/', async (req, res) => {
     // 3. 插入預約資料
     console.log('📝 正在插入預約資料...');
     const appointmentStmt = db.prepare(`
-      INSERT INTO appointments (id, patient_id, date, time, type, notes, status, reminder_sent, is_recurring, created_at, updated_at)
+      INSERT INTO appointments (id, patientId, date, time, type, notes, status, reminderSent, isRecurring, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -179,8 +179,8 @@ router.post('/', async (req, res) => {
     // 4. 插入健康記錄
     console.log('📝 正在插入健康記錄...');
     const vitalSignsStmt = db.prepare(`
-      INSERT INTO vital_signs (id, patient_id, date, blood_pressure_systolic, blood_pressure_diastolic, heart_rate, temperature, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO vital_signs (id, patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     // 為每個患者生成 3-5 筆健康記錄
@@ -198,7 +198,6 @@ router.post('/', async (req, res) => {
           randomInRange(70, 90),
           randomInRange(60, 100),
           randomInRange(36.0, 37.5, 1),
-          now,
           now
         );
         results.health_records++;
