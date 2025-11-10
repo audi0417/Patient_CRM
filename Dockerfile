@@ -3,6 +3,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# 安裝構建依賴（用於編譯原生模組如 better-sqlite3）
+RUN apk add --no-cache python3 make g++
+
 # 複製 package 文件
 COPY package*.json ./
 
@@ -24,8 +27,12 @@ WORKDIR /app
 # 複製 package 文件
 COPY package*.json ./
 
-# 安裝生產依賴
-RUN npm ci --only=production
+# 安裝運行時依賴（包括 better-sqlite3 的依賴）
+# 先安裝構建工具用於編譯
+RUN apk add --no-cache python3 make g++ && \
+    npm ci --only=production && \
+    # 構建後清理（可選，以節省空間）
+    apk del python3 make g++
 
 # 從 builder 階段複製構建好的前端
 COPY --from=builder /app/dist ./dist
