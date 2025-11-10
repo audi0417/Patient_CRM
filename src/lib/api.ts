@@ -31,10 +31,8 @@ const getApiBaseUrl = (): string => {
     return '/api';
   }
 
-  // 生產環境中，根據當前 hostname 動態產生 API URL
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:3001/api`;
+  // 生產環境中，使用相同的主機名（Zeabur 會自動路由）
+  return '/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
