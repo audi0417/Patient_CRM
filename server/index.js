@@ -3,6 +3,18 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+// 偵錯：顯示資料庫環境變數
+console.log('🔍 環境變數檢查:');
+console.log('  NODE_ENV:', process.env.NODE_ENV);
+console.log('  DATABASE_TYPE:', process.env.DATABASE_TYPE);
+console.log('  DATABASE_HOST:', process.env.DATABASE_HOST);
+console.log('  DATABASE_PORT:', process.env.DATABASE_PORT);
+console.log('  DATABASE_NAME:', process.env.DATABASE_NAME);
+console.log('  DATABASE_USER:', process.env.DATABASE_USER);
+console.log('  DATABASE_PASSWORD:', process.env.DATABASE_PASSWORD ? '****' : 'undefined');
+console.log('  DATABASE_URL:', process.env.DATABASE_URL ? 'defined' : 'undefined');
+console.log('');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
