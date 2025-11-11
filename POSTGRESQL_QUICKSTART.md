@@ -295,10 +295,18 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO patient_user;
 
 ### Zeabur 部署失敗
 
-1. **檢查構建日誌**: 在 Zeabur Dashboard 查看構建輸出
-2. **環境變數**: 確認所有必要的環境變數都已設定
-3. **資料庫連線**: 確認 PostgreSQL 服務已啟動
-4. **健康檢查**: 檢查應用的健康檢查端點是否正常
+**常見錯誤 1: 找不到 vite 命令**
+```
+ERROR: sh: vite: not found
+```
+**解決方案**: Dockerfile 已修正為 `npm ci --include=dev`，重新提交並部署。
+
+**常見錯誤 2: 資料庫連線失敗**
+- 確認 PostgreSQL 服務已啟動
+- 檢查環境變數 `DATABASE_TYPE=postgres`
+- 使用 Zeabur 自動提供的 `DATABASE_URL`
+
+**詳細疑難排解**: 請參考 [Zeabur 疑難排解指南](./docs/ZEABUR_TROUBLESHOOTING.md)
 
 ### 資料表不存在
 

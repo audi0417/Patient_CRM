@@ -13,25 +13,35 @@ const PostgresAdapter = require('./postgres');
  * @returns {DatabaseAdapter}
  */
 function createDatabaseAdapter() {
-  const dbType = process.env.DATABASE_TYPE || 'sqlite';
+  // 自動偵測：如果有 Zeabur PostgreSQL 變數，自動使用 PostgreSQL
+  const hasZeaburPostgres = process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST;
+  const dbType = process.env.DATABASE_TYPE || (hasZeaburPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // PostgreSQL 配置
-    const databaseUrl = process.env.DATABASE_URL;
+    // PostgreSQL 配置 - 支援多種環境變數命名方式
+
+    // 優先順序 1: 標準 DATABASE_URL
+    let databaseUrl = process.env.DATABASE_URL;
+
+    // 優先順序 2: Zeabur 提供的連線字串
+    if (!databaseUrl) {
+      databaseUrl = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+    }
 
     if (databaseUrl) {
-      console.log('🔗 使用 DATABASE_URL 連接 PostgreSQL');
+      console.log('🔗 使用連線字串連接 PostgreSQL');
       return new PostgresAdapter(databaseUrl);
     } else {
-      // 使用分開的配置
+      // 優先順序 3: 使用分開的配置
       const config = {
-        host: process.env.DATABASE_HOST || 'localhost',
-        port: parseInt(process.env.DATABASE_PORT || '5432'),
-        database: process.env.DATABASE_NAME || 'patient_crm',
-        user: process.env.DATABASE_USER || 'postgres',
-        password: process.env.DATABASE_PASSWORD || ''
+        // 支援 Zeabur 的環境變數名稱
+        host: process.env.DATABASE_HOST || process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST || 'localhost',
+        port: parseInt(process.env.DATABASE_PORT || process.env.POSTGRES_PORT || '5432'),
+        database: process.env.DATABASE_NAME || process.env.POSTGRES_DATABASE || 'patient_crm',
+        user: process.env.DATABASE_USER || process.env.POSTGRES_USERNAME || 'postgres',
+        password: process.env.DATABASE_PASSWORD || process.env.POSTGRES_PASSWORD || ''
       };
 
       console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
