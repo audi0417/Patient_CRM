@@ -113,7 +113,7 @@ async function initialize() {
     }
 
     // 修復：已有超級管理員但缺組織 → 指派第一個組織
-    const orphanSuperAdmin = await dbAdapter.queryOne('SELECT id FROM users WHERE role = ? AND ("organizationId" IS NULL OR "organizationId" = "")', ['super_admin']);
+  const orphanSuperAdmin = await dbAdapter.queryOne('SELECT id FROM users WHERE role = ? AND ("organizationId" IS NULL OR "organizationId" = \'\')', ['super_admin']);
     if (orphanSuperAdmin && orphanSuperAdmin.id) {
       const anyOrg = await dbAdapter.queryOne('SELECT id FROM organizations ORDER BY createdAt ASC LIMIT 1');
       if (anyOrg) {
