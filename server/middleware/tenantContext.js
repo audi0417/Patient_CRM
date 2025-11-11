@@ -15,12 +15,13 @@
  */
 
 const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 
 /**
  * 租戶上下文中介層
  * 必須在 authenticateToken 之後使用
  */
-function requireTenant(req, res, next) {
+async function requireTenant(req, res, next) {
   if (!req.user) {
     return res.status(401).json({
       error: '未認證',
@@ -35,40 +36,48 @@ function requireTenant(req, res, next) {
     });
   }
 
-  // 驗證組織是否存在且啟用
-  const org = db.prepare(`
-    SELECT id, name, slug, plan, isActive, maxUsers, maxPatients
-    FROM organizations
-    WHERE id = ?
-  `).get(req.user.organizationId);
+  try {
+    // 驗證組織是否存在且啟用
+    const org = await queryOne(`
+      SELECT id, name, slug, plan, isActive, maxUsers, maxPatients
+      FROM organizations
+      WHERE id = ?
+    `, [req.user.organizationId]);
 
-  if (!org) {
-    return res.status(403).json({
-      error: '組織不存在',
-      code: 'ORGANIZATION_NOT_FOUND'
-    });
-  }
-
-  if (!org.isActive) {
-    return res.status(403).json({
-      error: '組織已停用，請聯繫管理員',
-      code: 'ORGANIZATION_INACTIVE'
-    });
-  }
-
-  // 注入租戶上下文
-  req.tenantContext = {
-    organizationId: org.id,
-    organizationName: org.name,
-    organizationSlug: org.slug,
-    plan: org.plan,
-    limits: {
-      maxUsers: org.maxUsers,
-      maxPatients: org.maxPatients
+    if (!org) {
+      return res.status(403).json({
+        error: '組織不存在',
+        code: 'ORGANIZATION_NOT_FOUND'
+      });
     }
-  };
 
-  next();
+    if (!org.isActive) {
+      return res.status(403).json({
+        error: '組織已停用，請聯繫管理員',
+        code: 'ORGANIZATION_INACTIVE'
+      });
+    }
+
+    // 注入租戶上下文
+    req.tenantContext = {
+      organizationId: org.id,
+      organizationName: org.name,
+      organizationSlug: org.slug,
+      plan: org.plan,
+      limits: {
+        maxUsers: org.maxUsers,
+        maxPatients: org.maxPatients
+      }
+    };
+
+    next();
+  } catch (error) {
+    console.error('RequireTenant error:', error);
+    return res.status(500).json({
+      error: '驗證租戶資訊失敗',
+      code: 'TENANT_VERIFICATION_ERROR'
+    });
+  }
 }
 
 /**
@@ -84,22 +93,22 @@ class TenantQuery {
    * 查詢單一記錄
    * @param {string} table - 表名
    * @param {string} id - 記錄 ID
-   * @returns {Object|null}
+   * @returns {Promise<Object|null>}
    */
-  findById(table, id) {
-    return db.prepare(`
+  async findById(table, id) {
+    return await queryOne(`
       SELECT * FROM ${table}
       WHERE id = ? AND organizationId = ?
-    `).get(id, this.organizationId);
+    `, [id, this.organizationId]);
   }
 
   /**
    * 查詢所有記錄
    * @param {string} table - 表名
    * @param {Object} options - 查詢選項 { orderBy, limit, offset }
-   * @returns {Array}
+   * @returns {Promise<Array>}
    */
-  findAll(table, options = {}) {
+  async findAll(table, options = {}) {
     let query = `SELECT * FROM ${table} WHERE organizationId = ?`;
     const params = [this.organizationId];
 
@@ -117,7 +126,7 @@ class TenantQuery {
       params.push(options.offset);
     }
 
-    return db.prepare(query).all(...params);
+    return await queryAll(query, params);
   }
 
   /**
@@ -125,9 +134,9 @@ class TenantQuery {
    * @param {string} table - 表名
    * @param {Object} where - WHERE 條件 (物件格式)
    * @param {Object} options - 查詢選項
-   * @returns {Array}
+   * @returns {Promise<Array>}
    */
-  findWhere(table, where = {}, options = {}) {
+  async findWhere(table, where = {}, options = {}) {
     const conditions = ['organizationId = ?'];
     const params = [this.organizationId];
 
@@ -148,16 +157,16 @@ class TenantQuery {
       params.push(options.limit);
     }
 
-    return db.prepare(query).all(...params);
+    return await queryAll(query, params);
   }
 
   /**
    * 計數
    * @param {string} table - 表名
    * @param {Object} where - WHERE 條件
-   * @returns {number}
+   * @returns {Promise<number>}
    */
-  count(table, where = {}) {
+  async count(table, where = {}) {
     const conditions = ['organizationId = ?'];
     const params = [this.organizationId];
 
@@ -167,16 +176,17 @@ class TenantQuery {
     });
 
     const query = `SELECT COUNT(*) as count FROM ${table} WHERE ${conditions.join(' AND ')}`;
-    return db.prepare(query).get(...params).count;
+    const result = await queryOne(query, params);
+    return result.count;
   }
 
   /**
    * 插入記錄（自動加入 organizationId）
    * @param {string} table - 表名
    * @param {Object} data - 資料物件
-   * @returns {Object} 插入的記錄
+   * @returns {Promise<Object>} 插入的記錄
    */
-  insert(table, data) {
+  async insert(table, data) {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
@@ -187,10 +197,10 @@ class TenantQuery {
     const placeholders = columns.map(() => '?').join(', ');
     const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
 
-    db.prepare(query).run(...values);
+    await execute(query, values);
 
     // 返回插入的記錄
-    return this.findById(table, data.id);
+    return await this.findById(table, data.id);
   }
 
   /**
@@ -198,9 +208,9 @@ class TenantQuery {
    * @param {string} table - 表名
    * @param {string} id - 記錄 ID
    * @param {Object} data - 更新資料
-   * @returns {Object|null} 更新後的記錄
+   * @returns {Promise<Object|null>} 更新後的記錄
    */
-  update(table, id, data) {
+  async update(table, id, data) {
     const setClause = Object.keys(data).map(key => `${key} = ?`).join(', ');
     const values = Object.values(data);
 
@@ -210,26 +220,26 @@ class TenantQuery {
       WHERE id = ? AND organizationId = ?
     `;
 
-    const result = db.prepare(query).run(...values, id, this.organizationId);
+    const result = await execute(query, [...values, id, this.organizationId]);
 
     if (result.changes === 0) {
       return null;
     }
 
-    return this.findById(table, id);
+    return await this.findById(table, id);
   }
 
   /**
    * 刪除記錄（自動驗證 organizationId）
    * @param {string} table - 表名
    * @param {string} id - 記錄 ID
-   * @returns {boolean} 是否成功刪除
+   * @returns {Promise<boolean>} 是否成功刪除
    */
-  delete(table, id) {
-    const result = db.prepare(`
+  async delete(table, id) {
+    const result = await execute(`
       DELETE FROM ${table}
       WHERE id = ? AND organizationId = ?
-    `).run(id, this.organizationId);
+    `, [id, this.organizationId]);
 
     return result.changes > 0;
   }
@@ -238,15 +248,15 @@ class TenantQuery {
    * 執行原始查詢（必須手動加入 organizationId 條件）
    * @param {string} query - SQL 查詢
    * @param {Array} params - 參數
-   * @returns {Array|Object}
+   * @returns {Promise<Array|Object>}
    */
-  raw(query, params = []) {
+  async raw(query, params = []) {
     // 安全檢查：確保查詢包含 organizationId 過濾
     if (!query.toLowerCase().includes('organizationid')) {
       throw new Error('Raw query must include organizationId filter for tenant isolation');
     }
 
-    return db.prepare(query).all(...params);
+    return await queryAll(query, params);
   }
 }
 
@@ -291,12 +301,12 @@ function checkTenantQuota(resourceType) {
 
       switch (resourceType) {
         case 'users':
-          currentCount = query.count('users', { isActive: 1 });
+          currentCount = await query.count('users', { isActive: 1 });
           maxLimit = limits.maxUsers;
           break;
 
         case 'patients':
-          currentCount = query.count('patients');
+          currentCount = await query.count('patients');
           maxLimit = limits.maxPatients;
           break;
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database/db');
+const { queryAll } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireTenant, injectTenantQuery } = require('../middleware/tenantContext');
 
@@ -10,7 +10,7 @@ router.use(requireTenant);
 router.use(injectTenantQuery);
 
 // 獲取預約（自動過濾組織）
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { patientId, startDate, endDate } = req.query;
     const { organizationId } = req.tenantContext;
@@ -36,7 +36,7 @@ router.get('/', (req, res) => {
 
     query += ' ORDER BY date ASC, time ASC';
 
-    const appointments = db.prepare(query).all(...params);
+    const appointments = await queryAll(query, params);
     // Convert INTEGER to boolean for frontend
     const formatted = appointments.map(apt => ({
       ...apt,
@@ -51,7 +51,7 @@ router.get('/', (req, res) => {
 });
 
 // 創建預約（自動關聯組織並驗證患者權限）
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       patientId,
@@ -69,7 +69,7 @@ router.post('/', (req, res) => {
     } = req.body;
 
     // 驗證患者是否屬於同一組織
-    const patient = req.tenantQuery.findById('patients', patientId);
+    const patient = await req.tenantQuery.findById('patients', patientId);
     if (!patient) {
       return res.status(400).json({ error: '患者不存在或無權訪問' });
     }
@@ -95,7 +95,7 @@ router.post('/', (req, res) => {
       updatedAt: now
     };
 
-    const newAppointment = req.tenantQuery.insert('appointments', data);
+    const newAppointment = await req.tenantQuery.insert('appointments', data);
     // Convert INTEGER to boolean for frontend
     const formatted = {
       ...newAppointment,
@@ -110,7 +110,7 @@ router.post('/', (req, res) => {
 });
 
 // 更新預約（自動驗證組織權限）
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const {
       date,
@@ -142,7 +142,7 @@ router.put('/:id', (req, res) => {
       updatedAt: now
     };
 
-    const updatedAppointment = req.tenantQuery.update('appointments', req.params.id, data);
+    const updatedAppointment = await req.tenantQuery.update('appointments', req.params.id, data);
 
     if (!updatedAppointment) {
       return res.status(404).json({ error: '預約不存在或無權訪問' });
@@ -162,9 +162,9 @@ router.put('/:id', (req, res) => {
 });
 
 // 刪除預約（自動驗證組織權限）
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const success = req.tenantQuery.delete('appointments', req.params.id);
+    const success = await req.tenantQuery.delete('appointments', req.params.id);
 
     if (!success) {
       return res.status(404).json({ error: '預約不存在或無權訪問' });

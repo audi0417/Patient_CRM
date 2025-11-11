@@ -20,44 +20,55 @@ if (!['up', 'down'].includes(direction)) {
   process.exit(1);
 }
 
-// 載入遷移文件
-const migrationsDir = path.join(__dirname, 'migrations');
+// 主執行函數
+async function runMigrations() {
+  // 載入遷移文件
+  const migrationsDir = path.join(__dirname, 'migrations');
 
-console.log(`📦 載入遷移文件從: ${migrationsDir}`);
+  console.log(`📦 載入遷移文件從: ${migrationsDir}`);
 
-try {
-  const files = fs.readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.js'))
-    .sort();
+  try {
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.js'))
+      .sort();
 
-  if (files.length === 0) {
-    console.log('ℹ️  沒有找到遷移文件');
-    process.exit(0);
-  }
-
-  console.log(`找到 ${files.length} 個遷移文件`);
-  console.log('');
-
-  // 執行遷移
-  for (const file of files) {
-    const migrationPath = path.join(migrationsDir, file);
-    console.log(`執行: ${file}`);
-
-    const migration = require(migrationPath);
-
-    if (typeof migration[direction] !== 'function') {
-      console.error(`❌ 遷移文件 ${file} 沒有 ${direction} 函數`);
-      continue;
+    if (files.length === 0) {
+      console.log('ℹ️  沒有找到遷移文件');
+      process.exit(0);
     }
 
-    migration[direction]();
-    console.log(`✅ ${file} ${direction === 'up' ? '遷移' : '回滾'}完成`);
+    console.log(`找到 ${files.length} 個遷移文件`);
     console.log('');
+
+    // 執行遷移
+    for (const file of files) {
+      const migrationPath = path.join(migrationsDir, file);
+      console.log(`執行: ${file}`);
+
+      const migration = require(migrationPath);
+
+      if (typeof migration[direction] !== 'function') {
+        console.error(`❌ 遷移文件 ${file} 沒有 ${direction} 函數`);
+        continue;
+      }
+
+      // 執行遷移（支援異步）
+      await migration[direction]();
+      console.log(`✅ ${file} ${direction === 'up' ? '遷移' : '回滾'}完成`);
+      console.log('');
+    }
+
+    console.log('🎉 所有遷移執行完成！');
+    process.exit(0);
+
+  } catch (error) {
+    console.error('❌ 遷移失敗:', error);
+    process.exit(1);
   }
-
-  console.log('🎉 所有遷移執行完成！');
-
-} catch (error) {
-  console.error('❌ 遷移失敗:', error);
-  process.exit(1);
 }
+
+// 執行遷移
+runMigrations().catch(error => {
+  console.error('❌ 執行遷移時發生錯誤:', error);
+  process.exit(1);
+});

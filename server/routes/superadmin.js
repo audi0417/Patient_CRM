@@ -14,6 +14,7 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin } = require('../middleware/tenantContext');
 
@@ -27,83 +28,107 @@ router.use(requireSuperAdmin);
  * GET /api/superadmin/dashboard
  * 系統總覽儀表板
  */
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', async (req, res) => {
   try {
     // 1. 組織統計
+    const orgTotal = await queryOne('SELECT COUNT(*) as count FROM organizations');
+    const orgActive = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE isActive = 1');
+    const orgInactive = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE isActive = 0');
+    const orgBasic = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['basic']);
+    const orgProfessional = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['professional']);
+    const orgEnterprise = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['enterprise']);
+
     const orgStats = {
-      total: db.prepare('SELECT COUNT(*) as count FROM organizations').get().count,
-      active: db.prepare('SELECT COUNT(*) as count FROM organizations WHERE isActive = 1').get().count,
-      inactive: db.prepare('SELECT COUNT(*) as count FROM organizations WHERE isActive = 0').get().count,
+      total: orgTotal.count,
+      active: orgActive.count,
+      inactive: orgInactive.count,
       byPlan: {
-        basic: db.prepare('SELECT COUNT(*) as count FROM organizations WHERE plan = ?').get('basic').count,
-        professional: db.prepare('SELECT COUNT(*) as count FROM organizations WHERE plan = ?').get('professional').count,
-        enterprise: db.prepare('SELECT COUNT(*) as count FROM organizations WHERE plan = ?').get('enterprise').count
+        basic: orgBasic.count,
+        professional: orgProfessional.count,
+        enterprise: orgEnterprise.count
       }
     };
 
     // 2. 用戶統計
+    const userTotal = await queryOne('SELECT COUNT(*) as count FROM users WHERE role != ?', ['super_admin']);
+    const userActive = await queryOne('SELECT COUNT(*) as count FROM users WHERE isActive = 1 AND role != ?', ['super_admin']);
+    const userAdmins = await queryOne('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
+    const userRegular = await queryOne('SELECT COUNT(*) as count FROM users WHERE role = ?', ['user']);
+
     const userStats = {
-      total: db.prepare('SELECT COUNT(*) as count FROM users WHERE role != ?').get('super_admin').count,
-      active: db.prepare('SELECT COUNT(*) as count FROM users WHERE isActive = 1 AND role != ?').get('super_admin').count,
-      admins: db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('admin').count,
-      regularUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('user').count
+      total: userTotal.count,
+      active: userActive.count,
+      admins: userAdmins.count,
+      regularUsers: userRegular.count
     };
 
     // 3. 患者統計
+    const patientTotal = await queryOne('SELECT COUNT(*) as count FROM patients');
+    const patientThisMonth = await queryOne(`
+      SELECT COUNT(*) as count FROM patients
+      WHERE date(createdAt) >= date('now', 'start of month')
+    `);
+    const patientThisWeek = await queryOne(`
+      SELECT COUNT(*) as count FROM patients
+      WHERE date(createdAt) >= date('now', 'weekday 0', '-7 days')
+    `);
+
     const patientStats = {
-      total: db.prepare('SELECT COUNT(*) as count FROM patients').get().count,
-      thisMonth: db.prepare(`
-        SELECT COUNT(*) as count FROM patients
-        WHERE date(createdAt) >= date('now', 'start of month')
-      `).get().count,
-      thisWeek: db.prepare(`
-        SELECT COUNT(*) as count FROM patients
-        WHERE date(createdAt) >= date('now', 'weekday 0', '-7 days')
-      `).get().count
+      total: patientTotal.count,
+      thisMonth: patientThisMonth.count,
+      thisWeek: patientThisWeek.count
     };
 
     // 4. 預約統計
+    const appointmentTotal = await queryOne('SELECT COUNT(*) as count FROM appointments');
+    const appointmentScheduled = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE status = ?', ['scheduled']);
+    const appointmentCompleted = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE status = ?', ['completed']);
+    const appointmentCancelled = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE status = ?', ['cancelled']);
+    const appointmentThisMonth = await queryOne(`
+      SELECT COUNT(*) as count FROM appointments
+      WHERE date(date) >= date('now', 'start of month')
+    `);
+
     const appointmentStats = {
-      total: db.prepare('SELECT COUNT(*) as count FROM appointments').get().count,
-      scheduled: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE status = ?').get('scheduled').count,
-      completed: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE status = ?').get('completed').count,
-      cancelled: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE status = ?').get('cancelled').count,
-      thisMonth: db.prepare(`
-        SELECT COUNT(*) as count FROM appointments
-        WHERE date(date) >= date('now', 'start of month')
-      `).get().count
+      total: appointmentTotal.count,
+      scheduled: appointmentScheduled.count,
+      completed: appointmentCompleted.count,
+      cancelled: appointmentCancelled.count,
+      thisMonth: appointmentThisMonth.count
     };
 
     // 5. 系統健康指標
-    const dbInfo = db.prepare('PRAGMA database_list').all();
-    const tableCount = db.prepare("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'").get().count;
+    const dbInfo = await queryAll('PRAGMA database_list');
+    const tableCountResult = await queryOne("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'");
 
     const systemHealth = {
       database: {
         size: dbInfo[0] ? 'Connected' : 'Unknown',
-        tables: tableCount
+        tables: tableCountResult.count
       },
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage()
     };
 
     // 6. 最近活動（最近 10 個新增的組織）
-    const recentOrganizations = db.prepare(`
+    const recentOrganizations = await queryAll(`
       SELECT id, name, slug, plan, createdAt
       FROM organizations
       ORDER BY createdAt DESC
       LIMIT 10
-    `).all();
+    `);
 
     // 7. 配額使用率警告（接近上限的組織）
-    const quotaWarnings = db.prepare(`
+    const quotaData = await queryAll(`
       SELECT
         o.id, o.name, o.slug, o.plan, o.maxUsers, o.maxPatients,
         (SELECT COUNT(*) FROM users WHERE organizationId = o.id AND isActive = 1) as currentUsers,
         (SELECT COUNT(*) FROM patients WHERE organizationId = o.id) as currentPatients
       FROM organizations o
       WHERE o.isActive = 1
-    `).all().map(org => {
+    `);
+
+    const quotaWarnings = quotaData.map(org => {
       const userUsage = (org.currentUsers / org.maxUsers) * 100;
       const patientUsage = (org.currentPatients / org.maxPatients) * 100;
 
@@ -122,20 +147,20 @@ router.get('/dashboard', (req, res) => {
       month.setMonth(month.getMonth() - i);
       const monthStr = month.toISOString().substring(0, 7); // YYYY-MM
 
-      const newOrgs = db.prepare(`
+      const newOrgs = await queryOne(`
         SELECT COUNT(*) as count FROM organizations
         WHERE strftime('%Y-%m', createdAt) = ?
-      `).get(monthStr).count;
+      `, [monthStr]);
 
-      const newPatients = db.prepare(`
+      const newPatients = await queryOne(`
         SELECT COUNT(*) as count FROM patients
         WHERE strftime('%Y-%m', createdAt) = ?
-      `).get(monthStr).count;
+      `, [monthStr]);
 
       monthlyGrowth.push({
         month: monthStr,
-        organizations: newOrgs,
-        patients: newPatients
+        organizations: newOrgs.count,
+        patients: newPatients.count
       });
     }
 
@@ -163,7 +188,7 @@ router.get('/dashboard', (req, res) => {
  * GET /api/superadmin/organizations/analytics
  * 所有組織的詳細使用量分析
  */
-router.get('/organizations/analytics', (req, res) => {
+router.get('/organizations/analytics', async (req, res) => {
   try {
     const { plan, sortBy = 'patients', order = 'DESC' } = req.query;
 
@@ -175,7 +200,7 @@ router.get('/organizations/analytics', (req, res) => {
       params.push(plan);
     }
 
-    const organizations = db.prepare(`
+    const organizations = await queryAll(`
       SELECT
         o.id, o.name, o.slug, o.plan, o.isActive,
         o.maxUsers, o.maxPatients,
@@ -183,42 +208,42 @@ router.get('/organizations/analytics', (req, res) => {
         o.createdAt
       FROM organizations o
       ${whereClause}
-    `).all(...params);
+    `, params);
 
     // 為每個組織計算使用量
-    const analytics = organizations.map(org => {
+    const analytics = await Promise.all(organizations.map(async (org) => {
       // 用戶統計
-      const users = db.prepare(`
+      const users = await queryOne(`
         SELECT COUNT(*) as total,
                SUM(CASE WHEN isActive = 1 THEN 1 ELSE 0 END) as active,
                SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins
         FROM users WHERE organizationId = ?
-      `).get(org.id);
+      `, [org.id]);
 
       // 患者統計
-      const patients = db.prepare(`
+      const patients = await queryOne(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN date(createdAt) >= date('now', 'start of month') THEN 1 END) as thisMonth,
           COUNT(CASE WHEN date(createdAt) >= date('now', '-30 days') THEN 1 END) as last30Days
         FROM patients WHERE organizationId = ?
-      `).get(org.id);
+      `, [org.id]);
 
       // 預約統計
-      const appointments = db.prepare(`
+      const appointments = await queryOne(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as scheduled,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
           COUNT(CASE WHEN date(date) >= date('now', 'start of month') THEN 1 END) as thisMonth
         FROM appointments WHERE organizationId = ?
-      `).get(org.id);
+      `, [org.id]);
 
       // 最後活動時間
-      const lastActivity = db.prepare(`
+      const lastActivity = await queryOne(`
         SELECT MAX(lastLogin) as lastLogin FROM users
         WHERE organizationId = ? AND lastLogin IS NOT NULL
-      `).get(org.id);
+      `, [org.id]);
 
       // 計算使用率
       const userUsagePercent = Math.round((users.active / org.maxUsers) * 100);
@@ -286,7 +311,7 @@ router.get('/organizations/analytics', (req, res) => {
             new Date(org.subscriptionEndDate).getTime() - Date.now() < (7 * 24 * 60 * 60 * 1000)
         }
       };
-    });
+    }));
 
     // 排序
     const validSortFields = ['patients', 'users', 'appointments', 'healthScore'];
@@ -333,7 +358,7 @@ router.get('/organizations/analytics', (req, res) => {
  * GET /api/superadmin/settings
  * 獲取系統設定
  */
-router.get('/settings', (req, res) => {
+router.get('/settings', async (req, res) => {
   try {
     // 系統設定可以存在專門的設定表，這裡示範使用簡單的鍵值對
     // 實際應用中可以建立 system_settings 表
@@ -396,7 +421,7 @@ router.get('/settings', (req, res) => {
  * PUT /api/superadmin/settings
  * 更新系統設定（預留功能）
  */
-router.put('/settings', (req, res) => {
+router.put('/settings', async (req, res) => {
   try {
     // 這裡可以實作系統設定更新邏輯
     // 例如更新方案價格、功能限制等
@@ -417,12 +442,12 @@ router.put('/settings', (req, res) => {
  * GET /api/superadmin/activity-log
  * 系統活動日誌（最近登入、新增組織等）
  */
-router.get('/activity-log', (req, res) => {
+router.get('/activity-log', async (req, res) => {
   try {
     const { limit = 50, type } = req.query;
 
     // 最近登入的用戶
-    const recentLogins = db.prepare(`
+    const recentLogins = await queryAll(`
       SELECT
         u.id, u.username, u.name, u.role, u.lastLogin,
         o.name as organizationName
@@ -431,18 +456,18 @@ router.get('/activity-log', (req, res) => {
       WHERE u.lastLogin IS NOT NULL AND u.role != 'super_admin'
       ORDER BY u.lastLogin DESC
       LIMIT ?
-    `).all(parseInt(limit));
+    `, [parseInt(limit)]);
 
     // 最近新增的組織
-    const recentOrganizations = db.prepare(`
+    const recentOrganizations = await queryAll(`
       SELECT id, name, slug, plan, createdAt
       FROM organizations
       ORDER BY createdAt DESC
       LIMIT ?
-    `).all(parseInt(limit));
+    `, [parseInt(limit)]);
 
     // 最近新增的患者
-    const recentPatients = db.prepare(`
+    const recentPatients = await queryAll(`
       SELECT
         p.id, p.name, p.createdAt,
         o.name as organizationName
@@ -450,7 +475,7 @@ router.get('/activity-log', (req, res) => {
       LEFT JOIN organizations o ON p.organizationId = o.id
       ORDER BY p.createdAt DESC
       LIMIT ?
-    `).all(parseInt(limit));
+    `, [parseInt(limit)]);
 
     res.json({
       recentLogins,
@@ -471,7 +496,7 @@ router.get('/activity-log', (req, res) => {
  * GET /api/superadmin/revenue
  * 收入和訂閱統計（基於訂閱方案）
  */
-router.get('/revenue', (req, res) => {
+router.get('/revenue', async (req, res) => {
   try {
     const planPrices = {
       basic: 99,
@@ -480,12 +505,12 @@ router.get('/revenue', (req, res) => {
     };
 
     // 按方案統計組織數量
-    const orgsByPlan = db.prepare(`
+    const orgsByPlan = await queryAll(`
       SELECT plan, COUNT(*) as count
       FROM organizations
       WHERE isActive = 1
       GROUP BY plan
-    `).all();
+    `);
 
     // 計算月收入
     const monthlyRevenue = orgsByPlan.reduce((sum, item) => {

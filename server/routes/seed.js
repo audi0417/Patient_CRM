@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const bcrypt = require('bcryptjs');
 
 // 產生隨機日期 (過去 N 天到今天)
@@ -52,11 +52,6 @@ router.post('/', async (req, res) => {
     console.log('📝 正在插入測試用戶...');
     const hashedPassword = await bcrypt.hash('password123', 10);
 
-    const userStmt = db.prepare(`
-      INSERT OR IGNORE INTO users (id, username, password, role, name, email, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
     const testUsers = [
       {
         id: generateId('user'),
@@ -85,16 +80,16 @@ router.post('/', async (req, res) => {
     ];
 
     for (const user of testUsers) {
-      userStmt.run(user.id, user.username, user.password, user.role, user.name, user.email, now, now);
+      await execute(
+        `INSERT OR IGNORE INTO users (id, username, password, role, name, email, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user.id, user.username, user.password, user.role, user.name, user.email, now, now]
+      );
       results.users++;
     }
 
     // 2. 插入患者資料 (20位)
     console.log('📝 正在插入患者資料...');
-    const patientStmt = db.prepare(`
-      INSERT INTO patients (id, name, gender, birthDate, phone, email, address, tags, emergencyContact, emergencyPhone, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
 
     const patients = [
       {
@@ -223,29 +218,29 @@ router.post('/', async (req, res) => {
     for (const patient of patients) {
       const patientId = generateId('patient');
       patientIds.push(patientId);
-      patientStmt.run(
-        patientId,
-        patient.name,
-        patient.gender,
-        patient.birthDate,
-        patient.phone,
-        patient.email,
-        patient.address,
-        patient.tags,
-        patient.emergencyContact,
-        patient.emergencyPhone,
-        now,
-        now
+      await execute(
+        `INSERT INTO patients (id, name, gender, birthDate, phone, email, address, tags, emergencyContact, emergencyPhone, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          patientId,
+          patient.name,
+          patient.gender,
+          patient.birthDate,
+          patient.phone,
+          patient.email,
+          patient.address,
+          patient.tags,
+          patient.emergencyContact,
+          patient.emergencyPhone,
+          now,
+          now
+        ]
       );
       results.patients++;
     }
 
     // 3. 插入預約資料 (每位患者 3-8 筆)
     console.log('📅 正在插入預約資料...');
-    const appointmentStmt = db.prepare(`
-      INSERT INTO appointments (id, patientId, date, time, type, notes, status, reminderSent, isRecurring, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
 
     const appointmentTypes = ['初診', '複診', '定期檢查', '營養諮詢', '運動指導', '健康評估'];
 
@@ -266,18 +261,22 @@ router.post('/', async (req, res) => {
         const type = appointmentTypes[randomInRange(0, appointmentTypes.length)];
         const status = daysOffset < 0 ? 'completed' : 'scheduled';
 
-        appointmentStmt.run(
-          appointmentId,
-          patientId,
-          appointmentDate,
-          time,
-          type,
-          `${type}相關事項`,
-          status,
-          0, // reminderSent
-          0, // isRecurring
-          now,
-          now
+        await execute(
+          `INSERT INTO appointments (id, patientId, date, time, type, notes, status, reminderSent, isRecurring, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            appointmentId,
+            patientId,
+            appointmentDate,
+            time,
+            type,
+            `${type}相關事項`,
+            status,
+            0, // reminderSent
+            0, // isRecurring
+            now,
+            now
+          ]
         );
         results.appointments++;
       }
@@ -285,10 +284,6 @@ router.post('/', async (req, res) => {
 
     // 4. 插入生命徵象記錄 (每位患者 6-12 筆)
     console.log('❤️ 正在插入生命徵象記錄...');
-    const vitalSignsStmt = db.prepare(`
-      INSERT INTO vital_signs (id, patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
 
     for (const patientId of patientIds) {
       const numRecords = randomInRange(6, 12);
@@ -306,19 +301,23 @@ router.post('/', async (req, res) => {
         const oxygenSaturation = randomInRange(95, 100);
         const bloodGlucose = randomInRange(80, 120);
 
-        vitalSignsStmt.run(
-          recordId,
-          patientId,
-          date,
-          systolic,
-          diastolic,
-          heartRate,
-          temperature,
-          respiratoryRate,
-          oxygenSaturation,
-          bloodGlucose,
-          '',
-          now
+        await execute(
+          `INSERT INTO vital_signs (id, patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            recordId,
+            patientId,
+            date,
+            systolic,
+            diastolic,
+            heartRate,
+            temperature,
+            respiratoryRate,
+            oxygenSaturation,
+            bloodGlucose,
+            '',
+            now
+          ]
         );
         results.vital_signs++;
       }
@@ -326,10 +325,6 @@ router.post('/', async (req, res) => {
 
     // 5. 插入身體組成記錄 (每位患者 8-15 筆)
     console.log('🏋️ 正在插入身體組成記錄...');
-    const bodyCompositionStmt = db.prepare(`
-      INSERT INTO body_composition (id, patientId, date, weight, height, bmi, bodyFat, muscleMass, visceralFat, boneMass, bodyWater, bmr, notes, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
 
     for (const patientId of patientIds) {
       const numRecords = randomInRange(8, 15);
@@ -353,21 +348,25 @@ router.post('/', async (req, res) => {
         const bodyWater = randomInRange(50, 65, 1);
         const bmr = Math.floor(weight * randomInRange(20, 25));
 
-        bodyCompositionStmt.run(
-          recordId,
-          patientId,
-          date,
-          weight,
-          height,
-          bmi,
-          bodyFat,
-          muscleMass,
-          visceralFat,
-          boneMass,
-          bodyWater,
-          bmr,
-          i === 0 ? '初次評估' : (i === numRecords - 1 ? '最新記錄' : ''),
-          now
+        await execute(
+          `INSERT INTO body_composition (id, patientId, date, weight, height, bmi, bodyFat, muscleMass, visceralFat, boneMass, bodyWater, bmr, notes, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            recordId,
+            patientId,
+            date,
+            weight,
+            height,
+            bmi,
+            bodyFat,
+            muscleMass,
+            visceralFat,
+            boneMass,
+            bodyWater,
+            bmr,
+            i === 0 ? '初次評估' : (i === numRecords - 1 ? '最新記錄' : ''),
+            now
+          ]
         );
         results.body_composition++;
       }
@@ -375,10 +374,6 @@ router.post('/', async (req, res) => {
 
     // 6. 插入健康目標 (每位患者 1-3 個)
     console.log('🎯 正在插入健康目標...');
-    const goalStmt = db.prepare(`
-      INSERT INTO goals (id, patientId, category, title, description, currentValue, targetValue, unit, startDate, targetDate, status, progress, milestones, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
 
     const goalTypes = [
       { category: '體重管理', title: '減重目標', description: '達到理想體重', targetValue: 70, unit: 'kg' },
@@ -403,22 +398,26 @@ router.post('/', async (req, res) => {
         const progress = Math.min(100, Math.max(0, randomInRange(10, 80)));
         const status = progress === 100 ? 'completed' : 'active';
 
-        goalStmt.run(
-          goalId,
-          patientId,
-          goal.category,
-          goal.title,
-          goal.description,
-          currentValue,
-          goal.targetValue,
-          goal.unit,
-          startDate,
-          targetDate.toISOString().split('T')[0],
-          status,
-          progress,
-          null, // milestones
-          now,
-          now
+        await execute(
+          `INSERT INTO goals (id, patientId, category, title, description, currentValue, targetValue, unit, startDate, targetDate, status, progress, milestones, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            goalId,
+            patientId,
+            goal.category,
+            goal.title,
+            goal.description,
+            currentValue,
+            goal.targetValue,
+            goal.unit,
+            startDate,
+            targetDate.toISOString().split('T')[0],
+            status,
+            progress,
+            null, // milestones
+            now,
+            now
+          ]
         );
         results.goals++;
       }
@@ -444,13 +443,20 @@ router.post('/', async (req, res) => {
 // GET /api/seed/status - 檢查數據庫狀態
 router.get('/status', async (req, res) => {
   try {
+    const usersCount = await queryOne('SELECT COUNT(*) as count FROM users');
+    const patientsCount = await queryOne('SELECT COUNT(*) as count FROM patients');
+    const appointmentsCount = await queryOne('SELECT COUNT(*) as count FROM appointments');
+    const vitalSignsCount = await queryOne('SELECT COUNT(*) as count FROM vital_signs');
+    const bodyCompositionCount = await queryOne('SELECT COUNT(*) as count FROM body_composition');
+    const goalsCount = await queryOne('SELECT COUNT(*) as count FROM goals');
+
     const stats = {
-      users: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
-      patients: db.prepare('SELECT COUNT(*) as count FROM patients').get().count,
-      appointments: db.prepare('SELECT COUNT(*) as count FROM appointments').get().count,
-      vital_signs: db.prepare('SELECT COUNT(*) as count FROM vital_signs').get().count,
-      body_composition: db.prepare('SELECT COUNT(*) as count FROM body_composition').get().count,
-      goals: db.prepare('SELECT COUNT(*) as count FROM goals').get().count
+      users: usersCount.count,
+      patients: patientsCount.count,
+      appointments: appointmentsCount.count,
+      vital_signs: vitalSignsCount.count,
+      body_composition: bodyCompositionCount.count,
+      goals: goalsCount.count
     };
 
     res.json({
@@ -475,12 +481,12 @@ router.delete('/', async (req, res) => {
     }
 
     // 清空所有表格
-    db.prepare('DELETE FROM goals').run();
-    db.prepare('DELETE FROM body_composition').run();
-    db.prepare('DELETE FROM vital_signs').run();
-    db.prepare('DELETE FROM appointments').run();
-    db.prepare('DELETE FROM patients').run();
-    db.prepare('DELETE FROM users WHERE username != "admin"').run(); // 保留 admin
+    await execute('DELETE FROM goals');
+    await execute('DELETE FROM body_composition');
+    await execute('DELETE FROM vital_signs');
+    await execute('DELETE FROM appointments');
+    await execute('DELETE FROM patients');
+    await execute('DELETE FROM users WHERE username != "admin"'); // 保留 admin
 
     res.json({
       success: true,

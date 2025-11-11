@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
 // 獲取健康目標
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { patientId } = req.query;
     let query = 'SELECT * FROM goals';
@@ -19,7 +19,7 @@ router.get('/', (req, res) => {
 
     query += ' ORDER BY createdAt DESC';
 
-    const goals = db.prepare(query).all(...params);
+    const goals = await queryAll(query, params);
 
     // 解析 milestones JSON
     const parsedGoals = goals.map(g => ({
@@ -35,9 +35,9 @@ router.get('/', (req, res) => {
 });
 
 // 獲取單個目標
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.id);
+    const goal = await queryOne('SELECT * FROM goals WHERE id = ?', [req.params.id]);
 
     if (!goal) {
       return res.status(404).json({ error: '目標不存在' });
@@ -52,23 +52,23 @@ router.get('/:id', (req, res) => {
 });
 
 // 創建目標
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { patientId, category, title, description, currentValue, targetValue, unit, startDate, targetDate, status, progress, milestones } = req.body;
 
     const now = new Date().toISOString();
     const id = `goal_${Date.now()}`;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO goals (id, patientId, category, title, description, currentValue, targetValue, unit, startDate, targetDate, status, progress, milestones, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, patientId, category, title, description || null, currentValue || null, targetValue, unit || null,
       startDate, targetDate || null, status || 'active', progress || 0, JSON.stringify(milestones || []),
       now, now
-    );
+    ]);
 
-    const newGoal = db.prepare('SELECT * FROM goals WHERE id = ?').get(id);
+    const newGoal = await queryOne('SELECT * FROM goals WHERE id = ?', [id]);
     newGoal.milestones = JSON.parse(newGoal.milestones);
 
     res.status(201).json(newGoal);
@@ -79,25 +79,25 @@ router.post('/', (req, res) => {
 });
 
 // 更新目標
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { title, description, currentValue, targetValue, unit, targetDate, status, progress, milestones } = req.body;
     const now = new Date().toISOString();
 
-    const result = db.prepare(`
+    const result = await execute(`
       UPDATE goals
       SET title = ?, description = ?, currentValue = ?, targetValue = ?, unit = ?, targetDate = ?, status = ?, progress = ?, milestones = ?, updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       title, description, currentValue, targetValue, unit, targetDate, status, progress,
       JSON.stringify(milestones || []), now, req.params.id
-    );
+    ]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '目標不存在' });
     }
 
-    const updatedGoal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.id);
+    const updatedGoal = await queryOne('SELECT * FROM goals WHERE id = ?', [req.params.id]);
     updatedGoal.milestones = JSON.parse(updatedGoal.milestones);
 
     res.json(updatedGoal);
@@ -108,10 +108,10 @@ router.put('/:id', (req, res) => {
 });
 
 // 更新目標進度
-router.post('/:id/update-progress', (req, res) => {
+router.post('/:id/update-progress', async (req, res) => {
   try {
     const { currentValue } = req.body;
-    const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.id);
+    const goal = await queryOne('SELECT * FROM goals WHERE id = ?', [req.params.id]);
 
     if (!goal) {
       return res.status(404).json({ error: '目標不存在' });
@@ -123,10 +123,11 @@ router.post('/:id/update-progress', (req, res) => {
 
     const now = new Date().toISOString();
 
-    db.prepare('UPDATE goals SET currentValue = ?, progress = ?, updatedAt = ? WHERE id = ?')
-      .run(currentValue, Math.round(progress), now, req.params.id);
+    await execute('UPDATE goals SET currentValue = ?, progress = ?, updatedAt = ? WHERE id = ?', [
+      currentValue, Math.round(progress), now, req.params.id
+    ]);
 
-    const updatedGoal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.id);
+    const updatedGoal = await queryOne('SELECT * FROM goals WHERE id = ?', [req.params.id]);
     updatedGoal.milestones = JSON.parse(updatedGoal.milestones);
 
     res.json(updatedGoal);
@@ -137,9 +138,9 @@ router.post('/:id/update-progress', (req, res) => {
 });
 
 // 刪除目標
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM goals WHERE id = ?').run(req.params.id);
+    const result = await execute('DELETE FROM goals WHERE id = ?', [req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '目標不存在' });

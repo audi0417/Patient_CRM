@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
@@ -8,7 +9,7 @@ router.use(authenticateToken);
 // ===== 體組成記錄 =====
 
 // 獲取體組成記錄
-router.get('/body-composition', (req, res) => {
+router.get('/body-composition', async (req, res) => {
   try {
     const { patientId } = req.query;
     let query = 'SELECT * FROM body_composition';
@@ -21,7 +22,7 @@ router.get('/body-composition', (req, res) => {
 
     query += ' ORDER BY date DESC';
 
-    const records = db.prepare(query).all(...params);
+    const records = await queryAll(query, params);
     res.json(records);
   } catch (error) {
     console.error('Get body composition error:', error);
@@ -30,18 +31,18 @@ router.get('/body-composition', (req, res) => {
 });
 
 // 創建體組成記錄
-router.post('/body-composition', (req, res) => {
+router.post('/body-composition', async (req, res) => {
   try {
     const { patientId, date, weight, height, bodyFat, muscleMass, bmi, visceralFat, boneMass, bodyWater, bmr, notes } = req.body;
     const now = new Date().toISOString();
     const id = `body_comp_${Date.now()}`;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO body_composition (id, patientId, date, weight, height, bodyFat, muscleMass, bmi, visceralFat, boneMass, bodyWater, bmr, notes, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, patientId, date, weight || null, height || null, bodyFat || null, muscleMass || null, bmi || null, visceralFat || null, boneMass || null, bodyWater || null, bmr || null, notes || null, now);
+    `, [id, patientId, date, weight || null, height || null, bodyFat || null, muscleMass || null, bmi || null, visceralFat || null, boneMass || null, bodyWater || null, bmr || null, notes || null, now]);
 
-    const newRecord = db.prepare('SELECT * FROM body_composition WHERE id = ?').get(id);
+    const newRecord = await queryOne('SELECT * FROM body_composition WHERE id = ?', [id]);
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Create body composition error:', error);
@@ -50,21 +51,21 @@ router.post('/body-composition', (req, res) => {
 });
 
 // 更新體組成記錄
-router.put('/body-composition/:id', (req, res) => {
+router.put('/body-composition/:id', async (req, res) => {
   try {
     const { date, weight, height, bodyFat, muscleMass, bmi, visceralFat, boneMass, bodyWater, bmr, notes } = req.body;
 
-    const result = db.prepare(`
+    const result = await execute(`
       UPDATE body_composition
       SET date = ?, weight = ?, height = ?, bodyFat = ?, muscleMass = ?, bmi = ?, visceralFat = ?, boneMass = ?, bodyWater = ?, bmr = ?, notes = ?
       WHERE id = ?
-    `).run(date, weight, height, bodyFat, muscleMass, bmi, visceralFat, boneMass, bodyWater, bmr, notes, req.params.id);
+    `, [date, weight, height, bodyFat, muscleMass, bmi, visceralFat, boneMass, bodyWater, bmr, notes, req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '記錄不存在' });
     }
 
-    const updatedRecord = db.prepare('SELECT * FROM body_composition WHERE id = ?').get(req.params.id);
+    const updatedRecord = await queryOne('SELECT * FROM body_composition WHERE id = ?', [req.params.id]);
     res.json(updatedRecord);
   } catch (error) {
     console.error('Update body composition error:', error);
@@ -73,9 +74,9 @@ router.put('/body-composition/:id', (req, res) => {
 });
 
 // 刪除體組成記錄
-router.delete('/body-composition/:id', (req, res) => {
+router.delete('/body-composition/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM body_composition WHERE id = ?').run(req.params.id);
+    const result = await execute('DELETE FROM body_composition WHERE id = ?', [req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '記錄不存在' });
@@ -90,7 +91,7 @@ router.delete('/body-composition/:id', (req, res) => {
 // ===== 生命徵象記錄 =====
 
 // 獲取生命徵象記錄
-router.get('/vital-signs', (req, res) => {
+router.get('/vital-signs', async (req, res) => {
   try {
     const { patientId } = req.query;
     let query = 'SELECT * FROM vital_signs';
@@ -103,7 +104,7 @@ router.get('/vital-signs', (req, res) => {
 
     query += ' ORDER BY date DESC';
 
-    const records = db.prepare(query).all(...params);
+    const records = await queryAll(query, params);
     res.json(records);
   } catch (error) {
     console.error('Get vital signs error:', error);
@@ -112,18 +113,18 @@ router.get('/vital-signs', (req, res) => {
 });
 
 // 創建生命徵象記錄
-router.post('/vital-signs', (req, res) => {
+router.post('/vital-signs', async (req, res) => {
   try {
     const { patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes } = req.body;
     const now = new Date().toISOString();
     const id = `vital_signs_${Date.now()}`;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO vital_signs (id, patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, patientId, date, bloodPressureSystolic || null, bloodPressureDiastolic || null, heartRate || null, temperature || null, respiratoryRate || null, oxygenSaturation || null, bloodGlucose || null, notes || null, now);
+    `, [id, patientId, date, bloodPressureSystolic || null, bloodPressureDiastolic || null, heartRate || null, temperature || null, respiratoryRate || null, oxygenSaturation || null, bloodGlucose || null, notes || null, now]);
 
-    const newRecord = db.prepare('SELECT * FROM vital_signs WHERE id = ?').get(id);
+    const newRecord = await queryOne('SELECT * FROM vital_signs WHERE id = ?', [id]);
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Create vital signs error:', error);
@@ -132,21 +133,21 @@ router.post('/vital-signs', (req, res) => {
 });
 
 // 更新生命徵象記錄
-router.put('/vital-signs/:id', (req, res) => {
+router.put('/vital-signs/:id', async (req, res) => {
   try {
     const { date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes } = req.body;
 
-    const result = db.prepare(`
+    const result = await execute(`
       UPDATE vital_signs
       SET date = ?, bloodPressureSystolic = ?, bloodPressureDiastolic = ?, heartRate = ?, temperature = ?, respiratoryRate = ?, oxygenSaturation = ?, bloodGlucose = ?, notes = ?
       WHERE id = ?
-    `).run(date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes, req.params.id);
+    `, [date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes, req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '記錄不存在' });
     }
 
-    const updatedRecord = db.prepare('SELECT * FROM vital_signs WHERE id = ?').get(req.params.id);
+    const updatedRecord = await queryOne('SELECT * FROM vital_signs WHERE id = ?', [req.params.id]);
     res.json(updatedRecord);
   } catch (error) {
     console.error('Update vital signs error:', error);
@@ -155,9 +156,9 @@ router.put('/vital-signs/:id', (req, res) => {
 });
 
 // 刪除生命徵象記錄
-router.delete('/vital-signs/:id', (req, res) => {
+router.delete('/vital-signs/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM vital_signs WHERE id = ?').run(req.params.id);
+    const result = await execute('DELETE FROM vital_signs WHERE id = ?', [req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '記錄不存在' });

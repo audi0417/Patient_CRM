@@ -3,14 +3,14 @@ const router = express.Router();
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const { JWT_SECRET, authenticateToken } = require('../middleware/auth');
 
 // 登入
 router.post('/login', [
   body('username').notEmpty().withMessage('使用者名稱不能為空'),
   body('password').notEmpty().withMessage('密碼不能為空')
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -20,7 +20,7 @@ router.post('/login', [
 
   try {
     // 查詢使用者（包含組織資訊）
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    const user = await queryOne('SELECT * FROM users WHERE username = ?', [username]);
 
     if (!user) {
       return res.status(401).json({
@@ -49,7 +49,7 @@ router.post('/login', [
 
     // 多租戶架構：檢查組織狀態（super_admin 除外）
     if (user.role !== 'super_admin' && user.organizationId) {
-      const org = db.prepare('SELECT isActive FROM organizations WHERE id = ?').get(user.organizationId);
+      const org = await queryOne('SELECT isActive FROM organizations WHERE id = ?', [user.organizationId]);
 
       if (!org) {
         return res.status(403).json({
@@ -68,8 +68,7 @@ router.post('/login', [
 
     // 更新最後登入時間
     const now = new Date().toISOString();
-    db.prepare('UPDATE users SET lastLogin = ?, updatedAt = ? WHERE id = ?')
-      .run(now, now, user.id);
+    await execute('UPDATE users SET lastLogin = ?, updatedAt = ? WHERE id = ?', [now, now, user.id]);
 
     // 生成 JWT Token（包含 organizationId）
     const tokenPayload = {
@@ -114,9 +113,9 @@ router.post('/logout', authenticateToken, (req, res) => {
 });
 
 // 驗證 Token
-router.get('/verify', authenticateToken, (req, res) => {
+router.get('/verify', authenticateToken, async (req, res) => {
   try {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
 
     if (!user || !user.isActive) {
       return res.status(401).json({ valid: false });
@@ -130,9 +129,9 @@ router.get('/verify', authenticateToken, (req, res) => {
 });
 
 // 獲取當前使用者資訊
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
 
     if (!user) {
       return res.status(404).json({ error: '使用者不存在' });
@@ -154,7 +153,7 @@ router.post('/change-password', [
     .matches(/[A-Z]/).withMessage('密碼需包含至少一個大寫字母')
     .matches(/[a-z]/).withMessage('密碼需包含至少一個小寫字母')
     .matches(/[0-9]/).withMessage('密碼需包含至少一個數字')
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -168,7 +167,7 @@ router.post('/change-password', [
 
   try {
     // 獲取使用者
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [userId]);
 
     if (!user) {
       return res.status(404).json({
@@ -197,8 +196,7 @@ router.post('/change-password', [
 
     // 更新密碼
     const now = new Date().toISOString();
-    db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?')
-      .run(hashedNewPassword, now, userId);
+    await execute('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?', [hashedNewPassword, now, userId]);
 
     res.json({
       success: true,

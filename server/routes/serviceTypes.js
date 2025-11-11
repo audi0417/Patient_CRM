@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database/db');
+const { queryOne, queryAll, execute, transaction } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
 // 獲取所有服務類別 (包含停用的)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const serviceTypes = db.prepare('SELECT * FROM service_types ORDER BY displayOrder ASC, createdAt ASC').all();
+    const serviceTypes = await queryAll('SELECT * FROM service_types ORDER BY displayOrder ASC, createdAt ASC');
     res.json(serviceTypes);
   } catch (error) {
     console.error('Get service types error:', error);
@@ -17,9 +17,9 @@ router.get('/', (req, res) => {
 });
 
 // 獲取啟用的服務類別
-router.get('/active', (req, res) => {
+router.get('/active', async (req, res) => {
   try {
-    const serviceTypes = db.prepare('SELECT * FROM service_types WHERE isActive = 1 ORDER BY displayOrder ASC, createdAt ASC').all();
+    const serviceTypes = await queryAll('SELECT * FROM service_types WHERE isActive = 1 ORDER BY displayOrder ASC, createdAt ASC');
     res.json(serviceTypes);
   } catch (error) {
     console.error('Get active service types error:', error);
@@ -28,9 +28,9 @@ router.get('/active', (req, res) => {
 });
 
 // 獲取單個服務類別
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const serviceType = db.prepare('SELECT * FROM service_types WHERE id = ?').get(req.params.id);
+    const serviceType = await queryOne('SELECT * FROM service_types WHERE id = ?', [req.params.id]);
 
     if (!serviceType) {
       return res.status(404).json({ error: '服務類別不存在' });
@@ -44,7 +44,7 @@ router.get('/:id', (req, res) => {
 });
 
 // 創建服務類別
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, description, color, displayOrder } = req.body;
 
@@ -53,7 +53,7 @@ router.post('/', (req, res) => {
     }
 
     // 檢查名稱是否已存在
-    const existing = db.prepare('SELECT id FROM service_types WHERE name = ?').get(name);
+    const existing = await queryOne('SELECT id FROM service_types WHERE name = ?', [name]);
     if (existing) {
       return res.status(400).json({ error: '此服務類別名稱已存在' });
     }
@@ -61,10 +61,10 @@ router.post('/', (req, res) => {
     const now = new Date().toISOString();
     const id = `service_type_${Date.now()}`;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO service_types (id, name, description, color, isActive, displayOrder, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       name,
       description || null,
@@ -73,9 +73,9 @@ router.post('/', (req, res) => {
       displayOrder || 0,
       now,
       now
-    );
+    ]);
 
-    const newServiceType = db.prepare('SELECT * FROM service_types WHERE id = ?').get(id);
+    const newServiceType = await queryOne('SELECT * FROM service_types WHERE id = ?', [id]);
     res.status(201).json(newServiceType);
   } catch (error) {
     console.error('Create service type error:', error);
@@ -84,7 +84,7 @@ router.post('/', (req, res) => {
 });
 
 // 更新服務類別
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { name, description, color, isActive, displayOrder } = req.body;
 
@@ -93,18 +93,18 @@ router.put('/:id', (req, res) => {
     }
 
     // 檢查名稱是否與其他服務類別重複
-    const existing = db.prepare('SELECT id FROM service_types WHERE name = ? AND id != ?').get(name, req.params.id);
+    const existing = await queryOne('SELECT id FROM service_types WHERE name = ? AND id != ?', [name, req.params.id]);
     if (existing) {
       return res.status(400).json({ error: '此服務類別名稱已存在' });
     }
 
     const now = new Date().toISOString();
 
-    const result = db.prepare(`
+    const result = await execute(`
       UPDATE service_types
       SET name = ?, description = ?, color = ?, isActive = ?, displayOrder = ?, updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       name,
       description || null,
       color,
@@ -112,13 +112,13 @@ router.put('/:id', (req, res) => {
       displayOrder || 0,
       now,
       req.params.id
-    );
+    ]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '服務類別不存在' });
     }
 
-    const updatedServiceType = db.prepare('SELECT * FROM service_types WHERE id = ?').get(req.params.id);
+    const updatedServiceType = await queryOne('SELECT * FROM service_types WHERE id = ?', [req.params.id]);
     res.json(updatedServiceType);
   } catch (error) {
     console.error('Update service type error:', error);
@@ -127,10 +127,10 @@ router.put('/:id', (req, res) => {
 });
 
 // 刪除服務類別
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     // 檢查是否有預約使用此服務類別
-    const usageCount = db.prepare('SELECT COUNT(*) as count FROM appointments WHERE type = (SELECT name FROM service_types WHERE id = ?)').get(req.params.id);
+    const usageCount = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE type = (SELECT name FROM service_types WHERE id = ?)', [req.params.id]);
 
     if (usageCount.count > 0) {
       return res.status(400).json({
@@ -139,7 +139,7 @@ router.delete('/:id', (req, res) => {
       });
     }
 
-    const result = db.prepare('DELETE FROM service_types WHERE id = ?').run(req.params.id);
+    const result = await execute('DELETE FROM service_types WHERE id = ?', [req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '服務類別不存在' });
@@ -153,7 +153,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // 批次更新排序順序
-router.put('/batch/reorder', (req, res) => {
+router.put('/batch/reorder', async (req, res) => {
   try {
     const { items } = req.body; // items: [{ id, displayOrder }, ...]
 
@@ -162,18 +162,15 @@ router.put('/batch/reorder', (req, res) => {
     }
 
     const now = new Date().toISOString();
-    const updateStmt = db.prepare('UPDATE service_types SET displayOrder = ?, updatedAt = ? WHERE id = ?');
 
     // 使用 transaction 確保批次更新的原子性
-    const updateMany = db.transaction((items) => {
+    await transaction(async (dbAdapter) => {
       for (const item of items) {
-        updateStmt.run(item.displayOrder, now, item.id);
+        await dbAdapter.execute('UPDATE service_types SET displayOrder = ?, updatedAt = ? WHERE id = ?', [item.displayOrder, now, item.id]);
       }
     });
 
-    updateMany(items);
-
-    const updatedServiceTypes = db.prepare('SELECT * FROM service_types ORDER BY displayOrder ASC, createdAt ASC').all();
+    const updatedServiceTypes = await queryAll('SELECT * FROM service_types ORDER BY displayOrder ASC, createdAt ASC');
     res.json(updatedServiceTypes);
   } catch (error) {
     console.error('Reorder service types error:', error);

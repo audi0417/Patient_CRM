@@ -15,11 +15,12 @@ const router = express.Router();
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin, requireTenant } = require('../middleware/tenantContext');
+const { queryOne, queryAll, execute, transaction } = require('../database/helpers');
 
 // ========== 超級管理員端點 ==========
 
 // 獲取所有組織（超級管理員）
-router.get('/', authenticateToken, requireSuperAdmin, (req, res) => {
+router.get('/', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const { isActive, plan } = req.query;
     let query = 'SELECT * FROM organizations WHERE 1=1';
@@ -37,14 +38,18 @@ router.get('/', authenticateToken, requireSuperAdmin, (req, res) => {
 
     query += ' ORDER BY createdAt DESC';
 
-    const organizations = db.prepare(query).all(...params);
+    const organizations = await queryAll(query, params);
 
     // 為每個組織加入統計資訊
-    const withStats = organizations.map(org => {
+    const withStats = await Promise.all(organizations.map(async org => {
+      const usersCount = await queryOne('SELECT COUNT(*) as count FROM users WHERE organizationId = ?', [org.id]);
+      const patientsCount = await queryOne('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?', [org.id]);
+      const appointmentsCount = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE organizationId = ?', [org.id]);
+
       const stats = {
-        users: db.prepare('SELECT COUNT(*) as count FROM users WHERE organizationId = ?').get(org.id).count,
-        patients: db.prepare('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?').get(org.id).count,
-        appointments: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE organizationId = ?').get(org.id).count
+        users: usersCount.count,
+        patients: patientsCount.count,
+        appointments: appointmentsCount.count
       };
 
       return {
@@ -52,7 +57,7 @@ router.get('/', authenticateToken, requireSuperAdmin, (req, res) => {
         settings: org.settings ? JSON.parse(org.settings) : null,
         stats
       };
-    });
+    }));
 
     res.json(withStats);
   } catch (error) {
@@ -62,25 +67,31 @@ router.get('/', authenticateToken, requireSuperAdmin, (req, res) => {
 });
 
 // 獲取單個組織（超級管理員）
-router.get('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
+router.get('/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
-    const org = db.prepare('SELECT * FROM organizations WHERE id = ?').get(req.params.id);
+    const org = await queryOne('SELECT * FROM organizations WHERE id = ?', [req.params.id]);
 
     if (!org) {
       return res.status(404).json({ error: '組織不存在' });
     }
 
     // 加入詳細統計
+    const usersCount = await queryOne('SELECT COUNT(*) as count FROM users WHERE organizationId = ?', [org.id]);
+    const activeUsersCount = await queryOne('SELECT COUNT(*) as count FROM users WHERE organizationId = ? AND isActive = 1', [org.id]);
+    const patientsCount = await queryOne('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?', [org.id]);
+    const appointmentsCount = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE organizationId = ?', [org.id]);
+    const appointmentsThisMonthCount = await queryOne(`
+      SELECT COUNT(*) as count FROM appointments
+      WHERE organizationId = ?
+      AND date >= date('now', 'start of month')
+    `, [org.id]);
+
     const stats = {
-      users: db.prepare('SELECT COUNT(*) as count FROM users WHERE organizationId = ?').get(org.id).count,
-      activeUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE organizationId = ? AND isActive = 1').get(org.id).count,
-      patients: db.prepare('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?').get(org.id).count,
-      appointments: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE organizationId = ?').get(org.id).count,
-      appointmentsThisMonth: db.prepare(`
-        SELECT COUNT(*) as count FROM appointments
-        WHERE organizationId = ?
-        AND date >= date('now', 'start of month')
-      `).get(org.id).count
+      users: usersCount.count,
+      activeUsers: activeUsersCount.count,
+      patients: patientsCount.count,
+      appointments: appointmentsCount.count,
+      appointmentsThisMonth: appointmentsThisMonthCount.count
     };
 
     res.json({
@@ -94,7 +105,7 @@ router.get('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
 });
 
 // 創建組織（超級管理員）
-router.post('/', authenticateToken, requireSuperAdmin, (req, res) => {
+router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const {
       name,
@@ -116,7 +127,7 @@ router.post('/', authenticateToken, requireSuperAdmin, (req, res) => {
     }
 
     // 檢查 slug 是否已存在
-    const existing = db.prepare('SELECT id FROM organizations WHERE slug = ?').get(slug);
+    const existing = await queryOne('SELECT id FROM organizations WHERE slug = ?', [slug]);
     if (existing) {
       return res.status(400).json({ error: 'Slug 已被使用' });
     }
@@ -133,13 +144,13 @@ router.post('/', authenticateToken, requireSuperAdmin, (req, res) => {
 
     const limits = planLimits[plan] || planLimits.basic;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO organizations (
         id, name, slug, domain, plan, maxUsers, maxPatients,
         isActive, settings, billingEmail, contactName, contactPhone, contactEmail,
         subscriptionStartDate, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       name,
       slug,
@@ -156,9 +167,9 @@ router.post('/', authenticateToken, requireSuperAdmin, (req, res) => {
       now, // subscriptionStartDate
       now,
       now
-    );
+    ]);
 
-    const newOrg = db.prepare('SELECT * FROM organizations WHERE id = ?').get(id);
+    const newOrg = await queryOne('SELECT * FROM organizations WHERE id = ?', [id]);
     newOrg.settings = JSON.parse(newOrg.settings);
 
     res.status(201).json(newOrg);
@@ -169,7 +180,7 @@ router.post('/', authenticateToken, requireSuperAdmin, (req, res) => {
 });
 
 // 更新組織（超級管理員）
-router.put('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
+router.put('/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const {
       name,
@@ -190,20 +201,20 @@ router.put('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
     const now = new Date().toISOString();
 
     // 檢查組織是否存在
-    const org = db.prepare('SELECT * FROM organizations WHERE id = ?').get(req.params.id);
+    const org = await queryOne('SELECT * FROM organizations WHERE id = ?', [req.params.id]);
     if (!org) {
       return res.status(404).json({ error: '組織不存在' });
     }
 
     // 如果更新 slug，檢查是否與其他組織衝突
     if (slug && slug !== org.slug) {
-      const existing = db.prepare('SELECT id FROM organizations WHERE slug = ? AND id != ?').get(slug, req.params.id);
+      const existing = await queryOne('SELECT id FROM organizations WHERE slug = ? AND id != ?', [slug, req.params.id]);
       if (existing) {
         return res.status(400).json({ error: 'Slug 已被使用' });
       }
     }
 
-    const result = db.prepare(`
+    await execute(`
       UPDATE organizations
       SET name = COALESCE(?, name),
           slug = COALESCE(?, slug),
@@ -220,7 +231,7 @@ router.put('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
           subscriptionEndDate = ?,
           updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       name,
       slug,
       domain,
@@ -236,9 +247,9 @@ router.put('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
       subscriptionEndDate,
       now,
       req.params.id
-    );
+    ]);
 
-    const updated = db.prepare('SELECT * FROM organizations WHERE id = ?').get(req.params.id);
+    const updated = await queryOne('SELECT * FROM organizations WHERE id = ?', [req.params.id]);
     updated.settings = JSON.parse(updated.settings);
 
     res.json(updated);
@@ -249,31 +260,33 @@ router.put('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
 });
 
 // 刪除組織（超級管理員，軟刪除）
-router.delete('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const { force } = req.query;
 
     if (force === 'true') {
       // 硬刪除：刪除組織及所有相關資料
-      db.transaction(() => {
-        db.prepare('DELETE FROM goals WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM body_composition WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM vital_signs WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM consultations WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM appointments WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM patients WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM users WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM service_types WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM tags WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM groups WHERE organizationId = ?').run(req.params.id);
-        db.prepare('DELETE FROM organizations WHERE id = ?').run(req.params.id);
-      })();
+      await transaction(async () => {
+        await execute('DELETE FROM goals WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM body_composition WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM vital_signs WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM consultations WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM appointments WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM patients WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM users WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM service_types WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM tags WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM groups WHERE organizationId = ?', [req.params.id]);
+        await execute('DELETE FROM organizations WHERE id = ?', [req.params.id]);
+      });
 
       res.json({ success: true, message: '組織及所有相關資料已刪除' });
     } else {
       // 軟刪除：停用組織
-      const result = db.prepare('UPDATE organizations SET isActive = 0, updatedAt = ? WHERE id = ?')
-        .run(new Date().toISOString(), req.params.id);
+      const result = await execute('UPDATE organizations SET isActive = 0, updatedAt = ? WHERE id = ?', [
+        new Date().toISOString(),
+        req.params.id
+      ]);
 
       if (result.changes === 0) {
         return res.status(404).json({ error: '組織不存在' });
@@ -290,9 +303,9 @@ router.delete('/:id', authenticateToken, requireSuperAdmin, (req, res) => {
 // ========== 一般用戶端點 ==========
 
 // 獲取當前組織資訊
-router.get('/me/info', authenticateToken, requireTenant, (req, res) => {
+router.get('/me/info', authenticateToken, requireTenant, async (req, res) => {
   try {
-    const org = db.prepare('SELECT * FROM organizations WHERE id = ?').get(req.tenantContext.organizationId);
+    const org = await queryOne('SELECT * FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
 
     if (!org) {
       return res.status(404).json({ error: '組織不存在' });
@@ -309,9 +322,12 @@ router.get('/me/info', authenticateToken, requireTenant, (req, res) => {
 
     // 如果是組織管理員，顯示更多資訊
     if (req.user.role === 'admin') {
+      const usersCount = await queryOne('SELECT COUNT(*) as count FROM users WHERE organizationId = ?', [org.id]);
+      const patientsCount = await queryOne('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?', [org.id]);
+
       const stats = {
-        users: db.prepare('SELECT COUNT(*) as count FROM users WHERE organizationId = ?').get(org.id).count,
-        patients: db.prepare('SELECT COUNT(*) as count FROM patients WHERE organizationId = ?').get(org.id).count
+        users: usersCount.count,
+        patients: patientsCount.count
       };
 
       publicInfo.maxUsers = org.maxUsers;
@@ -330,7 +346,7 @@ router.get('/me/info', authenticateToken, requireTenant, (req, res) => {
 });
 
 // 更新當前組織設定（僅管理員）
-router.put('/me/settings', authenticateToken, requireTenant, (req, res) => {
+router.put('/me/settings', authenticateToken, requireTenant, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
@@ -339,8 +355,11 @@ router.put('/me/settings', authenticateToken, requireTenant, (req, res) => {
     const { settings } = req.body;
 
     const now = new Date().toISOString();
-    db.prepare('UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?')
-      .run(JSON.stringify(settings), now, req.tenantContext.organizationId);
+    await execute('UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?', [
+      JSON.stringify(settings),
+      now,
+      req.tenantContext.organizationId
+    ]);
 
     res.json({ success: true, message: '組織設定已更新' });
   } catch (error) {

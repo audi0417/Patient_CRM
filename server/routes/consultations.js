@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database/db');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
 // 獲取諮詢記錄
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { patientId } = req.query;
     let query = 'SELECT * FROM consultations';
@@ -19,7 +19,7 @@ router.get('/', (req, res) => {
 
     query += ' ORDER BY date DESC, createdAt DESC';
 
-    const records = db.prepare(query).all(...params);
+    const records = await queryAll(query, params);
     res.json(records);
   } catch (error) {
     console.error('Get consultations error:', error);
@@ -28,9 +28,9 @@ router.get('/', (req, res) => {
 });
 
 // 根據 ID 獲取諮詢記錄
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const record = db.prepare('SELECT * FROM consultations WHERE id = ?').get(req.params.id);
+    const record = await queryOne('SELECT * FROM consultations WHERE id = ?', [req.params.id]);
 
     if (!record) {
       return res.status(404).json({ error: '諮詢記錄不存在' });
@@ -44,7 +44,7 @@ router.get('/:id', (req, res) => {
 });
 
 // 創建諮詢記錄
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { patientId, date, type, chiefComplaint, assessment, plan, notes } = req.body;
 
@@ -55,10 +55,10 @@ router.post('/', (req, res) => {
     const now = new Date().toISOString();
     const id = `consultation_${Date.now()}`;
 
-    db.prepare(`
+    await execute(`
       INSERT INTO consultations (id, patientId, date, type, chiefComplaint, assessment, plan, notes, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       patientId,
       date,
@@ -69,9 +69,9 @@ router.post('/', (req, res) => {
       notes || null,
       now,
       now
-    );
+    ]);
 
-    const newRecord = db.prepare('SELECT * FROM consultations WHERE id = ?').get(id);
+    const newRecord = await queryOne('SELECT * FROM consultations WHERE id = ?', [id]);
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Create consultation error:', error);
@@ -80,16 +80,16 @@ router.post('/', (req, res) => {
 });
 
 // 更新諮詢記錄
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { date, type, chiefComplaint, assessment, plan, notes } = req.body;
     const now = new Date().toISOString();
 
-    const result = db.prepare(`
+    const result = await execute(`
       UPDATE consultations
       SET date = ?, type = ?, chiefComplaint = ?, assessment = ?, plan = ?, notes = ?, updatedAt = ?
       WHERE id = ?
-    `).run(
+    `, [
       date,
       type || null,
       chiefComplaint || null,
@@ -98,13 +98,13 @@ router.put('/:id', (req, res) => {
       notes || null,
       now,
       req.params.id
-    );
+    ]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '諮詢記錄不存在' });
     }
 
-    const updatedRecord = db.prepare('SELECT * FROM consultations WHERE id = ?').get(req.params.id);
+    const updatedRecord = await queryOne('SELECT * FROM consultations WHERE id = ?', [req.params.id]);
     res.json(updatedRecord);
   } catch (error) {
     console.error('Update consultation error:', error);
@@ -113,9 +113,9 @@ router.put('/:id', (req, res) => {
 });
 
 // 刪除諮詢記錄
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM consultations WHERE id = ?').run(req.params.id);
+    const result = await execute('DELETE FROM consultations WHERE id = ?', [req.params.id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: '諮詢記錄不存在' });
