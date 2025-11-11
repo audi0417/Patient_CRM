@@ -13,31 +13,20 @@ const PostgresAdapter = require('./postgres');
  * @returns {DatabaseAdapter}
  */
 function createDatabaseAdapter() {
-  // 自動偵測：如果有 Zeabur PostgreSQL 變數，自動使用 PostgreSQL
-  const hasPostgres = process.env.DATABASE_HOST || process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+  // 自動偵測：如果有 POSTGRES_HOST，自動使用 PostgreSQL
+  const hasPostgres = process.env.POSTGRES_HOST;
   const dbType = process.env.DATABASE_TYPE || (hasPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // PostgreSQL 配置
-    // 優先使用標準命名（DATABASE_*）或連線字串
-
-    // 優先使用連線字串（如果有的話）
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
-    
-    if (connectionString) {
-      console.log('🔗 使用連線字串連接 PostgreSQL');
-      return new PostgresAdapter(connectionString);
-    }
-
-    // 使用標準命名的環境變數（Zeabur 標準輸出）
+    // PostgreSQL 配置 - Zeabur 自動注入的環境變數
     const config = {
-      host: process.env.DATABASE_HOST || 'postgresql',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      database: process.env.DATABASE_NAME || 'patient_crm',
-      user: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || ''
+      host: process.env.POSTGRES_HOST,           // Zeabur 自動注入
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),           // Zeabur 自動注入
+      database: process.env.POSTGRES_DATABASE,   // Zeabur 自動注入
+      user: process.env.POSTGRES_USERNAME,       // Zeabur 自動注入
+      password: process.env.POSTGRES_PASSWORD    // Zeabur 自動注入
     };
 
     console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
