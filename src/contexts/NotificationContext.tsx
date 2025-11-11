@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { getAppointments, getPatients } from "@/lib/storage";
 import { Appointment, Patient } from "@/types/patient";
 import { differenceInDays, parseISO } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface AppointmentNotification {
   id: string;
@@ -26,6 +27,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 const NOTIFICATIONS_STORAGE_KEY = "hospital_crm_notification_read_status";
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppointmentNotification[]>([]);
   const [readStatus, setReadStatus] = useState<Record<string, boolean>>(() => {
     // 初始化時就從 localStorage 載入
@@ -34,13 +36,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
+    // 超級管理員不需要載入預約通知
+    if (user?.role === 'super_admin') {
+      return;
+    }
+
     // 初始載入通知
     refreshNotifications();
 
     // 每分鐘檢查一次
     const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   // 當 readStatus 改變時，重新整理通知以更新已讀狀態
   useEffect(() => {
