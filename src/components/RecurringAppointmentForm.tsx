@@ -22,6 +22,7 @@ import { saveAppointment, getPatients } from "@/lib/storage";
 import { Appointment, Patient } from "@/types/patient";
 import { toast } from "sonner";
 import { addDays, addWeeks, addMonths, addYears, isBefore, format } from "date-fns";
+import { useServiceTypes } from "@/hooks/useServiceTypes";
 
 interface RecurringAppointmentFormProps {
   patientId?: string;
@@ -36,6 +37,7 @@ const RecurringAppointmentForm = ({
 }: RecurringAppointmentFormProps) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { serviceTypes, loading: loadingTypes } = useServiceTypes();
   const [formData, setFormData] = useState({
     patientId: patientId || "",
     date: defaultDate || "",
@@ -266,16 +268,30 @@ const RecurringAppointmentForm = ({
             <Select
               value={formData.type}
               onValueChange={(value) => setFormData({ ...formData, type: value })}
+              disabled={loadingTypes}
             >
               <SelectTrigger>
-                <SelectValue placeholder="請選擇" />
+                <SelectValue placeholder={loadingTypes ? "載入中..." : "請選擇服務類別"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="定期回診">定期回診</SelectItem>
-                <SelectItem value="追蹤檢查">追蹤檢查</SelectItem>
-                <SelectItem value="健康檢查">健康檢查</SelectItem>
-                <SelectItem value="復健治療">復健治療</SelectItem>
-                <SelectItem value="其他">其他</SelectItem>
+                {serviceTypes.length === 0 && !loadingTypes ? (
+                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                    尚無可用的服務類別<br/>
+                    請至設定頁面建立服務類別
+                  </div>
+                ) : (
+                  serviceTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.name}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: type.color }}
+                        />
+                        {type.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

@@ -553,6 +553,71 @@ export const api = {
       });
     },
   },
+
+  /**
+   * 服務類別 API
+   */
+  serviceTypes: {
+    /**
+     * 獲取所有服務類別
+     */
+    getAll: async (): Promise<any[]> => {
+      return apiRequest('/service-types');
+    },
+
+    /**
+     * 獲取啟用的服務類別
+     */
+    getActive: async (): Promise<any[]> => {
+      return apiRequest('/service-types/active');
+    },
+
+    /**
+     * 根據 ID 獲取服務類別
+     */
+    getById: async (id: string): Promise<any> => {
+      return apiRequest(`/service-types/${id}`);
+    },
+
+    /**
+     * 創建服務類別
+     */
+    create: async (serviceType: any): Promise<any> => {
+      return apiRequest('/service-types', {
+        method: 'POST',
+        body: JSON.stringify(serviceType),
+      });
+    },
+
+    /**
+     * 更新服務類別
+     */
+    update: async (id: string, serviceType: any): Promise<any> => {
+      return apiRequest(`/service-types/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(serviceType),
+      });
+    },
+
+    /**
+     * 刪除服務類別
+     */
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+      return apiRequest(`/service-types/${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    /**
+     * 批次更新排序順序
+     */
+    reorder: async (items: Array<{ id: string; displayOrder: number }>): Promise<any[]> => {
+      return apiRequest('/service-types/batch/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ items }),
+      });
+    },
+  },
 };
 
 /**

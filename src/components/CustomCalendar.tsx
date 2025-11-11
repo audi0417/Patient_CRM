@@ -25,6 +25,8 @@ import { zhTW } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { saveAppointment } from "@/lib/storage";
+import { useServiceTypes } from "@/hooks/useServiceTypes";
+import { getServiceTypeInlineStyle } from "@/utils/serviceTypeColors";
 
 interface CustomCalendarProps {
   appointments: Appointment[];
@@ -48,6 +50,9 @@ const CustomCalendar = ({
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
   const [lastMonthSwitch, setLastMonthSwitch] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // 載入服務類別用於動態顏色對應
+  const { serviceTypes } = useServiceTypes();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<"left" | "right" | null>(null);
   const [pendingTimeouts, setPendingTimeouts] = useState<NodeJS.Timeout[]>([]);
@@ -290,25 +295,9 @@ const CustomCalendar = ({
     onSelectDate?.(date);
   };
 
-  // 根據預約類型返回背景顏色（填滿整個卡片）
-  const getAppointmentTypeColors = (type: string) => {
-    const colorMap: Record<string, string> = {
-      // 表單中使用的類型
-      "定期回診": "bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-100",
-      "追蹤檢查": "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-      "健康檢查": "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-100",
-      "復健治療": "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-100",
-      // 資料庫 seed 中使用的類型
-      "初診": "bg-indigo-100 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100",
-      "複診": "bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-100",
-      "定期檢查": "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-      "營養諮詢": "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-100",
-      "運動指導": "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-100",
-      "健康評估": "bg-cyan-100 text-cyan-900 dark:bg-cyan-950 dark:text-cyan-100",
-      "其他": "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-    };
-
-    return colorMap[type] || colorMap["其他"];
+  // 根據預約類型返回內聯樣式（使用您設定的顏色）
+  const getAppointmentTypeStyle = (type: string): React.CSSProperties => {
+    return getServiceTypeInlineStyle(type, serviceTypes);
   };
 
   const renderHeader = () => {
@@ -522,11 +511,10 @@ const CustomCalendar = ({
                       setSelectedAppointment(apt);
                       setIsAppointmentDialogOpen(true);
                     }}
+                    style={getAppointmentTypeStyle(apt.type)}
                     className={cn(
-                      "text-xs p-1.5 rounded font-medium cursor-grab active:cursor-grabbing transition-all hover:shadow-md border border-opacity-30",
+                      "text-xs p-1.5 rounded font-medium cursor-grab active:cursor-grabbing transition-all hover:shadow-md border",
                       "hover:scale-[1.02]",
-                      // 根據預約類型設定背景和文字顏色
-                      getAppointmentTypeColors(apt.type),
                       isUpdating ? "opacity-50 pointer-events-none" : ""
                     )}
                   >

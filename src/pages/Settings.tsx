@@ -1,8 +1,9 @@
 import { DatabaseManagement } from "@/components/DatabaseManagement";
 import GroupManagement from "@/components/GroupManagement";
+import ServiceTypeManagement from "@/components/ServiceTypeManagement";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Info, Users, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Info, Users, Shield, Palette } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Settings() {
@@ -56,6 +57,22 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <GroupManagement />
+        </CardContent>
+      </Card>
+
+      {/* 服務類別管理 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            服務類別管理
+          </CardTitle>
+          <CardDescription>
+            管理預約的服務類別及其對應的顏色設定
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ServiceTypeManagement />
         </CardContent>
       </Card>
 

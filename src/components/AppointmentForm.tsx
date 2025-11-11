@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,14 @@ import { saveAppointment } from "@/lib/storage";
 import { Appointment } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+
+interface ServiceType {
+  id: string;
+  name: string;
+  color: string;
+  isActive: number;
+}
 
 interface AppointmentFormProps {
   patientId: string;
@@ -28,6 +36,8 @@ interface AppointmentFormProps {
 
 const AppointmentForm = ({ patientId, onClose }: AppointmentFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
   const [formData, setFormData] = useState({
     date: "",
     time: "",
@@ -35,6 +45,22 @@ const AppointmentForm = ({ patientId, onClose }: AppointmentFormProps) => {
     notes: "",
     status: "scheduled" as "scheduled" | "completed" | "cancelled",
   });
+
+  useEffect(() => {
+    loadServiceTypes();
+  }, []);
+
+  const loadServiceTypes = async () => {
+    try {
+      const types = await api.serviceTypes.getActive();
+      setServiceTypes(types);
+    } catch (error) {
+      console.error("Failed to load service types:", error);
+      toast.error("載入服務類別失敗");
+    } finally {
+      setLoadingTypes(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,16 +136,30 @@ const AppointmentForm = ({ patientId, onClose }: AppointmentFormProps) => {
             <Select
               value={formData.type}
               onValueChange={(value) => setFormData({ ...formData, type: value })}
+              disabled={loadingTypes}
             >
               <SelectTrigger>
-                <SelectValue placeholder="請選擇" />
+                <SelectValue placeholder={loadingTypes ? "載入中..." : "請選擇服務類別"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="定期回診">定期回診</SelectItem>
-                <SelectItem value="追蹤檢查">追蹤檢查</SelectItem>
-                <SelectItem value="健康檢查">健康檢查</SelectItem>
-                <SelectItem value="復健治療">復健治療</SelectItem>
-                <SelectItem value="其他">其他</SelectItem>
+                {serviceTypes.length === 0 && !loadingTypes ? (
+                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                    尚無可用的服務類別<br/>
+                    請至設定頁面建立服務類別
+                  </div>
+                ) : (
+                  serviceTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.name}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: type.color }}
+                        />
+                        {type.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

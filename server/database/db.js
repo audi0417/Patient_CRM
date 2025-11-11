@@ -155,6 +155,20 @@ function initialize() {
     )
   `);
 
+  // 服務類別表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS service_types (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      color TEXT NOT NULL,
+      isActive INTEGER DEFAULT 1,
+      displayOrder INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `);
+
   // 諮詢記錄表
   db.exec(`
     CREATE TABLE IF NOT EXISTS consultations (
@@ -208,6 +222,42 @@ function initialize() {
     console.log('✅ 預設管理員已創建');
     console.log('   帳號: admin');
     console.log('   密碼: Admin123');
+  }
+
+  // 檢查是否需要創建預設服務類別
+  const serviceTypesExist = db.prepare('SELECT COUNT(*) as count FROM service_types').get();
+
+  if (serviceTypesExist.count === 0) {
+    console.log('📝 創建預設服務類別...');
+    const now = new Date().toISOString();
+
+    const defaultServiceTypes = [
+      { name: '初診', color: '#6366f1', description: '首次就診評估', order: 0 },
+      { name: '營養諮詢', color: '#22c55e', description: '營養評估與飲食建議', order: 1 },
+      { name: '運動指導', color: '#f97316', description: '運動計畫與指導', order: 2 },
+      { name: '複診', color: '#8b5cf6', description: '定期追蹤回診', order: 3 },
+      { name: '健康評估', color: '#06b6d4', description: '綜合健康狀況評估', order: 4 },
+    ];
+
+    const insertStmt = db.prepare(`
+      INSERT INTO service_types (id, name, description, color, isActive, displayOrder, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const type of defaultServiceTypes) {
+      insertStmt.run(
+        `service_type_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type.name,
+        type.description,
+        type.color,
+        1, // 預設啟用
+        type.order,
+        now,
+        now
+      );
+    }
+
+    console.log('✅ 預設服務類別已創建');
   }
 
   console.log('✅ 數據庫初始化完成');
