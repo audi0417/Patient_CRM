@@ -36,8 +36,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
+    // 如果用戶未登入，不載入通知
+    if (!user) {
+      return;
+    }
+
     // 超級管理員不需要載入預約通知
-    if (user?.role === 'super_admin') {
+    if (user.role === 'super_admin') {
       return;
     }
 
