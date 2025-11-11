@@ -19,7 +19,7 @@ router.post('/login', [
   const { username, password } = req.body;
 
   try {
-    // 查詢使用者
+    // 查詢使用者（包含組織資訊）
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 
     if (!user) {
@@ -47,18 +47,44 @@ router.post('/login', [
       });
     }
 
+    // 多租戶架構：檢查組織狀態（super_admin 除外）
+    if (user.role !== 'super_admin' && user.organizationId) {
+      const org = db.prepare('SELECT isActive FROM organizations WHERE id = ?').get(user.organizationId);
+
+      if (!org) {
+        return res.status(403).json({
+          success: false,
+          message: '組織不存在，請聯繫管理員'
+        });
+      }
+
+      if (!org.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: '組織已停用，請聯繫管理員'
+        });
+      }
+    }
+
     // 更新最後登入時間
     const now = new Date().toISOString();
     db.prepare('UPDATE users SET lastLogin = ?, updatedAt = ? WHERE id = ?')
       .run(now, now, user.id);
 
-    // 生成 JWT Token
+    // 生成 JWT Token（包含 organizationId）
+    const tokenPayload = {
+      id: user.id,
+      username: user.username,
+      role: user.role
+    };
+
+    // 只有非 super_admin 需要 organizationId
+    if (user.organizationId) {
+      tokenPayload.organizationId = user.organizationId;
+    }
+
     const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role: user.role
-      },
+      tokenPayload,
       JWT_SECRET,
       { expiresIn: '24h' }
     );

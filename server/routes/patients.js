@@ -2,13 +2,20 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
+const { requireTenant, injectTenantQuery, checkTenantQuota } = require('../middleware/tenantContext');
 
+// 應用認證和租戶上下文
 router.use(authenticateToken);
+router.use(requireTenant);
+router.use(injectTenantQuery);
 
-// 獲取所有患者
+// 獲取所有患者（自動過濾組織）
 router.get('/', (req, res) => {
   try {
-    const patients = db.prepare('SELECT * FROM patients ORDER BY updatedAt DESC').all();
+    // 使用租戶查詢輔助函數，自動過濾 organizationId
+    const patients = req.tenantQuery.findAll('patients', {
+      orderBy: 'updatedAt DESC'
+    });
 
     // 解析 JSON 欄位
     const parsedPatients = patients.map(p => ({
@@ -25,13 +32,14 @@ router.get('/', (req, res) => {
   }
 });
 
-// 獲取單個患者
+// 獲取單個患者（自動驗證組織權限）
 router.get('/:id', (req, res) => {
   try {
-    const patient = db.prepare('SELECT * FROM patients WHERE id = ?').get(req.params.id);
+    // 使用租戶查詢，自動驗證是否屬於同一組織
+    const patient = req.tenantQuery.findById('patients', req.params.id);
 
     if (!patient) {
-      return res.status(404).json({ error: '患者不存在' });
+      return res.status(404).json({ error: '患者不存在或無權訪問' });
     }
 
     // 解析 JSON 欄位
@@ -45,25 +53,34 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// 創建患者
-router.post('/', (req, res) => {
+// 創建患者（自動檢查配額並關聯組織）
+router.post('/', checkTenantQuota('patients'), (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes, tags, groups, healthProfile } = req.body;
 
     const now = new Date().toISOString();
     const id = `patient_${Date.now()}`;
 
-    db.prepare(`
-      INSERT INTO patients (id, name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes, tags, groups, healthProfile, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id, name, gender || null, birthDate || null, phone || null, email || null, address || null,
-      emergencyContact || null, emergencyPhone || null, notes || null,
-      JSON.stringify(tags || []), JSON.stringify(groups || []), JSON.stringify(healthProfile || null),
-      now, now
-    );
+    // 使用租戶查詢插入，自動加入 organizationId
+    const data = {
+      id,
+      name,
+      gender: gender || null,
+      birthDate: birthDate || null,
+      phone: phone || null,
+      email: email || null,
+      address: address || null,
+      emergencyContact: emergencyContact || null,
+      emergencyPhone: emergencyPhone || null,
+      notes: notes || null,
+      tags: JSON.stringify(tags || []),
+      groups: JSON.stringify(groups || []),
+      healthProfile: JSON.stringify(healthProfile || null),
+      createdAt: now,
+      updatedAt: now
+    };
 
-    const newPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(id);
+    const newPatient = req.tenantQuery.insert('patients', data);
     newPatient.tags = JSON.parse(newPatient.tags);
     newPatient.groups = JSON.parse(newPatient.groups);
     newPatient.healthProfile = JSON.parse(newPatient.healthProfile);
@@ -75,29 +92,35 @@ router.post('/', (req, res) => {
   }
 });
 
-// 更新患者
+// 更新患者（自動驗證組織權限）
 router.put('/:id', (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes, tags, groups, healthProfile } = req.body;
     const now = new Date().toISOString();
 
-    const result = db.prepare(`
-      UPDATE patients
-      SET name = ?, gender = ?, birthDate = ?, phone = ?, email = ?, address = ?,
-          emergencyContact = ?, emergencyPhone = ?, notes = ?, tags = ?, groups = ?,
-          healthProfile = ?, updatedAt = ?
-      WHERE id = ?
-    `).run(
-      name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes,
-      JSON.stringify(tags || []), JSON.stringify(groups || []), JSON.stringify(healthProfile || null),
-      now, req.params.id
-    );
+    const data = {
+      name,
+      gender,
+      birthDate,
+      phone,
+      email,
+      address,
+      emergencyContact,
+      emergencyPhone,
+      notes,
+      tags: JSON.stringify(tags || []),
+      groups: JSON.stringify(groups || []),
+      healthProfile: JSON.stringify(healthProfile || null),
+      updatedAt: now
+    };
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: '患者不存在' });
+    // 使用租戶查詢更新，自動驗證 organizationId
+    const updatedPatient = req.tenantQuery.update('patients', req.params.id, data);
+
+    if (!updatedPatient) {
+      return res.status(404).json({ error: '患者不存在或無權訪問' });
     }
 
-    const updatedPatient = db.prepare('SELECT * FROM patients WHERE id = ?').get(req.params.id);
     updatedPatient.tags = JSON.parse(updatedPatient.tags);
     updatedPatient.groups = JSON.parse(updatedPatient.groups);
     updatedPatient.healthProfile = JSON.parse(updatedPatient.healthProfile);
@@ -109,13 +132,14 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// 刪除患者
+// 刪除患者（自動驗證組織權限）
 router.delete('/:id', (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM patients WHERE id = ?').run(req.params.id);
+    // 使用租戶查詢刪除，自動驗證 organizationId
+    const success = req.tenantQuery.delete('patients', req.params.id);
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: '患者不存在' });
+    if (!success) {
+      return res.status(404).json({ error: '患者不存在或無權訪問' });
     }
 
     res.json({ success: true, message: '患者已刪除' });

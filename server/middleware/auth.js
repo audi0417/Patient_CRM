@@ -14,6 +14,13 @@ function authenticateToken(req, res, next) {
   try {
     const user = jwt.verify(token, JWT_SECRET);
     req.user = user;
+
+    // 多租戶架構：注入 organizationId
+    // 如果 token 中有 organizationId，確保它存在於 req.user
+    if (user.organizationId) {
+      req.user.organizationId = user.organizationId;
+    }
+
     next();
   } catch (error) {
     return res.status(403).json({ error: '無效的認證令牌' });

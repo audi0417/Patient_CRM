@@ -2,15 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
+const { requireTenant, injectTenantQuery } = require('../middleware/tenantContext');
 
+// 應用認證和租戶上下文
 router.use(authenticateToken);
+router.use(requireTenant);
+router.use(injectTenantQuery);
 
-// 獲取預約
+// 獲取預約（自動過濾組織）
 router.get('/', (req, res) => {
   try {
     const { patientId, startDate, endDate } = req.query;
-    let query = 'SELECT * FROM appointments WHERE 1=1';
-    let params = [];
+    const { organizationId } = req.tenantContext;
+
+    // 建立租戶感知的查詢
+    let query = 'SELECT * FROM appointments WHERE organizationId = ?';
+    let params = [organizationId];
 
     if (patientId) {
       query += ' AND patientId = ?';
@@ -43,7 +50,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// 創建預約
+// 創建預約（自動關聯組織並驗證患者權限）
 router.post('/', (req, res) => {
   try {
     const {
@@ -61,35 +68,34 @@ router.post('/', (req, res) => {
       reminderDays
     } = req.body;
 
+    // 驗證患者是否屬於同一組織
+    const patient = req.tenantQuery.findById('patients', patientId);
+    if (!patient) {
+      return res.status(400).json({ error: '患者不存在或無權訪問' });
+    }
+
     const now = new Date().toISOString();
     const id = `appointment_${Date.now()}`;
 
-    db.prepare(`
-      INSERT INTO appointments (
-        id, patientId, date, time, type, notes, status,
-        reminderSent, isRecurring, recurringPattern, recurringEndDate,
-        parentAppointmentId, reminderDays, createdAt, updatedAt
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    const data = {
       id,
       patientId,
       date,
       time,
       type,
-      notes || null,
-      status || 'scheduled',
-      reminderSent ? 1 : 0,
-      isRecurring ? 1 : 0,
-      recurringPattern || null,
-      recurringEndDate || null,
-      parentAppointmentId || null,
-      reminderDays || 1,
-      now,
-      now
-    );
+      notes: notes || null,
+      status: status || 'scheduled',
+      reminderSent: reminderSent ? 1 : 0,
+      isRecurring: isRecurring ? 1 : 0,
+      recurringPattern: recurringPattern || null,
+      recurringEndDate: recurringEndDate || null,
+      parentAppointmentId: parentAppointmentId || null,
+      reminderDays: reminderDays || 1,
+      createdAt: now,
+      updatedAt: now
+    };
 
-    const newAppointment = db.prepare('SELECT * FROM appointments WHERE id = ?').get(id);
+    const newAppointment = req.tenantQuery.insert('appointments', data);
     // Convert INTEGER to boolean for frontend
     const formatted = {
       ...newAppointment,
@@ -103,7 +109,7 @@ router.post('/', (req, res) => {
   }
 });
 
-// 更新預約
+// 更新預約（自動驗證組織權限）
 router.put('/:id', (req, res) => {
   try {
     const {
@@ -121,33 +127,27 @@ router.put('/:id', (req, res) => {
     } = req.body;
     const now = new Date().toISOString();
 
-    const result = db.prepare(`
-      UPDATE appointments
-      SET date = ?, time = ?, type = ?, notes = ?, status = ?,
-          reminderSent = ?, isRecurring = ?, recurringPattern = ?,
-          recurringEndDate = ?, parentAppointmentId = ?, reminderDays = ?, updatedAt = ?
-      WHERE id = ?
-    `).run(
+    const data = {
       date,
       time,
       type,
       notes,
       status,
-      reminderSent ? 1 : 0,
-      isRecurring ? 1 : 0,
-      recurringPattern || null,
-      recurringEndDate || null,
-      parentAppointmentId || null,
-      reminderDays || 1,
-      now,
-      req.params.id
-    );
+      reminderSent: reminderSent ? 1 : 0,
+      isRecurring: isRecurring ? 1 : 0,
+      recurringPattern: recurringPattern || null,
+      recurringEndDate: recurringEndDate || null,
+      parentAppointmentId: parentAppointmentId || null,
+      reminderDays: reminderDays || 1,
+      updatedAt: now
+    };
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: '預約不存在' });
+    const updatedAppointment = req.tenantQuery.update('appointments', req.params.id, data);
+
+    if (!updatedAppointment) {
+      return res.status(404).json({ error: '預約不存在或無權訪問' });
     }
 
-    const updatedAppointment = db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id);
     // Convert INTEGER to boolean for frontend
     const formatted = {
       ...updatedAppointment,
@@ -161,13 +161,13 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// 刪除預約
+// 刪除預約（自動驗證組織權限）
 router.delete('/:id', (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM appointments WHERE id = ?').run(req.params.id);
+    const success = req.tenantQuery.delete('appointments', req.params.id);
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: '預約不存在' });
+    if (!success) {
+      return res.status(404).json({ error: '預約不存在或無權訪問' });
     }
 
     res.json({ success: true, message: '預約已刪除' });
