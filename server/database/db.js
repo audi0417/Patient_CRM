@@ -45,6 +45,12 @@ async function initialize() {
   try {
     const dbType = process.env.DATABASE_TYPE || 'sqlite';
 
+    // PostgreSQL: 先測試連線
+    if ((dbType === 'postgres' || dbType === 'postgresql') && dbAdapter.testConnection) {
+      console.log('🔌 測試 PostgreSQL 連線...');
+      await dbAdapter.testConnection(5, 3000); // 5 次重試，每次等 3 秒
+    }
+
     // 建立資料表
     console.log('📋 建立資料表結構...');
     const schemaSQL = getSchemaSQL(dbType);

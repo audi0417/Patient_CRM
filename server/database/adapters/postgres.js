@@ -13,13 +13,22 @@ class PostgresAdapter extends DatabaseAdapter {
 
     // 支援 DATABASE_URL 或分開配置
     if (typeof config === 'string') {
+      console.log('🔧 PostgreSQL 配置 (使用連線字串)');
       this.pool = new Pool({
         connectionString: config,
         ssl: process.env.NODE_ENV === 'production' ? {
           rejectUnauthorized: false // Zeabur 需要
-        } : false
+        } : false,
+        // 連線設定
+        connectionTimeoutMillis: 10000, // 10 秒連線逾時
+        idleTimeoutMillis: 30000,
+        max: 10, // 最大連線數
+        // 錯誤處理
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000
       });
     } else {
+      console.log(`🔧 PostgreSQL 配置: ${config.user}@${config.host}:${config.port}/${config.database}`);
       this.pool = new Pool({
         host: config.host,
         port: config.port || 5432,
@@ -28,11 +37,49 @@ class PostgresAdapter extends DatabaseAdapter {
         password: config.password,
         ssl: process.env.NODE_ENV === 'production' ? {
           rejectUnauthorized: false
-        } : false
+        } : false,
+        // 連線設定
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        max: 10,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000
       });
     }
 
+    // 錯誤處理
+    this.pool.on('error', (err) => {
+      console.error('❌ PostgreSQL Pool 錯誤:', err);
+    });
+
     this.client = null; // 用於事務
+  }
+
+  /**
+   * 測試連線並重試
+   */
+  async testConnection(maxRetries = 5, delayMs = 2000) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        console.log(`🔄 嘗試連接 PostgreSQL... (${i + 1}/${maxRetries})`);
+        const client = await this.pool.connect();
+        const result = await client.query('SELECT NOW()');
+        client.release();
+        console.log('✅ PostgreSQL 連接成功！');
+        console.log('⏰ 伺服器時間:', result.rows[0].now);
+        return true;
+      } catch (error) {
+        console.error(`❌ 連接失敗 (嘗試 ${i + 1}/${maxRetries}):`, error.message);
+
+        if (i < maxRetries - 1) {
+          console.log(`⏳ 等待 ${delayMs}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          console.error('💥 所有連接嘗試都失敗了');
+          throw error;
+        }
+      }
+    }
   }
 
   /**
