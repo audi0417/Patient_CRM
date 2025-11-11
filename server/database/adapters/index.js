@@ -13,36 +13,24 @@ const PostgresAdapter = require('./postgres');
  * @returns {DatabaseAdapter}
  */
 function createDatabaseAdapter() {
-  // Zeabur PostgreSQL 優先提供連線字串，其次提供分開的環境變數
-  // 參考：https://zeabur.com/docs/guides/postgresql
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
-  const hasPostgres = connectionString || process.env.POSTGRES_HOST;
+  // Zeabur PostgreSQL 配置
+  // 在同一專案內的服務可以通過服務名稱相互通訊
+  // 連線字串格式：postgresql://user:password@postgresql:5432/database
+  
+  const hasPostgres = process.env.POSTGRES_HOST || process.env.POSTGRES_CONNECTION_STRING;
   const dbType = process.env.DATABASE_TYPE || (hasPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // PostgreSQL 配置 - 使用 Zeabur 自動注入的環境變數
+    // PostgreSQL 配置 - 使用服務名稱進行通訊
     
-    // 優先使用連線字串（POSTGRES_CONNECTION_STRING）
-    if (connectionString) {
-      console.log('🔗 使用 POSTGRES_CONNECTION_STRING 連接 PostgreSQL');
-      return new PostgresAdapter(connectionString);
-    }
+    // 構建正確的連線字串：使用服務名稱 'postgresql' 而非 service ID
+    const connectionString = 
+      `postgresql://${process.env.POSTGRES_USERNAME}:${process.env.POSTGRES_PASSWORD}@postgresql:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DATABASE}`;
 
-    // 備用：使用分開的環境變數
-    // 注意：POSTGRES_HOST 需要從 Zeabur PostgreSQL 實例的 Networking 標籤查看
-    // 它會是 hostname.zeabur.internal 的格式
-    const config = {
-      host: process.env.POSTGRES_HOST,
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DATABASE,
-      user: process.env.POSTGRES_USERNAME,
-      password: process.env.POSTGRES_PASSWORD
-    };
-
-    console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
-    return new PostgresAdapter(config);
+    console.log(`🔗 連接到 PostgreSQL: ${process.env.POSTGRES_USERNAME}@postgresql:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DATABASE}`);
+    return new PostgresAdapter(connectionString);
   } else {
     // SQLite 配置
     const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../../data/patient_crm.db');
