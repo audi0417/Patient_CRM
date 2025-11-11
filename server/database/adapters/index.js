@@ -29,15 +29,7 @@ function createDatabaseAdapter() {
       // 優先使用分開的配置（更可靠，可以修改主機名稱）
       let host = process.env.DATABASE_HOST || process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST;
 
-      // 如果主機名稱看起來像 Zeabur 的 service ID (以 'service-' 開頭)，嘗試替代方案
-      if (host && host.startsWith('service-')) {
-        console.log(`⚠️  偵測到 Zeabur service ID 主機名稱: ${host}`);
-        console.log('🔄 嘗試使用簡化的主機名稱...');
-        // 嘗試常見的 PostgreSQL 主機名稱
-        const alternativeHosts = ['postgresql', 'postgres', 'db', host];
-        host = alternativeHosts[0]; // 先嘗試 'postgresql'
-        console.log(`📍 使用主機名稱: ${host}`);
-      }
+
 
       const config = {
         host: host || 'postgresql',
