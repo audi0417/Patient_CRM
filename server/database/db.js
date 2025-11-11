@@ -43,7 +43,7 @@ async function initialize() {
   console.log('🗄️  初始化數據庫...');
 
   try {
-    const dbType = process.env.DATABASE_TYPE || 'sqlite';
+  const dbType = (process.env.DB_TYPE || process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
 
     // PostgreSQL: 先測試連線
     if ((dbType === 'postgres' || dbType === 'postgresql') && dbAdapter.testConnection) {
