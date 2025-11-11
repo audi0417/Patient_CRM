@@ -14,53 +14,35 @@ const PostgresAdapter = require('./postgres');
  */
 function createDatabaseAdapter() {
   // 自動偵測：如果有 Zeabur PostgreSQL 變數，自動使用 PostgreSQL
-  const hasZeaburPostgres = process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST;
+  const hasZeaburPostgres = process.env.POSTGRES_HOST || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
   const dbType = process.env.DATABASE_TYPE || (hasZeaburPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // PostgreSQL 配置 - 支援多種環境變數命名方式
+    // PostgreSQL 配置
+    // Zeabur 會自動注入以下環境變數：
+    // - POSTGRES_HOST、POSTGRES_PORT、POSTGRES_DATABASE、POSTGRES_USERNAME、POSTGRES_PASSWORD
+    // - 或 POSTGRES_CONNECTION_STRING / POSTGRES_URI
 
-    // 檢查是否有 Zeabur 提供的分開參數（更可靠）
-    const hasZeaburParams = process.env.POSTGRES_DATABASE && process.env.POSTGRES_USERNAME && process.env.POSTGRES_PASSWORD;
-
-    if (hasZeaburParams) {
-      // 優先使用分開的配置（更可靠，可以修改主機名稱）
-      let host = process.env.DATABASE_HOST || process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST;
-
-
-
-      const config = {
-        host: host || 'postgresql',
-        port: parseInt(process.env.DATABASE_PORT || process.env.POSTGRES_PORT || '5432'),
-        database: process.env.DATABASE_NAME || process.env.POSTGRES_DATABASE,
-        user: process.env.DATABASE_USER || process.env.POSTGRES_USERNAME,
-        password: process.env.DATABASE_PASSWORD || process.env.POSTGRES_PASSWORD
-      };
-
-      console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
-      return new PostgresAdapter(config);
+    // 優先使用連線字串（Zeabur 提供）
+    const connectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+    
+    if (connectionString) {
+      console.log('🔗 使用 Zeabur 提供的連線字串連接 PostgreSQL');
+      return new PostgresAdapter(connectionString);
     }
 
-    // 嘗試使用連線字串
-    let databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
-
-    if (databaseUrl) {
-      console.log('🔗 使用連線字串連接 PostgreSQL');
-      return new PostgresAdapter(databaseUrl);
-    }
-
-    // 最後的備用方案
+    // 使用分開的環境變數（如果連線字串不可用）
     const config = {
-      host: process.env.DATABASE_HOST || 'postgresql',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      database: process.env.DATABASE_NAME || 'patient_crm',
-      user: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || ''
+      host: process.env.POSTGRES_HOST || 'postgresql',
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      database: process.env.POSTGRES_DATABASE || 'patient_crm',
+      user: process.env.POSTGRES_USERNAME || 'postgres',
+      password: process.env.POSTGRES_PASSWORD || ''
     };
 
-    console.log(`🔗 連接到 PostgreSQL (備用): ${config.user}@${config.host}:${config.port}/${config.database}`);
+    console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
     return new PostgresAdapter(config);
   } else {
     // SQLite 配置
