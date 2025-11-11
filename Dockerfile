@@ -9,10 +9,10 @@ RUN apk add --no-cache python3 make g++
 # 複製 package 文件
 COPY package*.json ./
 
-# 安裝依賴
-RUN npm ci
+# 安裝所有依賴（包括 devDependencies，構建需要）
+RUN npm ci --include=dev
 
-# 複製源代碼
+# 複製源代碼（排除 node_modules 和 .git）
 COPY . .
 
 # 構建前端
