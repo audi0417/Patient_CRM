@@ -196,32 +196,42 @@ function initialize() {
     CREATE INDEX IF NOT EXISTS idx_consultations_patient ON consultations(patientId, date);
   `);
 
-  // 檢查是否需要創建預設管理員
-  const adminExists = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('admin');
+  // 檢查是否需要創建超級管理員（用於系統管理）
+  const superAdminExists = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('super_admin');
 
-  if (adminExists.count === 0) {
-    console.log('📝 創建預設管理員帳號...');
-    const hashedPassword = crypto.createHash('sha256').update('Admin123').digest('hex');
+  if (superAdminExists.count === 0) {
+    console.log('👑 創建超級管理員帳號（系統控制台）...');
+
+    // 從環境變數取得密碼，或使用預設值
+    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2024';
+    const hashedPassword = crypto.createHash('sha256').update(superAdminPassword).digest('hex');
     const now = new Date().toISOString();
 
     db.prepare(`
       INSERT INTO users (id, username, password, name, email, role, isActive, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      'user_admin_001',
-      'admin',
+      'user_superadmin_001',
+      'superadmin',
       hashedPassword,
-      '系統管理員',
-      'admin@hospital.com',
-      'admin',
+      '系統超級管理員',
+      'superadmin@system.com',
+      'super_admin',
       1,
       now,
       now
     );
 
-    console.log('✅ 預設管理員已創建');
-    console.log('   帳號: admin');
-    console.log('   密碼: Admin123');
+    console.log('✅ 超級管理員已創建');
+    console.log('┌─────────────────────────────────────────┐');
+    console.log('│  🔐 超級管理員帳號（請立即修改密碼）    │');
+    console.log('├─────────────────────────────────────────┤');
+    console.log('│  帳號: superadmin                       │');
+    console.log(`│  密碼: ${superAdminPassword.padEnd(31)}│`);
+    console.log('│  權限: 可管理所有組織和系統設定         │');
+    console.log('└─────────────────────────────────────────┘');
+    console.log('⚠️  重要：首次登入後請立即修改密碼！');
+    console.log('');
   }
 
   // 檢查是否需要創建預設服務類別

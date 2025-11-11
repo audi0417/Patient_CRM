@@ -35,6 +35,7 @@ const consultationRoutes = require('./routes/consultations');
 const seedRoutes = require('./routes/seed');
 const serviceTypeRoutes = require('./routes/serviceTypes');
 const organizationRoutes = require('./routes/organizations');
+const superadminRoutes = require('./routes/superadmin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -46,6 +47,7 @@ app.use('/api/consultations', consultationRoutes);
 app.use('/api/seed', seedRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/organizations', organizationRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // ========================================
 // 健康檢查端點
