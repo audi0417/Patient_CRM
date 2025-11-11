@@ -14,32 +14,30 @@ const PostgresAdapter = require('./postgres');
  */
 function createDatabaseAdapter() {
   // 自動偵測：如果有 Zeabur PostgreSQL 變數，自動使用 PostgreSQL
-  const hasZeaburPostgres = process.env.POSTGRES_HOST || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
-  const dbType = process.env.DATABASE_TYPE || (hasZeaburPostgres ? 'postgres' : 'sqlite');
+  const hasPostgres = process.env.DATABASE_HOST || process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+  const dbType = process.env.DATABASE_TYPE || (hasPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
     // PostgreSQL 配置
-    // Zeabur 會自動注入以下環境變數：
-    // - POSTGRES_HOST、POSTGRES_PORT、POSTGRES_DATABASE、POSTGRES_USERNAME、POSTGRES_PASSWORD
-    // - 或 POSTGRES_CONNECTION_STRING / POSTGRES_URI
+    // 優先使用標準命名（DATABASE_*）或連線字串
 
-    // 優先使用連線字串（Zeabur 提供）
-    const connectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+    // 優先使用連線字串（如果有的話）
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
     
     if (connectionString) {
-      console.log('🔗 使用 Zeabur 提供的連線字串連接 PostgreSQL');
+      console.log('🔗 使用連線字串連接 PostgreSQL');
       return new PostgresAdapter(connectionString);
     }
 
-    // 使用分開的環境變數（如果連線字串不可用）
+    // 使用標準命名的環境變數（Zeabur 標準輸出）
     const config = {
-      host: process.env.POSTGRES_HOST || 'postgresql',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DATABASE || 'patient_crm',
-      user: process.env.POSTGRES_USERNAME || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || ''
+      host: process.env.DATABASE_HOST || 'postgresql',
+      port: parseInt(process.env.DATABASE_PORT || '5432'),
+      database: process.env.DATABASE_NAME || 'patient_crm',
+      user: process.env.DATABASE_USER || 'postgres',
+      password: process.env.DATABASE_PASSWORD || ''
     };
 
     console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
