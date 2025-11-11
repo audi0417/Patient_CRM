@@ -14,9 +14,15 @@ const PostgresAdapter = require('./postgres');
  * @returns {DatabaseAdapter}
  */
 function createDatabaseAdapter() {
-  // 決定資料庫類型
-  const hasPostgresHint = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI || process.env.POSTGRES_HOST;
-  const dbType = process.env.DATABASE_TYPE || (hasPostgresHint ? 'postgres' : 'sqlite');
+  // 決定資料庫類型（支援 DB_TYPE 與 DATABASE_TYPE）
+  const hasPostgresHint =
+    process.env.POSTGRES_CONNECTION_STRING ||
+    process.env.POSTGRES_URI ||
+    process.env.DB_POSTGRESDB_HOST ||
+    process.env.POSTGRES_HOST;
+
+  const dbTypeRaw = (process.env.DB_TYPE || process.env.DATABASE_TYPE || '').toLowerCase();
+  const dbType = dbTypeRaw || (hasPostgresHint ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
@@ -70,12 +76,12 @@ function createDatabaseAdapter() {
       }
     }
 
-    // 2) 分開參數（Zeabur 自動注入）
-    const user = process.env.POSTGRES_USERNAME;
-    const password = process.env.POSTGRES_PASSWORD;
-    const database = process.env.POSTGRES_DATABASE;
-    const port = process.env.POSTGRES_PORT || '5432';
-    const hostEnv = process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST || '';
+  // 2) 分開參數（Zeabur 自動注入 + 支援 DB_POSTGRESDB_* 命名）
+  const user = process.env.DB_POSTGRESDB_USER || process.env.POSTGRES_USERNAME;
+  const password = process.env.DB_POSTGRESDB_PASSWORD || process.env.POSTGRES_PASSWORD;
+  const database = process.env.DB_POSTGRESDB_DATABASE || process.env.POSTGRES_DATABASE;
+  const port = process.env.DB_POSTGRESDB_PORT || process.env.POSTGRES_PORT || '5432';
+  const hostEnv = process.env.DB_POSTGRESDB_HOST || process.env.POSTGRES_HOST || process.env.POSTGRESQL_HOST || '';
 
     if (user && password && database) {
       const hostCandidates = [];
