@@ -13,16 +13,24 @@ const PostgresAdapter = require('./postgres');
  * @returns {DatabaseAdapter}
  */
 function createDatabaseAdapter() {
-  // 自動偵測：如果有 POSTGRES_HOST，自動使用 PostgreSQL
-  const hasPostgres = process.env.POSTGRES_HOST;
+  // 偵測是否有 PostgreSQL 連線字串（Zeabur 優先提供的方式）
+  const connectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI;
+  const hasPostgres = connectionString || process.env.POSTGRES_HOST;
   const dbType = process.env.DATABASE_TYPE || (hasPostgres ? 'postgres' : 'sqlite');
 
   console.log(`📊 資料庫類型: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // PostgreSQL 配置 - Zeabur 自動注入的環境變數
+    // PostgreSQL 配置
+    // 優先使用連線字串（Zeabur 推薦的方式，避免 service ID 無法解析的問題）
+    if (connectionString) {
+      console.log('🔗 使用 POSTGRES_CONNECTION_STRING 連接 PostgreSQL');
+      return new PostgresAdapter(connectionString);
+    }
+
+    // 備用：使用分開的環境變數
     const config = {
-      host: process.env.POSTGRES_HOST,           // Zeabur 自動注入
+      host: process.env.POSTGRES_HOST,           // Zeabur 自動注入（但可能是 service ID）
       port: parseInt(process.env.POSTGRES_PORT || '5432'),           // Zeabur 自動注入
       database: process.env.POSTGRES_DATABASE,   // Zeabur 自動注入
       user: process.env.POSTGRES_USERNAME,       // Zeabur 自動注入
