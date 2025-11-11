@@ -1,4 +1,4 @@
-import { Activity, Settings, LogOut, Users, User as UserIcon } from "lucide-react";
+import { Activity, Settings, LogOut, Users, User as UserIcon, Shield } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,51 +37,81 @@ const Header = () => {
           </Link>
 
           <nav className="ml-8 flex gap-6">
-            <Link
-              to="/"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                isActive("/")
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              患者列表
-            </Link>
-            <Link
-              to="/health-analytics"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                isActive("/health-analytics")
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              健康數據
-            </Link>
-            <Link
-              to="/appointments"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                isActive("/appointments")
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              回診管理
-            </Link>
-            {permissions?.canManageUsers && (
-              <Link
-                to="/users"
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  isActive("/users")
-                    ? "text-foreground"
-                    : "text-muted-foreground"
+            {user?.role === "super_admin" ? (
+              <>
+                <Link
+                  to="/superadmin"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                    location.pathname.startsWith("/superadmin")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Shield className="h-4 w-4" />
+                  超級後台
+                </Link>
+                <Link
+                  to="/"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    isActive("/")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  患者列表
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    isActive("/")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  患者列表
+                </Link>
+                <Link
+                  to="/health-analytics"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    isActive("/health-analytics")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  健康數據
+                </Link>
+                <Link
+                  to="/appointments"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    isActive("/appointments")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  回診管理
+                </Link>
+                {permissions?.canManageUsers && (
+                  <Link
+                    to="/users"
+                    className={cn(
+                      "text-sm font-medium transition-colors hover:text-primary",
+                      isActive("/users")
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    使用者管理
+                  </Link>
                 )}
-              >
-                使用者管理
-              </Link>
+              </>
             )}
           </nav>
         </div>
@@ -120,6 +150,12 @@ const Header = () => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {user?.role === "super_admin" && (
+                <DropdownMenuItem onClick={() => navigate("/superadmin")}>
+                  <Shield className="mr-2 h-4 w-4" />
+                  超級管理員後台
+                </DropdownMenuItem>
+              )}
               {permissions?.canManageUsers && (
                 <DropdownMenuItem onClick={() => navigate("/users")}>
                   <Users className="mr-2 h-4 w-4" />
