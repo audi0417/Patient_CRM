@@ -346,43 +346,43 @@ function seedGoals(patientIds) {
     }
   });
 
-  console.log(`✅ 已插入 ${count} 個健康目標`);
+  console.log(`[Seed] Inserted ${count} health goals`);
 }
 
-// 主要執行函數
+// Main execution function
 function main() {
   console.log('\n═══════════════════════════════════════');
-  console.log('  SQLite 資料庫種子資料');
+  console.log('  SQLite Database Seed Data');
   console.log('═══════════════════════════════════════\n');
 
   try {
-    // 檢查資料庫是否存在
+    // Check if database exists
     if (!fs.existsSync(dbPath)) {
-      console.error('❌ 資料庫不存在，請先啟動伺服器以創建資料庫');
+      console.error('[Seed] Error: Database does not exist. Start server first to create database');
       process.exit(1);
     }
 
-    // 開始事務
+    // Begin transaction
     db.prepare('BEGIN').run();
 
-    // 插入各種數據
+    // Insert various data
     const patientIds = seedPatients();
     seedAppointments(patientIds);
     seedBodyComposition(patientIds);
     seedVitalSigns(patientIds);
     seedGoals(patientIds);
 
-    // 提交事務
+    // Commit transaction
     db.prepare('COMMIT').run();
 
     console.log('\n═══════════════════════════════════════');
-    console.log('  ✅ 模擬資料插入完成！');
+    console.log('  [Seed] Seed data insertion completed!');
     console.log('═══════════════════════════════════════\n');
-    console.log('🔄 請重新載入應用程式查看數據\n');
+    console.log('[Seed] Reload application to see data\n');
 
   } catch (error) {
     db.prepare('ROLLBACK').run();
-    console.error('\n❌ 發生錯誤:', error.message);
+    console.error('\n[Seed] Error:', error.message);
     console.error(error.stack);
     process.exit(1);
   } finally {
