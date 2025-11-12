@@ -153,7 +153,7 @@ const Header = () => {
               {user?.role === "super_admin" && (
                 <DropdownMenuItem onClick={() => navigate("/superadmin")}>
                   <Shield className="mr-2 h-4 w-4" />
-                  超級管理員後台
+                  企業管理系統
                 </DropdownMenuItem>
               )}
               {permissions?.canManageUsers && (

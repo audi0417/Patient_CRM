@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   Building2,
@@ -11,9 +12,12 @@ import {
   TrendingUp,
   AlertTriangle,
   DollarSign,
-  Activity
+  Activity,
+  BarChart3,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import OrganizationManagement from "./OrganizationManagement";
 
 interface DashboardStats {
   organizations: {
@@ -140,18 +144,26 @@ const SuperAdminDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">超級管理員控制台</h1>
-          <p className="text-muted-foreground mt-1">系統總覽與管理</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link to="/superadmin/organizations">管理組織</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/superadmin/revenue">收入報表</Link>
-          </Button>
+          <h1 className="text-3xl font-bold">企業管理系統</h1>
+          <p className="text-muted-foreground mt-1">客戶服務與營運分析</p>
         </div>
       </div>
+
+      {/* Tabs for Stats and Management */}
+      <Tabs defaultValue="stats" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="stats" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            統計報表
+          </TabsTrigger>
+          <TabsTrigger value="management" className="flex items-center gap-2">
+            <SettingsIcon className="h-4 w-4" />
+            客戶管理
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Statistics Tab */}
+        <TabsContent value="stats" className="mt-6 space-y-6">
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -289,24 +301,13 @@ const SuperAdminDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>快速操作</CardTitle>
-          <CardDescription>常用管理功能</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link to="/superadmin/organizations">管理組織</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/superadmin/analytics">使用量分析</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/superadmin/activity-log">活動日誌</Link>
-          </Button>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        {/* Management Tab */}
+        <TabsContent value="management" className="mt-6">
+          <OrganizationManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
