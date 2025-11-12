@@ -5,14 +5,28 @@
  */
 
 const Database = require('better-sqlite3');
+const fs = require('fs');
+const path = require('path');
 const DatabaseAdapter = require('./base');
 
 class SQLiteAdapter extends DatabaseAdapter {
   constructor(dbPath) {
     super();
+    try {
+      const dir = path.dirname(dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch (e) {
+      console.warn('⚠️ 無法自動建立資料夾，可能沒有寫入權限：', e.message);
+    }
     this.db = new Database(dbPath);
     // 啟用 WAL 模式以提高性能
-    this.db.pragma('journal_mode = WAL');
+    try {
+      this.db.pragma('journal_mode = WAL');
+    } catch (e) {
+      console.warn('⚠️ 設定 WAL 模式失敗（將使用預設 journal 模式）：', e.message);
+    }
   }
 
   /**

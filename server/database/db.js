@@ -62,7 +62,7 @@ async function initialize() {
     if (orgCount && orgCount.count === 0) {
       console.log('🏢 創建預設組織...');
       const now = new Date().toISOString();
-      const defaultOrgId = 'org_default_001';
+      const defaultOrgId = 'org_default_001'; // 固定 default 組織 ID
       await dbAdapter.execute(
         `INSERT INTO organizations (
           id, name, slug, plan, "maxUsers", "maxPatients", "isActive",
@@ -70,8 +70,8 @@ async function initialize() {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           defaultOrgId,
-          '預設組織',
-          'default',
+          'default', // name 也用 default，便於識別
+          'default', // slug
           'enterprise',
           999,
           99999,
@@ -128,8 +128,8 @@ async function initialize() {
     if (serviceTypesCount && serviceTypesCount.count === 0) {
       console.log('📝 創建預設服務類別...');
       const now = new Date().toISOString();
-      const targetOrg = await dbAdapter.queryOne('SELECT id FROM organizations ORDER BY createdAt ASC LIMIT 1');
-      const orgIdForTypes = targetOrg ? targetOrg.id : 'org_default_001';
+      // 直接使用 default 組織 ID
+      const orgIdForTypes = 'org_default_001';
       const defaultServiceTypes = [
         { name: '初診', color: '#6366f1', description: '首次就診評估', order: 0 },
         { name: '營養諮詢', color: '#22c55e', description: '營養評估與飲食建議', order: 1 },
