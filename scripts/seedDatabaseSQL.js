@@ -32,17 +32,17 @@ function generateId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// 插入患者資料
+// Insert patient data
 function seedPatients() {
-  console.log('📝 正在插入患者資料...');
+  console.log('[Seed] Inserting patient data...');
   const now = new Date().toISOString();
 
   const patients = [
     {
-      name: "王小明", gender: "male", birthDate: "1985-03-15", phone: "0912-345-678",
-      email: "wang.xiaoming@email.com", address: "台北市信義區信義路五段7號",
-      tags: '["糖尿病", "高血壓"]',
-      emergencyContact: "王太太", emergencyPhone: "0912-345-679"
+      name: "Wang Xiaoming", gender: "male", birthDate: "1985-03-15", phone: "0912-345-678",
+      email: "wang.xiaoming@email.com", address: "Taipei, Taiwan",
+      tags: '["Diabetes", "Hypertension"]',
+      emergencyContact: "Mrs. Wang", emergencyPhone: "0912-345-679"
     },
     {
       name: "李美玲", gender: "female", birthDate: "1990-07-22", phone: "0923-456-789",
@@ -120,13 +120,13 @@ function seedPatients() {
     );
   });
 
-  console.log(`✅ 已插入 ${patients.length} 位患者`);
+  console.log(`[Seed] Inserted ${patients.length} patients`);
   return patientIds;
 }
 
-// 插入預約資料
+// Insert appointment data
 function seedAppointments(patientIds) {
-  console.log('📅 正在插入預約資料...');
+  console.log('[Seed] Inserting appointment data...');
   const now = new Date().toISOString();
 
   const appointmentTypes = ['初診', '複診', '定期檢查', '營養諮詢', '運動指導', '健康評估'];
@@ -178,12 +178,12 @@ function seedAppointments(patientIds) {
     }
   });
 
-  console.log(`✅ 已插入 ${count} 筆預約記錄`);
+  console.log(`[Seed] Inserted ${count} appointment records`);
 }
 
-// 插入身體組成記錄
+// Insert body composition records
 function seedBodyComposition(patientIds) {
-  console.log('🏋️ 正在插入身體組成記錄...');
+  console.log('[Seed] Inserting body composition records...');
 
   const insertRecord = db.prepare(`
     INSERT INTO body_composition (
@@ -235,12 +235,12 @@ function seedBodyComposition(patientIds) {
     }
   });
 
-  console.log(`✅ 已插入 ${count} 筆身體組成記錄`);
+  console.log(`[Seed] Inserted ${count} body composition records`);
 }
 
-// 插入生命徵象記錄
+// Insert vital signs records
 function seedVitalSigns(patientIds) {
-  console.log('❤️ 正在插入生命徵象記錄...');
+  console.log('[Seed] Inserting vital signs records...');
 
   const insertRecord = db.prepare(`
     INSERT INTO vital_signs (
@@ -285,19 +285,19 @@ function seedVitalSigns(patientIds) {
     }
   });
 
-  console.log(`✅ 已插入 ${count} 筆生命徵象記錄`);
+  console.log(`[Seed] Inserted ${count} vital signs records`);
 }
 
-// 插入健康目標
+// Insert health goals
 function seedGoals(patientIds) {
-  console.log('🎯 正在插入健康目標...');
+  console.log('[Seed] Inserting health goals...');
   const now = new Date().toISOString();
 
   const goalTypes = [
-    { category: '體重管理', title: '減重目標', description: '達到理想體重', targetValue: 70, unit: 'kg' },
-    { category: '運動健身', title: '每週運動', description: '增加運動頻率', targetValue: 3, unit: '次' },
-    { category: '血壓控制', title: '血壓目標', description: '降低收縮壓', targetValue: 120, unit: 'mmHg' },
-    { category: '血糖控制', title: '血糖控制', description: '維持空腹血糖正常', targetValue: 100, unit: 'mg/dL' },
+    { category: 'Weight Management', title: 'Weight Loss Goal', description: 'Achieve ideal weight', targetValue: 70, unit: 'kg' },
+    { category: 'Exercise & Fitness', title: 'Weekly Exercise', description: 'Increase exercise frequency', targetValue: 3, unit: 'times' },
+    { category: 'Blood Pressure Control', title: 'BP Goal', description: 'Lower systolic pressure', targetValue: 120, unit: 'mmHg' },
+    { category: 'Blood Glucose Control', title: 'Blood Sugar Control', description: 'Maintain normal fasting glucose', targetValue: 100, unit: 'mg/dL' },
     { category: '體脂控制', title: '體脂率', description: '降低體脂率', targetValue: 20, unit: '%' }
   ];
 

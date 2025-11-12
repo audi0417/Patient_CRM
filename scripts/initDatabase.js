@@ -310,31 +310,31 @@ async function initDatabase() {
   console.log('═══════════════════════════════════════\n');
 
   try {
-    // 建立管理員帳號
+    // Create admin account
     const admin = createAdminUser();
-    console.log('✅ 建立管理員帳號: admin / Admin123');
+    console.log('[Init] Created admin account: admin / Admin123');
 
-    // 建立標籤
+    // Create tags
     const tags = createTags();
-    console.log(`✅ 建立 ${tags.length} 個標籤`);
+    console.log(`[Init] Created ${tags.length} tags`);
 
-    // 建立群組
+    // Create groups
     const groups = createGroups();
-    console.log(`✅ 建立 ${groups.length} 個群組`);
+    console.log(`[Init] Created ${groups.length} groups`);
 
-    // 建立患者
+    // Create patients
     const { patients, healthProfiles } = createPatients(groups);
-    console.log(`✅ 建立 ${patients.length} 位模擬患者`);
+    console.log(`[Init] Created ${patients.length} mock patients`);
 
-    // 生成健康數據
+    // Generate health data
     const bodyRecords = generateBodyCompositionRecords(patients, healthProfiles);
-    console.log(`✅ 生成 ${bodyRecords.length} 筆體組成記錄`);
+    console.log(`[Init] Generated ${bodyRecords.length} body composition records`);
 
     const vitalRecords = generateVitalSignsRecords(patients);
-    console.log(`✅ 生成 ${vitalRecords.length} 筆生命徵象記錄`);
+    console.log(`[Init] Generated ${vitalRecords.length} vital signs records`);
 
-    // 儲存所有資料
-    console.log('\n⏳ 正在儲存資料...\n');
+    // Save all data
+    console.log('\n[Init] Saving data...\n');
 
     saveData('users.json', [admin]);
     saveData('tags.json', tags);
@@ -348,29 +348,29 @@ async function initDatabase() {
 
     // 顯示摘要
     console.log('═══════════════════════════════════════');
-    console.log('  資料初始化完成！');
+    console.log('  Data initialization completed!');
     console.log('═══════════════════════════════════════\n');
-    console.log('📊 資料摘要:');
-    console.log(`   管理員帳號: 1 個 (admin / Admin123)`);
-    console.log(`   標籤: ${tags.length} 個`);
-    console.log(`   群組: ${groups.length} 個`);
-    console.log(`   患者: ${patients.length} 位`);
-    console.log(`   體組成記錄: ${bodyRecords.length} 筆`);
-    console.log(`   生命徵象記錄: ${vitalRecords.length} 筆`);
-    console.log('\n📁 資料已儲存至 data/ 目錄');
-    console.log('🚀 請重新載入應用程式開始使用\n');
-    console.log('🔑 登入資訊:');
-    console.log('   帳號: admin');
-    console.log('   密碼: Admin123\n');
+    console.log('[Init] Data summary:');
+    console.log(`   Admin account: 1 (admin / Admin123)`);
+    console.log(`   Tags: ${tags.length}`);
+    console.log(`   Groups: ${groups.length}`);
+    console.log(`   Patients: ${patients.length}`);
+    console.log(`   Body composition records: ${bodyRecords.length}`);
+    console.log(`   Vital signs records: ${vitalRecords.length}`);
+    console.log('\n[Init] Data saved to data/ directory');
+    console.log('[Init] Reload application to start using\n');
+    console.log('[Init] Login info:');
+    console.log('   Username: admin');
+    console.log('   Password: Admin123\n');
 
   } catch (error) {
-    console.error('\n❌ 發生錯誤:', error.message);
+    console.error('\n[Init] Error:', error.message);
     console.error(error.stack);
     process.exit(1);
   }
 }
 
-// 執行主程式
+// Execute main program
 if (require.main === module) {
   initDatabase().catch(console.error);
 }

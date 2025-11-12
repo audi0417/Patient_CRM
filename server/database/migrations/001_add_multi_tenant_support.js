@@ -130,8 +130,8 @@ async function up() {
         ]
       );
 
-      // 將所有沒有組織的資料分配到預設組織
-      console.log('🔄 遷移現有資料到預設組織...');
+      // Assign all data without organization to default organization
+      console.log('[Migration] Migrating existing data to default organization...');
       for (const table of tables) {
         await dbAdapter.execute(
           `UPDATE ${table} SET "organizationId" = ? WHERE "organizationId" IS NULL`,

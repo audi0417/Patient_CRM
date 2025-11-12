@@ -40,11 +40,11 @@ function randomChoose(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-console.log('🔄 正在為患者添加健康數據和預約資訊...\n');
+console.log('[HealthData] Adding health data and appointment info to patients...\n');
 
-// 獲取所有患者 ID
+// Get all patient IDs
 const patients = db.prepare('SELECT id, name FROM patients').all();
-console.log(`📋 共有 ${patients.length} 位患者\n`);
+console.log(`[HealthData] Found ${patients.length} patients\n`);
 
 let bodyCompositionCount = 0;
 let vitalSignsCount = 0;
@@ -52,16 +52,16 @@ let appointmentCount = 0;
 let goalCount = 0;
 let consultationCount = 0;
 
-const appointmentTypes = ['初診', '複診', '定期檢查', '營養諮詢', '運動指導', '健康評估'];
+const appointmentTypes = ['Initial Visit', 'Follow-up', 'Regular Check', 'Nutrition Consult', 'Exercise Guidance', 'Health Assessment'];
 const appointmentStatuses = ['scheduled', 'completed', 'cancelled'];
-const goalCategories = ['體重管理', '健身計畫', '血糖控制', '血壓管理', '增肌計畫', '產後恢復'];
+const goalCategories = ['Weight Management', 'Fitness Plan', 'Blood Glucose Control', 'Blood Pressure Management', 'Muscle Building', 'Postpartum Recovery'];
 
 try {
   const addData = db.transaction(() => {
     patients.forEach((patient, index) => {
-      console.log(`⏳ 處理患者: ${patient.name} (${index + 1}/${patients.length})`);
+      console.log(`[HealthData] Processing: ${patient.name} (${index + 1}/${patients.length})`);
 
-      // 1. 添加體組成記錄 (3-5 筆)
+      // 1. Add body composition records (3-5 records)
       const bodyCompositionRecords = randomInRange(3, 5);
       for (let i = 0; i < bodyCompositionRecords; i++) {
         const id = generateId('body_comp');
@@ -229,30 +229,30 @@ try {
 
   addData();
 
-  console.log(`\n✅ 完成添加模擬數據`);
-  console.log(`\n📊 新增統計:`);
-  console.log(`   • 體組成記錄: ${bodyCompositionCount} 筆`);
-  console.log(`   • 生命徵象記錄: ${vitalSignsCount} 筆`);
-  console.log(`   • 健康目標: ${goalCount} 個`);
-  console.log(`   • 預約記錄: ${appointmentCount} 筆`);
-  console.log(`   • 諮詢記錄: ${consultationCount} 筆`);
+  console.log(`\n[HealthData] Completed adding mock data`);
+  console.log(`\n[HealthData] Statistics:`);
+  console.log(`   • Body composition records: ${bodyCompositionCount}`);
+  console.log(`   • Vital signs records: ${vitalSignsCount}`);
+  console.log(`   • Health goals: ${goalCount}`);
+  console.log(`   • Appointment records: ${appointmentCount}`);
+  console.log(`   • Consultation records: ${consultationCount}`);
 
-  // 驗證數據
+  // Verify data
   const bodyCompCount = db.prepare('SELECT COUNT(*) as count FROM body_composition').get();
   const vitalCount = db.prepare('SELECT COUNT(*) as count FROM vital_signs').get();
   const appointmentDbCount = db.prepare('SELECT COUNT(*) as count FROM appointments').get();
   const goalDbCount = db.prepare('SELECT COUNT(*) as count FROM goals').get();
   const consultationDbCount = db.prepare('SELECT COUNT(*) as count FROM consultations').get();
 
-  console.log(`\n🔍 資料庫驗證:`);
-  console.log(`   • 體組成: ${bodyCompCount.count} 筆`);
-  console.log(`   • 生命徵象: ${vitalCount.count} 筆`);
-  console.log(`   • 預約: ${appointmentDbCount.count} 筆`);
-  console.log(`   • 目標: ${goalDbCount.count} 個`);
-  console.log(`   • 諮詢: ${consultationDbCount.count} 筆`);
+  console.log(`\n[HealthData] Database verification:`);
+  console.log(`   • Body composition: ${bodyCompCount.count}`);
+  console.log(`   • Vital signs: ${vitalCount.count}`);
+  console.log(`   • Appointments: ${appointmentDbCount.count}`);
+  console.log(`   • Goals: ${goalDbCount.count}`);
+  console.log(`   • Consultations: ${consultationDbCount.count}`);
 
 } catch (error) {
-  console.error('❌ 添加數據時出錯:', error.message);
+  console.error('[HealthData] Error adding data:', error.message);
   console.error(error);
   process.exit(1);
 } finally {

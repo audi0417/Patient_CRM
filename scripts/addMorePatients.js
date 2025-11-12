@@ -194,9 +194,9 @@ const addedPatients = newPatients.map((patient, index) => ({
 // 合併患者資料
 const allPatients = [...patients, ...addedPatients];
 
-// 寫入檔案
+// Write file
 fs.writeFileSync(patientsFile, JSON.stringify(allPatients, null, 2), 'utf-8');
 
-console.log(`✅ 成功新增 ${addedPatients.length} 位患者`);
-console.log(`📊 現在共有 ${allPatients.length} 位患者`);
-console.log(`📝 檔案已更新: ${patientsFile}`);
+console.log(`[Patients] Successfully added ${addedPatients.length} patients`);
+console.log(`[Patients] Database now has ${allPatients.length} patients`);
+console.log(`[Patients] File updated: ${patientsFile}`);
