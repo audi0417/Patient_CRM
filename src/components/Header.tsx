@@ -49,7 +49,7 @@ const Header = () => {
                   )}
                 >
                   <Shield className="h-4 w-4" />
-                  超級後台
+                  企業管理
                 </Link>
                 <Link
                   to="/"
@@ -150,12 +150,6 @@ const Header = () => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {user?.role === "super_admin" && (
-                <DropdownMenuItem onClick={() => navigate("/superadmin")}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  企業管理系統
-                </DropdownMenuItem>
-              )}
               {permissions?.canManageUsers && (
                 <DropdownMenuItem onClick={() => navigate("/users")}>
                   <Users className="mr-2 h-4 w-4" />
