@@ -51,11 +51,50 @@ async function initialize() {
       await dbAdapter.testConnection(5, 3000);
     }
 
-    // 建立資料表 & 索引
-    console.log('📋 建立資料表結構...');
-    await dbAdapter.executeBatch(getSchemaSQL(dbType));
-    console.log('⚡ 建立索引...');
-    await dbAdapter.executeBatch(getIndexesSQL(dbType));
+    // 控制初始化模式
+    const initMode = (process.env.DB_INIT_MODE || 'auto').toLowerCase(); // auto | force | skip
+    if (initMode === 'skip') {
+      console.log('⏭️  跳過資料表初始化 (DB_INIT_MODE=skip)');
+    } else {
+      let needSchema = initMode === 'force';
+      if (!needSchema) {
+        try {
+          if (dbType === 'postgres' || dbType === 'postgresql') {
+            const t1 = await dbAdapter.queryOne(
+              "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = ?",
+              ['users']
+            );
+            const t2 = await dbAdapter.queryOne(
+              "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = ?",
+              ['organizations']
+            );
+            needSchema = !(t1 && t1.count > 0 && t2 && t2.count > 0);
+          } else {
+            const t1 = await dbAdapter.queryOne(
+              "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name = ?",
+              ['users']
+            );
+            const t2 = await dbAdapter.queryOne(
+              "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name = ?",
+              ['organizations']
+            );
+            needSchema = !(t1 && t1.count > 0 && t2 && t2.count > 0);
+          }
+        } catch (e) {
+          console.warn('⚠️ 無法檢查現有資料表，將嘗試建立 schema：', e.message);
+          needSchema = true;
+        }
+      }
+
+      if (needSchema) {
+        console.log('📋 建立資料表結構...');
+        await dbAdapter.executeBatch(getSchemaSQL(dbType));
+        console.log('⚡ 建立索引...');
+        await dbAdapter.executeBatch(getIndexesSQL(dbType));
+      } else {
+        console.log('✅ 偵測到資料表已存在，跳過建表與索引');
+      }
+    }
 
     // 建立預設組織（如不存在）
     const orgCount = await dbAdapter.queryOne('SELECT COUNT(*) as count FROM organizations');
