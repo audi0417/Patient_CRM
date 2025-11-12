@@ -546,4 +546,35 @@ router.get('/revenue', async (req, res) => {
   }
 });
 
+// ========== 患者總覽 ==========
+
+/**
+ * GET /api/superadmin/patients
+ * 獲取所有組織的患者列表（超級管理員專用）
+ */
+router.get('/patients', async (req, res) => {
+  try {
+    const patients = await queryAll(`
+      SELECT
+        p.id,
+        p.name,
+        p.gender,
+        p.birthDate,
+        p.phone,
+        p.email,
+        p.organizationId,
+        o.name as organizationName,
+        p.createdAt
+      FROM patients p
+      LEFT JOIN organizations o ON p.organizationId = o.id
+      ORDER BY p.createdAt DESC
+    `);
+
+    res.json(patients);
+  } catch (error) {
+    console.error('[SuperAdmin] Error fetching patients:', error);
+    res.status(500).json({ error: '獲取患者列表失敗' });
+  }
+});
+
 module.exports = router;

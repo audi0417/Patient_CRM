@@ -66,6 +66,7 @@ interface Organization {
   maxPatients: number;
   contactName: string;
   contactEmail: string;
+  contactPhone?: string;
   isActive: boolean;
   createdAt: string;
   subscriptionEndDate?: string;
@@ -317,8 +318,11 @@ const OrganizationManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="text-sm">{org.contactName}</div>
+                        <div className="text-sm font-medium">{org.contactName}</div>
                         <div className="text-xs text-muted-foreground">{org.contactEmail}</div>
+                        {org.contactPhone && (
+                          <div className="text-xs text-muted-foreground">{org.contactPhone}</div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -383,6 +387,7 @@ const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
     plan: "basic",
     contactName: "",
     contactEmail: "",
+    contactPhone: "",
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -483,6 +488,16 @@ const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
               required
             />
           </div>
+          <div>
+            <Label htmlFor="contactPhone">聯絡電話</Label>
+            <Input
+              id="contactPhone"
+              type="tel"
+              value={formData.contactPhone}
+              onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+              placeholder="例如: 02-2345-6789"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button type="submit" disabled={loading}>
@@ -512,6 +527,9 @@ const EditOrganizationDialog = ({
     maxUsers: organization.maxUsers,
     maxPatients: organization.maxPatients,
     isActive: organization.isActive,
+    contactName: organization.contactName || "",
+    contactEmail: organization.contactEmail || "",
+    contactPhone: organization.contactPhone || "",
   });
   const [loading, setLoading] = useState(false);
   const [admins, setAdmins] = useState<any[]>([]);
@@ -761,6 +779,32 @@ const EditOrganizationDialog = ({
                         setFormData({ ...formData, maxPatients: parseInt(e.target.value) })
                       }
                       required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-contactName">聯絡人姓名</Label>
+                    <Input
+                      id="edit-contactName"
+                      value={formData.contactName}
+                      onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-contactEmail">聯絡信箱</Label>
+                    <Input
+                      id="edit-contactEmail"
+                      type="email"
+                      value={formData.contactEmail}
+                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-contactPhone">聯絡電話</Label>
+                    <Input
+                      id="edit-contactPhone"
+                      type="tel"
+                      value={formData.contactPhone}
+                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
                     />
                   </div>
                   <div className="flex items-center gap-2">
