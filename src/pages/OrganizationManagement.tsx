@@ -36,8 +36,6 @@ import {
   Trash2,
   Users,
   UserCheck,
-  Search,
-  TrendingUp,
   AlertCircle,
   Key,
   Copy,
@@ -192,189 +190,155 @@ const OrganizationManagement = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">載入中...</div>
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-[90vw] py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg">載入中...</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Building2 className="h-8 w-8" />
-            組織管理
-          </h1>
-          <p className="text-muted-foreground mt-1">管理所有租戶組織</p>
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-[90vw] py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">企業管理</h1>
+            <p className="text-muted-foreground">管理所有租戶組織與訂閱方案</p>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg">
+                <Plus className="mr-2 h-5 w-5" />
+                創建組織
+              </Button>
+            </DialogTrigger>
+            <CreateOrganizationDialog
+              onSuccess={() => {
+                setIsCreateDialogOpen(false);
+                fetchOrganizations();
+              }}
+            />
+          </Dialog>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              創建組織
-            </Button>
-          </DialogTrigger>
-          <CreateOrganizationDialog
+
+        <Card>
+          <CardHeader>
+            <CardTitle>組織列表</CardTitle>
+            <CardDescription>共 {filteredOrgs.length} 個組織</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>組織名稱</TableHead>
+                    <TableHead>方案</TableHead>
+                    <TableHead>用戶數</TableHead>
+                    <TableHead>患者數</TableHead>
+                    <TableHead>聯絡人</TableHead>
+                    <TableHead>狀態</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrgs.map((org) => (
+                    <TableRow key={org.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{org.name}</div>
+                          <div className="text-xs text-muted-foreground">{org.slug}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={PLAN_COLORS[org.plan]}>
+                          {PLAN_LABELS[org.plan]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className={getUsageColor(org.currentUsers || 0, org.maxUsers)}>
+                            {org.currentUsers || 0}/{org.maxUsers}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="h-4 w-4 text-muted-foreground" />
+                          <span className={getUsageColor(org.currentPatients || 0, org.maxPatients)}>
+                            {org.currentPatients || 0}/{org.maxPatients}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="text-sm font-medium">{org.contactName}</div>
+                          <div className="text-xs text-muted-foreground">{org.contactEmail}</div>
+                          {org.contactPhone && (
+                            <div className="text-xs text-muted-foreground">{org.contactPhone}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {org.isActive ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700">
+                            啟用
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-50 text-gray-700">
+                            停用
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedOrg(org);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteOrganization(org.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Edit Dialog */}
+        {selectedOrg && (
+          <EditOrganizationDialog
+            organization={selectedOrg}
+            isOpen={isEditDialogOpen}
+            onClose={() => {
+              setIsEditDialogOpen(false);
+              setSelectedOrg(null);
+            }}
             onSuccess={() => {
-              setIsCreateDialogOpen(false);
+              setIsEditDialogOpen(false);
+              setSelectedOrg(null);
               fetchOrganizations();
             }}
           />
-        </Dialog>
+        )}
       </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>篩選與搜尋</CardTitle>
-        </CardHeader>
-        <CardContent className="flex gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜尋組織名稱、識別碼或聯絡信箱..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
-          <Select value={filterPlan} onValueChange={setFilterPlan}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="選擇方案" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">所有方案</SelectItem>
-              <SelectItem value="basic">基礎版</SelectItem>
-              <SelectItem value="professional">專業版</SelectItem>
-              <SelectItem value="enterprise">企業版</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Organizations Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>組織列表</CardTitle>
-          <CardDescription>
-            共 {filteredOrgs.length} 個組織 {searchTerm || filterPlan !== "all" ? `（已篩選）` : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>組織名稱</TableHead>
-                <TableHead>方案</TableHead>
-                <TableHead>用戶數</TableHead>
-                <TableHead>患者數</TableHead>
-                <TableHead>聯絡人</TableHead>
-                <TableHead>狀態</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrgs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    沒有找到符合條件的組織
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredOrgs.map((org) => (
-                  <TableRow key={org.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{org.name}</div>
-                        <div className="text-xs text-muted-foreground">{org.slug}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={PLAN_COLORS[org.plan]}>
-                        {PLAN_LABELS[org.plan]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className={getUsageColor(org.currentUsers || 0, org.maxUsers)}>
-                          {org.currentUsers || 0}/{org.maxUsers}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        <span className={getUsageColor(org.currentPatients || 0, org.maxPatients)}>
-                          {org.currentPatients || 0}/{org.maxPatients}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-sm font-medium">{org.contactName}</div>
-                        <div className="text-xs text-muted-foreground">{org.contactEmail}</div>
-                        {org.contactPhone && (
-                          <div className="text-xs text-muted-foreground">{org.contactPhone}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={org.isActive ? "default" : "secondary"}>
-                        {org.isActive ? "啟用" : "停用"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOrg(org);
-                            setIsEditDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteOrganization(org.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Edit Dialog */}
-      {selectedOrg && (
-        <EditOrganizationDialog
-          organization={selectedOrg}
-          isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setSelectedOrg(null);
-          }}
-          onSuccess={() => {
-            setIsEditDialogOpen(false);
-            setSelectedOrg(null);
-            fetchOrganizations();
-          }}
-        />
-      )}
     </div>
   );
 };
@@ -430,34 +394,37 @@ const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
   };
 
   return (
-    <DialogContent>
+    <DialogContent className="max-w-2xl">
       <form onSubmit={handleSubmit}>
         <DialogHeader>
           <DialogTitle>創建新組織</DialogTitle>
           <DialogDescription>填寫組織基本資訊</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="name">組織名稱</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">組織名稱 *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="slug">識別碼 *</Label>
+              <Input
+                id="slug"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="例如: taipei-hospital"
+                required
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="slug">識別碼</Label>
-            <Input
-              id="slug"
-              value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              placeholder="例如: taipei-hospital"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="plan">訂閱方案</Label>
+
+          <div className="space-y-2">
+            <Label htmlFor="plan">訂閱方案 *</Label>
             <Select value={formData.plan} onValueChange={(value) => setFormData({ ...formData, plan: value })}>
               <SelectTrigger>
                 <SelectValue />
@@ -469,26 +436,30 @@ const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="contactName">聯絡人姓名</Label>
-            <Input
-              id="contactName"
-              value={formData.contactName}
-              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-              required
-            />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="contactName">聯絡人姓名 *</Label>
+              <Input
+                id="contactName"
+                value={formData.contactName}
+                onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactEmail">聯絡信箱 *</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                value={formData.contactEmail}
+                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                required
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="contactEmail">聯絡信箱</Label>
-            <Input
-              id="contactEmail"
-              type="email"
-              value={formData.contactEmail}
-              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-              required
-            />
-          </div>
-          <div>
+
+          <div className="space-y-2">
             <Label htmlFor="contactPhone">聯絡電話</Label>
             <Input
               id="contactPhone"
@@ -631,7 +602,6 @@ const EditOrganizationDialog = ({
     } catch (error: any) {
       const errorMessage = error?.message || error?.error || "無法創建管理員";
 
-      // 檢查是否為配額錯誤
       if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED") || errorMessage.includes("數量上限")) {
         toast({
           title: "已達用戶上限",
@@ -731,74 +701,83 @@ const EditOrganizationDialog = ({
 
             <TabsContent value="info">
               <form onSubmit={handleSubmit}>
-                <div className="space-y-4 py-4">
-                  <div>
-                    <Label htmlFor="edit-name">組織名稱</Label>
-                    <Input
-                      id="edit-name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name">組織名稱 *</Label>
+                      <Input
+                        id="edit-name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-plan">訂閱方案 *</Label>
+                      <Select
+                        value={formData.plan}
+                        onValueChange={(value: any) => setFormData({ ...formData, plan: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="basic">基礎版</SelectItem>
+                          <SelectItem value="professional">專業版</SelectItem>
+                          <SelectItem value="enterprise">企業版</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-plan">訂閱方案</Label>
-                    <Select
-                      value={formData.plan}
-                      onValueChange={(value: any) => setFormData({ ...formData, plan: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="basic">基礎版</SelectItem>
-                        <SelectItem value="professional">專業版</SelectItem>
-                        <SelectItem value="enterprise">企業版</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-maxUsers">最大用戶數 *</Label>
+                      <Input
+                        id="edit-maxUsers"
+                        type="number"
+                        value={formData.maxUsers}
+                        onChange={(e) =>
+                          setFormData({ ...formData, maxUsers: parseInt(e.target.value) })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-maxPatients">最大患者數 *</Label>
+                      <Input
+                        id="edit-maxPatients"
+                        type="number"
+                        value={formData.maxPatients}
+                        onChange={(e) =>
+                          setFormData({ ...formData, maxPatients: parseInt(e.target.value) })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-maxUsers">最大用戶數</Label>
-                    <Input
-                      id="edit-maxUsers"
-                      type="number"
-                      value={formData.maxUsers}
-                      onChange={(e) =>
-                        setFormData({ ...formData, maxUsers: parseInt(e.target.value) })
-                      }
-                      required
-                    />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-contactName">聯絡人姓名 *</Label>
+                      <Input
+                        id="edit-contactName"
+                        value={formData.contactName}
+                        onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-contactEmail">聯絡信箱 *</Label>
+                      <Input
+                        id="edit-contactEmail"
+                        type="email"
+                        value={formData.contactEmail}
+                        onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-maxPatients">最大患者數</Label>
-                    <Input
-                      id="edit-maxPatients"
-                      type="number"
-                      value={formData.maxPatients}
-                      onChange={(e) =>
-                        setFormData({ ...formData, maxPatients: parseInt(e.target.value) })
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-contactName">聯絡人姓名</Label>
-                    <Input
-                      id="edit-contactName"
-                      value={formData.contactName}
-                      onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-contactEmail">聯絡信箱</Label>
-                    <Input
-                      id="edit-contactEmail"
-                      type="email"
-                      value={formData.contactEmail}
-                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                    />
-                  </div>
-                  <div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="edit-contactPhone">聯絡電話</Label>
                     <Input
                       id="edit-contactPhone"
@@ -807,12 +786,14 @@ const EditOrganizationDialog = ({
                       onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       id="edit-isActive"
                       checked={formData.isActive}
                       onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="h-4 w-4"
                     />
                     <Label htmlFor="edit-isActive">啟用組織</Label>
                   </div>
@@ -843,30 +824,32 @@ const EditOrganizationDialog = ({
               {showNewAdminForm && (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
-                    <div>
-                      <Label htmlFor="admin-name">姓名</Label>
-                      <Input
-                        id="admin-name"
-                        value={newAdminForm.name}
-                        onChange={(e) =>
-                          setNewAdminForm({ ...newAdminForm, name: e.target.value })
-                        }
-                        placeholder="留空則自動生成"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-name">姓名</Label>
+                        <Input
+                          id="admin-name"
+                          value={newAdminForm.name}
+                          onChange={(e) =>
+                            setNewAdminForm({ ...newAdminForm, name: e.target.value })
+                          }
+                          placeholder="留空則自動生成"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-email">電子郵件</Label>
+                        <Input
+                          id="admin-email"
+                          type="email"
+                          value={newAdminForm.email}
+                          onChange={(e) =>
+                            setNewAdminForm({ ...newAdminForm, email: e.target.value })
+                          }
+                          placeholder="選填"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="admin-email">電子郵件</Label>
-                      <Input
-                        id="admin-email"
-                        type="email"
-                        value={newAdminForm.email}
-                        onChange={(e) =>
-                          setNewAdminForm({ ...newAdminForm, email: e.target.value })
-                        }
-                        placeholder="選填"
-                      />
-                    </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="admin-username">使用者名稱</Label>
                       <Input
                         id="admin-username"

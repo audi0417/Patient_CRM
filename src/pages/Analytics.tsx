@@ -82,9 +82,11 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">載入中...</div>
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-[90vw] py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg">載入中...</div>
+          </div>
         </div>
       </div>
     );
@@ -92,10 +94,12 @@ const Analytics = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-[90vw] py-8">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
       </div>
     );
   }
@@ -134,12 +138,13 @@ const Analytics = () => {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">統計報表</h1>
-        <p className="text-muted-foreground mt-1">營運數據分析與趨勢追蹤</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-[90vw] py-8 space-y-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">統計報表</h1>
+          <p className="text-muted-foreground">營運數據分析與趨勢追蹤</p>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -276,6 +281,7 @@ const Analytics = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };
