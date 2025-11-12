@@ -18,14 +18,13 @@ class SQLiteAdapter extends DatabaseAdapter {
         fs.mkdirSync(dir, { recursive: true });
       }
     } catch (e) {
-      console.warn('⚠️ 無法自動建立資料夾，可能沒有寫入權限：', e.message);
+      console.warn('[SQLite] Unable to create directory, may lack write permissions:', e.message);
     }
     this.db = new Database(dbPath);
-    // 啟用 WAL 模式以提高性能
     try {
       this.db.pragma('journal_mode = WAL');
     } catch (e) {
-      console.warn('⚠️ 設定 WAL 模式失敗（將使用預設 journal 模式）：', e.message);
+      console.warn('[SQLite] Failed to set WAL mode (using default journal mode):', e.message);
     }
   }
 
@@ -56,7 +55,7 @@ class SQLiteAdapter extends DatabaseAdapter {
       const norm = this._normalizeParams(params);
       return stmt.all(...norm);
     } catch (error) {
-      console.error('SQLite query error:', error);
+      console.error('[SQLite] Query error:', error);
       throw error;
     }
   }
@@ -70,7 +69,7 @@ class SQLiteAdapter extends DatabaseAdapter {
       const norm = this._normalizeParams(params);
       return stmt.get(...norm) || null;
     } catch (error) {
-      console.error('SQLite queryOne error:', error);
+      console.error('[SQLite] QueryOne error:', error);
       throw error;
     }
   }
@@ -88,7 +87,7 @@ class SQLiteAdapter extends DatabaseAdapter {
         lastID: info.lastInsertRowid
       };
     } catch (error) {
-      console.error('SQLite execute error:', error);
+      console.error('[SQLite] Execute error:', error);
       throw error;
     }
   }
@@ -100,7 +99,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     try {
       this.db.exec(sql);
     } catch (error) {
-      console.error('SQLite executeBatch error:', error);
+      console.error('[SQLite] ExecuteBatch error:', error);
       throw error;
     }
   }

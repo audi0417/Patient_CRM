@@ -40,21 +40,21 @@ const db = {
  * 初始化資料庫
  */
 async function initialize() {
-  console.log('🗄️  初始化數據庫...');
+  console.log('[Database] Initializing...');
 
   try {
     const dbType = (process.env.DB_TYPE || process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
 
-    // PostgreSQL: 先測試連線
+    // PostgreSQL: test connection first
     if ((dbType === 'postgres' || dbType === 'postgresql') && dbAdapter.testConnection) {
-      console.log('🔌 測試 PostgreSQL 連線...');
+      console.log('[Database] Testing PostgreSQL connection...');
       await dbAdapter.testConnection(5, 3000);
     }
 
-    // 控制初始化模式
+    // Control initialization mode
     const initMode = (process.env.DB_INIT_MODE || 'auto').toLowerCase(); // auto | force | skip
     if (initMode === 'skip') {
-      console.log('⏭️  跳過資料表初始化 (DB_INIT_MODE=skip)');
+      console.log('[Database] Skipping schema initialization (DB_INIT_MODE=skip)');
     } else {
       let needSchema = initMode === 'force';
       if (!needSchema) {
@@ -81,27 +81,27 @@ async function initialize() {
             needSchema = !(t1 && t1.count > 0 && t2 && t2.count > 0);
           }
         } catch (e) {
-          console.warn('⚠️ 無法檢查現有資料表，將嘗試建立 schema：', e.message);
+          console.warn('[Database] Unable to check existing tables, will create schema:', e.message);
           needSchema = true;
         }
       }
 
       if (needSchema) {
-        console.log('📋 建立資料表結構...');
+        console.log('[Database] Creating tables...');
         await dbAdapter.executeBatch(getSchemaSQL(dbType));
-        console.log('⚡ 建立索引...');
+        console.log('[Database] Creating indexes...');
         await dbAdapter.executeBatch(getIndexesSQL(dbType));
       } else {
-        console.log('✅ 偵測到資料表已存在，跳過建表與索引');
+        console.log('[Database] Tables already exist, skipping creation');
       }
     }
 
-    // 建立預設組織（如不存在）
+    // Create default organization if not exists
     const orgCount = await dbAdapter.queryOne('SELECT COUNT(*) as count FROM organizations');
     if (orgCount && orgCount.count === 0) {
-      console.log('🏢 創建預設組織...');
+      console.log('[Database] Creating default organization...');
       const now = new Date().toISOString();
-      const defaultOrgId = 'org_default_001'; // 固定 default 組織 ID
+      const defaultOrgId = 'org_default_001';
       await dbAdapter.execute(
         `INSERT INTO organizations (
           id, name, slug, plan, "maxUsers", "maxPatients", "isActive",
@@ -109,8 +109,8 @@ async function initialize() {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           defaultOrgId,
-          'default', // name 也用 default，便於識別
-          'default', // slug
+          'default',
+          'default',
           'enterprise',
           999,
           99999,
@@ -120,13 +120,13 @@ async function initialize() {
           now
         ]
       );
-      console.log('✅ 預設組織已創建');
+      console.log('[Database] Default organization created');
     }
 
-    // 建立超級管理員（如不存在，並嘗試指派組織）
+    // Create super admin account if not exists
     const superAdminCount = await dbAdapter.queryOne('SELECT COUNT(*) as count FROM users WHERE role = ?', ['super_admin']);
     if (superAdminCount && superAdminCount.count === 0) {
-      console.log('👑 創建超級管理員帳號...');
+      console.log('[Database] Creating super admin account...');
       const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2024';
       const hashedPassword = crypto.createHash('sha256').update(superAdminPassword).digest('hex');
       const now = new Date().toISOString();
@@ -147,27 +147,26 @@ async function initialize() {
           now
         ]
       );
-      console.log(`✅ 超級管理員已創建${targetOrg ? ' 並指派組織 ' + targetOrg.id : '（暫無組織可指派）'}`);
-      console.log('⚠️  登入後請立即修改密碼');
+      console.log(`[Database] Super admin created${targetOrg ? ' with organization ' + targetOrg.id : ''}`);
+      console.log('[Database] Please change password after login');
     }
 
-    // 修復：已有超級管理員但缺組織 → 指派第一個組織
-  const orphanSuperAdmin = await dbAdapter.queryOne('SELECT id FROM users WHERE role = ? AND ("organizationId" IS NULL OR "organizationId" = \'\')', ['super_admin']);
+    // Fix orphan super admin without organization
+    const orphanSuperAdmin = await dbAdapter.queryOne('SELECT id FROM users WHERE role = ? AND ("organizationId" IS NULL OR "organizationId" = \'\')', ['super_admin']);
     if (orphanSuperAdmin && orphanSuperAdmin.id) {
       const anyOrg = await dbAdapter.queryOne('SELECT id FROM organizations ORDER BY createdAt ASC LIMIT 1');
       if (anyOrg) {
         const nowFix = new Date().toISOString();
         await dbAdapter.execute('UPDATE users SET "organizationId" = ?, "updatedAt" = ? WHERE role = ?', [anyOrg.id, nowFix, 'super_admin']);
-        console.log(`� 已修復超級管理員缺少組織 → 指派 ${anyOrg.id}`);
+        console.log(`[Database] Fixed orphan super admin, assigned organization ${anyOrg.id}`);
       }
     }
 
-    // 建立預設服務類別（如不存在）
+    // Create default service types if not exists
     const serviceTypesCount = await dbAdapter.queryOne('SELECT COUNT(*) as count FROM service_types');
     if (serviceTypesCount && serviceTypesCount.count === 0) {
-      console.log('📝 創建預設服務類別...');
+      console.log('[Database] Creating default service types...');
       const now = new Date().toISOString();
-      // 直接使用 default 組織 ID
       const orgIdForTypes = 'org_default_001';
       const defaultServiceTypes = [
         { name: '初診', color: '#6366f1', description: '首次就診評估', order: 0 },
@@ -193,12 +192,12 @@ async function initialize() {
           ]
         );
       }
-      console.log('✅ 預設服務類別已創建');
+      console.log('[Database] Default service types created');
     }
 
-    console.log('✅ 數據庫初始化完成');
+    console.log('[Database] Initialization complete');
   } catch (error) {
-    console.error('❌ 數據庫初始化失敗:', error);
+    console.error('[Database] Initialization failed:', error);
     throw error;
   }
 }
