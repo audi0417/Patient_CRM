@@ -174,7 +174,7 @@ for (const org of orgIds) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       patientId,
-      `${patientNames[i]} (${org.name})`,
+      patientNames[i],
       i % 2 === 0 ? 'male' : 'female',
       randomDate(10000),
       `09${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
