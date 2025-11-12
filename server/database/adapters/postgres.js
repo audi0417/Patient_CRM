@@ -11,24 +11,24 @@ class PostgresAdapter extends DatabaseAdapter {
   constructor(config) {
     super();
 
-    // 支援 DATABASE_URL 或分開配置
+    // Support DATABASE_URL or separate configuration
     if (typeof config === 'string') {
-      console.log('🔧 PostgreSQL 配置 (使用連線字串)');
+      console.log('[PostgreSQL] Configured with connection string');
       this.pool = new Pool({
         connectionString: config,
         ssl: process.env.NODE_ENV === 'production' ? {
-          rejectUnauthorized: false // Zeabur 需要
+          rejectUnauthorized: false // Zeabur requirement
         } : false,
-        // 連線設定
-        connectionTimeoutMillis: 10000, // 10 秒連線逾時
+        // Connection settings
+        connectionTimeoutMillis: 10000, // 10 sec timeout
         idleTimeoutMillis: 30000,
-        max: 10, // 最大連線數
-        // 錯誤處理
+        max: 10, // max connections
+        // Error handling
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000
       });
     } else {
-      console.log(`🔧 PostgreSQL 配置: ${config.user}@${config.host}:${config.port}/${config.database}`);
+      console.log(`[PostgreSQL] Configured: ${config.user}@${config.host}:${config.port}/${config.database}`);
       this.pool = new Pool({
         host: config.host,
         port: config.port || 5432,
@@ -38,7 +38,7 @@ class PostgresAdapter extends DatabaseAdapter {
         ssl: process.env.NODE_ENV === 'production' ? {
           rejectUnauthorized: false
         } : false,
-        // 連線設定
+        // Connection settings
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 30000,
         max: 10,
@@ -47,35 +47,35 @@ class PostgresAdapter extends DatabaseAdapter {
       });
     }
 
-    // 錯誤處理
+    // Error handling
     this.pool.on('error', (err) => {
-      console.error('❌ PostgreSQL Pool 錯誤:', err);
+      console.error('[PostgreSQL] Pool error:', err);
     });
 
     this.client = null; // 用於事務
   }
 
   /**
-   * 測試連線並重試
+   * Test connection with retries
    */
   async testConnection(maxRetries = 5, delayMs = 2000) {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        console.log(`🔄 嘗試連接 PostgreSQL... (${i + 1}/${maxRetries})`);
+        console.log(`[PostgreSQL] Attempting connection... (${i + 1}/${maxRetries})`);
         const client = await this.pool.connect();
         const result = await client.query('SELECT NOW()');
         client.release();
-        console.log('✅ PostgreSQL 連接成功！');
-        console.log('⏰ 伺服器時間:', result.rows[0].now);
+        console.log('[PostgreSQL] Connection successful!');
+        console.log('[PostgreSQL] Server time:', result.rows[0].now);
         return true;
       } catch (error) {
-        console.error(`❌ 連接失敗 (嘗試 ${i + 1}/${maxRetries}):`, error.message);
+        console.error(`[PostgreSQL] Connection failed (attempt ${i + 1}/${maxRetries}):`, error.message);
 
         if (i < maxRetries - 1) {
-          console.log(`⏳ 等待 ${delayMs}ms 後重試...`);
+          console.log(`[PostgreSQL] Retrying in ${delayMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
         } else {
-          console.error('💥 所有連接嘗試都失敗了');
+          console.error('[PostgreSQL] All connection attempts failed');
           throw error;
         }
       }

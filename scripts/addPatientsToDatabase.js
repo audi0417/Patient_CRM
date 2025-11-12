@@ -145,18 +145,18 @@ const result = countStmt.get();
 const currentCount = result.count;
 
 if (currentCount > 0) {
-  console.log(`⚠️  資料庫中已有 ${currentCount} 位患者`);
-  console.log('🗑️  清空現有患者...');
+  console.log(`[Database] Found ${currentCount} existing patients`);
+  console.log('[Database] Clearing existing data...');
   db.exec('DELETE FROM patients');
   db.exec('DELETE FROM appointments');
   db.exec('DELETE FROM body_composition');
   db.exec('DELETE FROM vital_signs');
   db.exec('DELETE FROM goals');
   db.exec('DELETE FROM consultations');
-  console.log('✅ 已清空所有相關資料');
+  console.log('[Database] Data cleared');
 }
 
-// 準備插入語句
+// Prepare insert statement
 const insertPatient = db.prepare(`
   INSERT INTO patients (
     id, name, gender, birthDate, phone, email, address,
@@ -169,7 +169,7 @@ const now = new Date().toISOString();
 let insertedCount = 0;
 
 try {
-  // 開始事務
+  // Begin transaction
   const insertMany = db.transaction(() => {
     patients.forEach(patient => {
       const id = generateId('patient');
@@ -196,14 +196,14 @@ try {
 
   insertMany();
   
-  console.log(`✅ 成功新增 ${insertedCount} 位患者到資料庫`);
+  console.log(`[Database] Successfully added ${insertedCount} patients`);
   
-  // 驗證
+  // Verify
   const verifyResult = db.prepare('SELECT COUNT(*) as count FROM patients').get();
-  console.log(`📊 資料庫現在共有 ${verifyResult.count} 位患者`);
+  console.log(`[Database] Database now has ${verifyResult.count} patients`);
   
 } catch (error) {
-  console.error('❌ 新增患者時出錯:', error.message);
+  console.error('[Database] Error adding patients:', error.message);
   process.exit(1);
 } finally {
   db.close();

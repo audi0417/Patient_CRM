@@ -1,28 +1,28 @@
 /**
- * Fix Existing Users - 為現有用戶分配組織
+ * Fix Existing Users - Assign organizations to existing users
  *
- * 此腳本會：
- * 1. 為所有沒有 organizationId 的用戶分配到預設組織
- * 2. 確保超級管理員不受影響
+ * This script will:
+ * 1. Assign all users without organizationId to default organization
+ * 2. Ensure super admin is unaffected
  */
 
 const { db } = require('../server/database/db');
 
-console.log('🔧 修復現有用戶...\n');
+console.log('[Fix Users] Starting user organization assignment...\n');
 
 try {
-  // 1. 檢查預設組織是否存在
+  // 1. Check if default organization exists
   const defaultOrg = db.prepare('SELECT id FROM organizations WHERE slug = ?').get('default');
 
   if (!defaultOrg) {
-    console.log('❌ 找不到預設組織，請先執行遷移：');
+    console.log('[Fix Users] Error: Default organization not found. Run migration first:');
     console.log('   node server/database/migrate.js up');
     process.exit(1);
   }
 
-  console.log(`✅ 找到預設組織: ${defaultOrg.id}\n`);
+  console.log(`[Fix Users] Found default organization: ${defaultOrg.id}\n`);
 
-  // 2. 查找所有沒有 organizationId 的用戶（排除超級管理員）
+  // 2. Find all users without organizationId (excluding super admin)
   const usersWithoutOrg = db.prepare(`
     SELECT id, username, role, name
     FROM users
@@ -30,13 +30,13 @@ try {
   `).all();
 
   if (usersWithoutOrg.length === 0) {
-    console.log('✅ 所有用戶都已分配組織！');
+    console.log('[Fix Users] All users already have organizations assigned!');
     process.exit(0);
   }
 
-  console.log(`找到 ${usersWithoutOrg.length} 個需要修復的用戶：\n`);
+  console.log(`[Fix Users] Found ${usersWithoutOrg.length} users needing fixes:\n`);
 
-  // 3. 為這些用戶分配預設組織
+  // 3. Assign default organization to these users
   const updateStmt = db.prepare(`
     UPDATE users
     SET organizationId = ?, updatedAt = ?
@@ -47,11 +47,11 @@ try {
 
   for (const user of usersWithoutOrg) {
     updateStmt.run(defaultOrg.id, now, user.id);
-    console.log(`✅ ${user.username} (${user.role}) - 已分配到預設組織`);
+    console.log(`[Fix Users] ${user.username} (${user.role}) - assigned to default organization`);
   }
 
-  console.log(`\n✅ 成功修復 ${usersWithoutOrg.length} 個用戶！`);
-  console.log('\n現在可以使用這些帳號登入：');
+  console.log(`\n[Fix Users] Successfully fixed ${usersWithoutOrg.length} users!`);
+  console.log('\nAccounts ready to use:');
 
   const updatedUsers = db.prepare(`
     SELECT u.username, u.role, o.name as organizationName
@@ -60,25 +60,25 @@ try {
     WHERE u.role != 'super_admin'
   `).all();
 
-  console.log('\n帳號列表：');
+  console.log('\nAccount list:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   updatedUsers.forEach(u => {
-    console.log(`  ${u.username.padEnd(20)} | ${u.role.padEnd(10)} | ${u.organizationName || '無組織'}`);
+    console.log(`  ${u.username.padEnd(20)} | ${u.role.padEnd(10)} | ${u.organizationName || 'No org'}`);
   });
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-  // 4. 檢查超級管理員
+  // 4. Check super admin
   const superAdmin = db.prepare(`
     SELECT username FROM users WHERE role = 'super_admin'
   `).get();
 
   if (superAdmin) {
-    console.log('🔐 超級管理員帳號：');
-    console.log(`   帳號: ${superAdmin.username}`);
-    console.log('   密碼: SuperAdmin@2024 (請修改)\n');
+    console.log('[Fix Users] Super admin account:');
+    console.log(`   Username: ${superAdmin.username}`);
+    console.log('   Password: SuperAdmin@2024 (please change)\n');
   }
 
 } catch (error) {
-  console.error('❌ 修復失敗:', error);
+  console.error('[Fix Users] Error:', error);
   process.exit(1);
 }

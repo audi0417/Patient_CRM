@@ -54,22 +54,22 @@ async function transaction(callback) {
 }
 
 /**
- * 同步包裝器 - 將異步操作包裝為同步風格（用於漸進式遷移）
- * 注意：這只是過渡方案，最終應該將所有 routes 改為異步
+ * Synchronous wrapper - wrap async operations in synchronous style (for gradual migration)
+ * Note: This is only a temporary solution. All routes should eventually use async/await
  */
 const dbSync = {
   prepare: (sql) => ({
     all: (...params) => {
-      // 返回 Promise，但標記為需要 await
-      console.warn('⚠️  警告：使用同步風格調用異步操作，請盡快遷移為 async/await');
+      // Returns Promise, but marked as needing await
+      console.warn('[Database] Warning: Sync style call detected. Migrate to async/await as soon as possible');
       return dbAdapter.query(sql, params);
     },
     get: (...params) => {
-      console.warn('⚠️  警告：使用同步風格調用異步操作，請盡快遷移為 async/await');
+      console.warn('[Database] Warning: Sync style call detected. Migrate to async/await as soon as possible');
       return dbAdapter.queryOne(sql, params);
     },
     run: (...params) => {
-      console.warn('⚠️  警告：使用同步風格調用異步操作，請盡快遷移為 async/await');
+      console.warn('[Database] Warning: Sync style call detected. Migrate to async/await as soon as possible');
       return dbAdapter.execute(sql, params);
     }
   })

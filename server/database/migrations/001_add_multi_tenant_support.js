@@ -1,25 +1,25 @@
 /**
  * Multi-Tenant Support Migration
  *
- * 商業化多租戶架構 - Single Database with Row-Level Isolation
+ * Commercial multi-tenant architecture - Single Database with Row-Level Isolation
  *
- * 優勢：
- * - 最小資源消耗：共用資料庫實例
- * - 完全資料隔離：Row-level 自動過濾
- * - 高效能查詢：複合索引優化
- * - 橫向擴展：支援數千組織
+ * Benefits:
+ * - Minimal resource consumption: shared database instance
+ * - Complete data isolation: Row-level automatic filtering
+ * - Efficient queries: composite index optimization
+ * - Horizontal scaling: support thousands of organizations
  */
 
 const { dbAdapter } = require('../db');
 
 async function up() {
-  console.log('🚀 開始多租戶架構遷移...');
+  console.log('[Migration] Starting multi-tenant architecture...');
 
   try {
-    // 注意：由於 schema.js 已經包含 organizationId 欄位和索引，
-    // 這個遷移主要用於已存在的舊資料庫
+    // Note: schema.js already includes organizationId field and indexes
+    // This migration is mainly for existing legacy databases
 
-    // 檢查 organizations 表是否存在
+    // Check if organizations table exists
     const tableExists = await dbAdapter.queryOne(`
       SELECT name FROM sqlite_master WHERE type='table' AND name='organizations'
       UNION ALL
@@ -27,7 +27,7 @@ async function up() {
     `);
 
     if (!tableExists) {
-      console.log('📋 建立 organizations 表...');
+      console.log('[Migration] Creating organizations table...');
       await dbAdapter.executeBatch(`
         CREATE TABLE organizations (
           id TEXT PRIMARY KEY,
@@ -51,8 +51,8 @@ async function up() {
       `);
     }
 
-    // 檢查 organizationId 欄位是否存在（僅用於舊資料庫）
-    console.log('🔍 檢查資料表結構...');
+    // Check if organizationId field exists (only for legacy databases)
+    console.log('[Migration] Checking table structure...');
 
     const tables = [
       'users',
@@ -69,18 +69,18 @@ async function up() {
 
     for (const table of tables) {
       try {
-        // 嘗試查詢 organizationId 欄位
+        // Try to query organizationId field
         await dbAdapter.queryOne(`SELECT "organizationId" FROM ${table} LIMIT 1`);
-        console.log(`✓ ${table} 已有 organizationId 欄位`);
+        console.log(`[Migration] ${table} already has organizationId field`);
       } catch (error) {
-        // 欄位不存在，需要新增
-        console.log(`📊 為 ${table} 新增 organizationId 欄位...`);
+        // Field doesn't exist, need to add
+        console.log(`[Migration] Adding organizationId field to ${table}...`);
         await dbAdapter.executeBatch(`ALTER TABLE ${table} ADD COLUMN "organizationId" TEXT`);
       }
     }
 
-    // 建立或更新索引
-    console.log('⚡ 建立/更新複合索引...');
+    // Create or update indexes
+    console.log('[Migration] Creating/updating composite indexes...');
 
     const indexes = [
       'CREATE INDEX IF NOT EXISTS idx_users_org ON users("organizationId", "isActive")',
@@ -102,12 +102,12 @@ async function up() {
       await dbAdapter.executeBatch(indexSQL);
     }
 
-    // 建立預設組織（如果不存在）
-    console.log('🏢 檢查預設組織...');
+    // Create default organization (if not exists)
+    console.log('[Migration] Checking default organization...');
     const defaultOrg = await dbAdapter.queryOne('SELECT id FROM organizations WHERE slug = ?', ['default']);
 
     if (!defaultOrg) {
-      console.log('📝 建立預設組織...');
+      console.log('[Migration] Creating default organization...');
       const now = new Date().toISOString();
       const defaultOrgId = 'org_default_001';
 
@@ -140,28 +140,28 @@ async function up() {
       }
     }
 
-    console.log('✅ 多租戶架構遷移完成！');
+    console.log('[Migration] Multi-tenant architecture migration completed successfully!');
     console.log('');
-    console.log('📊 效能優化說明：');
-    console.log('   - 複合索引確保查詢效能不降低');
-    console.log('   - organizationId 在索引最左側，支援最佳過濾');
-    console.log('   - 每個查詢都會自動使用組織過濾');
+    console.log('[Migration] Performance optimization details:');
+    console.log('   - Composite indexes ensure query performance');
+    console.log('   - organizationId at leftmost index position for optimal filtering');
+    console.log('   - Every query automatically applies organization filtering');
     console.log('');
-    console.log('🔒 安全性說明：');
-    console.log('   - Row-Level Isolation 確保完全資料隔離');
-    console.log('   - 中介層自動注入 organizationId');
-    console.log('   - API 層無法跨組織存取資料');
+    console.log('[Migration] Security details:');
+    console.log('   - Row-Level Isolation ensures complete data isolation');
+    console.log('   - Middleware automatically injects organizationId');
+    console.log('   - API layer cannot access cross-organization data');
   } catch (error) {
-    console.error('❌ 遷移失敗:', error);
+    console.error('[Migration] Failed:', error);
     throw error;
   }
 }
 
 async function down() {
-  console.log('⚠️  回滾多租戶架構遷移...');
+  console.log('[Migration] Rolling back multi-tenant architecture...');
 
   try {
-    // 移除索引
+    // Remove indexes
     const indexes = [
       'idx_users_org', 'idx_users_org_username',
       'idx_patients_org', 'idx_patients_org_name',
@@ -175,10 +175,10 @@ async function down() {
       await dbAdapter.executeBatch(`DROP INDEX IF EXISTS ${index}`);
     }
 
-    console.log('⚠️  警告：無法移除 organizationId 欄位（需要重建資料表）');
-    console.log('⚠️  如需完全回滾，請刪除資料庫並重新初始化');
+    console.log('[Migration] Warning: Cannot remove organizationId fields (requires table rebuild)');
+    console.log('[Migration] For complete rollback, delete database and reinitialize');
   } catch (error) {
-    console.error('❌ 回滾失敗:', error);
+    console.error('[Migration] Rollback failed:', error);
     throw error;
   }
 }

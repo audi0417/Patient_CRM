@@ -24,14 +24,14 @@ function createDatabaseAdapter() {
   const dbTypeRaw = (process.env.DB_TYPE || process.env.DATABASE_TYPE || '').toLowerCase();
   const dbType = dbTypeRaw || (hasPostgresHint ? 'postgres' : 'sqlite');
 
-  console.log(`📊 資料庫類型: ${dbType}`);
+  console.log(`[Database] Type: ${dbType}`);
 
   if (dbType === 'postgres' || dbType === 'postgresql') {
-    // 直接依 Zeabur 文件：
-    // 1) 優先使用連線字串（POSTGRES_CONNECTION_STRING/POSTGRES_URI/DATABASE_URL）
+    // Direct Zeabur documentation:
+    // 1) Prioritize connection string (POSTGRES_CONNECTION_STRING/POSTGRES_URI/DATABASE_URL)
     const connectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.POSTGRES_URI || process.env.DATABASE_URL;
     if (connectionString) {
-      console.log('🔗 使用連線字串連接 PostgreSQL');
+      console.log('[Database] Using connection string for PostgreSQL');
       return new PostgresAdapter(connectionString);
     }
 
@@ -63,20 +63,20 @@ function createDatabaseAdapter() {
       process.env.DATABASE_HOST;
 
     if (!host || !user || !password || !database) {
-      console.error('❌ PostgreSQL 參數不足。請在 Zeabur：');
-      console.error('   - 使用 Exposed variable: POSTGRES_CONNECTION_STRING，或');
-      console.error('   - 設定 DB_POSTGRESDB_HOST/PORT/DATABASE/USER/PASSWORD（或 POSTGRES_* / DATABASE_* 對應變數）');
-      console.error('   - 如需私網 Hostname，請至資料庫服務的 Networking 分頁查詢 FQDN');
+      console.error('[Database] PostgreSQL configuration incomplete. Configure in Zeabur:');
+      console.error('   - Use Exposed variable: POSTGRES_CONNECTION_STRING, or');
+      console.error('   - Set DB_POSTGRESDB_HOST/PORT/DATABASE/USER/PASSWORD (or POSTGRES_* / DATABASE_* variants)');
+      console.error('   - For private hostname, check database service Networking tab for FQDN');
       throw new Error('PostgreSQL configuration incomplete');
     }
 
     const config = { host, port, database, user, password };
-    console.log(`🔗 連接到 PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
+    console.log(`[Database] Connecting to PostgreSQL: ${config.user}@${config.host}:${config.port}/${config.database}`);
     return new PostgresAdapter(config);
   } else {
-    // SQLite 配置
+    // SQLite configuration
     const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../../data/patient_crm.db');
-    console.log(`🔗 使用 SQLite: ${dbPath}`);
+    console.log(`[Database] Using SQLite: ${dbPath}`);
     return new SQLiteAdapter(dbPath);
   }
 }

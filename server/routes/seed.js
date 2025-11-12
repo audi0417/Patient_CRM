@@ -48,8 +48,8 @@ router.post('/', async (req, res) => {
 
     const now = new Date().toISOString();
 
-    // 1. 插入測試用戶
-    console.log('📝 正在插入測試用戶...');
+    // 1. Insert test users
+    console.log('[Seed] Inserting test users...');
     const hashedPassword = await bcrypt.hash('password123', 10);
 
     const testUsers = [
@@ -88,8 +88,8 @@ router.post('/', async (req, res) => {
       results.users++;
     }
 
-    // 2. 插入患者資料 (20位)
-    console.log('📝 正在插入患者資料...');
+    // 2. Insert patient data (20 patients)
+    console.log('[Seed] Inserting patient data...');
 
     const patients = [
       {
@@ -239,8 +239,8 @@ router.post('/', async (req, res) => {
       results.patients++;
     }
 
-    // 3. 插入預約資料 (每位患者 3-8 筆)
-    console.log('📅 正在插入預約資料...');
+    // 3. Insert appointment data (3-8 appointments per patient)
+    console.log('[Seed] Inserting appointment data...');
 
     const appointmentTypes = ['初診', '複診', '定期檢查', '營養諮詢', '運動指導', '健康評估'];
 
@@ -372,14 +372,14 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 6. 插入健康目標 (每位患者 1-3 個)
-    console.log('🎯 正在插入健康目標...');
+    // 6. Insert health goals (1-3 per patient)
+    console.log('[Seed] Inserting health goals...');
 
     const goalTypes = [
-      { category: '體重管理', title: '減重目標', description: '達到理想體重', targetValue: 70, unit: 'kg' },
-      { category: '運動健身', title: '每週運動', description: '增加運動頻率', targetValue: 3, unit: '次' },
-      { category: '血壓控制', title: '血壓目標', description: '降低收縮壓', targetValue: 120, unit: 'mmHg' },
-      { category: '血糖控制', title: '血糖控制', description: '維持空腹血糖正常', targetValue: 100, unit: 'mg/dL' },
+      { category: 'Weight Management', title: 'Weight Loss Goal', description: 'Achieve ideal weight', targetValue: 70, unit: 'kg' },
+      { category: 'Exercise & Fitness', title: 'Weekly Exercise', description: 'Increase exercise frequency', targetValue: 3, unit: 'times' },
+      { category: 'Blood Pressure Control', title: 'BP Goal', description: 'Lower systolic pressure', targetValue: 120, unit: 'mmHg' },
+      { category: 'Blood Glucose Control', title: 'Blood Sugar Control', description: 'Maintain normal fasting glucose', targetValue: 100, unit: 'mg/dL' },
       { category: '體脂控制', title: '體脂率', description: '降低體脂率', targetValue: 20, unit: '%' }
     ];
 
@@ -423,18 +423,18 @@ router.post('/', async (req, res) => {
       }
     }
 
-    console.log('✅ 模擬數據插入完成！');
+    console.log('[Seed] Mock data insertion completed successfully');
 
     res.json({
       success: true,
-      message: '模擬數據插入成功',
+      message: 'Mock data insertion successful',
       results
     });
 
   } catch (error) {
-    console.error('❌ Seed 失敗:', error);
+    console.error('[Seed] Failed:', error);
     res.status(500).json({
-      error: 'Seed 操作失敗',
+      error: 'Seed operation failed',
       details: error.message
     });
   }

@@ -40,9 +40,9 @@ function randomInRange(min, max, decimals = 0) {
   return decimals > 0 ? parseFloat(value.toFixed(decimals)) : Math.floor(value);
 }
 
-// 建立模擬患者資料
+// Create mock patient data
 function createPatients() {
-  console.log('📝 建立模擬患者資料...');
+  console.log('[Seed] Creating mock patient data...');
 
   const now = new Date().toISOString();
 
@@ -245,14 +245,14 @@ function createPatients() {
   });
 
   insertMany(mockData);
-  console.log(`✅ 已建立 ${mockData.length} 位模擬患者`);
+  console.log(`[Seed] Created ${mockData.length} mock patients`);
 
   return mockData;
 }
 
-// 建立體組成記錄
+// Create body composition records
 function createBodyCompositionRecords(patients) {
-  console.log('📊 生成體組成記錄...');
+  console.log('[Seed] Generating body composition records...');
 
   const now = new Date().toISOString();
   const insertRecord = db.prepare(`
@@ -296,12 +296,12 @@ function createBodyCompositionRecords(patients) {
   });
 
   insertMany();
-  console.log(`✅ 已生成 ${totalRecords} 筆體組成記錄`);
+  console.log(`[Seed] Generated ${totalRecords} body composition records`);
 }
 
-// 建立生命徵象記錄
+// Create vital signs records
 function createVitalSignsRecords(patients) {
-  console.log('💓 生成生命徵象記錄...');
+  console.log('[Seed] Generating vital signs records...');
 
   const now = new Date().toISOString();
   const insertRecord = db.prepare(`
@@ -338,12 +338,12 @@ function createVitalSignsRecords(patients) {
   });
 
   insertMany();
-  console.log(`✅ 已生成 ${totalRecords} 筆生命徵象記錄`);
+  console.log(`[Seed] Generated ${totalRecords} vital signs records`);
 }
 
-// 建立健康目標
+// Create health goals
 function createGoals(patients) {
-  console.log('🎯 建立健康目標...');
+  console.log('[Seed] Creating health goals...');
 
   const now = new Date().toISOString();
   const futureDate = new Date();
@@ -398,35 +398,35 @@ function createGoals(patients) {
   });
 
   insertMany();
-  console.log(`✅ 已建立 ${totalGoals} 個健康目標`);
+  console.log(`[Seed] Created ${totalGoals} health goals`);
 }
 
-// 主執行函數
+// Main execution function
 function main() {
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║   插入模擬數據到資料庫                ║');
-  console.log('╚════════════════════════════════════════╝\n');
+  console.log('\n════════════════════════════════════════');
+  console.log('   Inserting mock data into database');
+  console.log('════════════════════════════════════════\n');
 
   try {
-    // 檢查資料庫是否存在
+    // Check if database exists
     if (!fs.existsSync(DB_PATH)) {
-      console.error('❌ 資料庫不存在！請先啟動後端伺服器以初始化資料庫。');
-      console.error('   執行: npm run server');
+      console.error('[Seed] Database does not exist! Start backend server first to initialize.');
+      console.error('   Run: npm run server');
       process.exit(1);
     }
 
-    // 開始交易
+    // Begin transaction
     const insertAll = db.transaction(() => {
-      // 清空現有數據（可選）
-      console.log('🗑️  清空現有數據...');
+      // Clear existing data (optional)
+      console.log('[Seed] Clearing existing data...');
       db.prepare('DELETE FROM goals').run();
       db.prepare('DELETE FROM vital_signs').run();
       db.prepare('DELETE FROM body_composition').run();
       db.prepare('DELETE FROM appointments').run();
       db.prepare('DELETE FROM patients').run();
-      console.log('✅ 已清空現有數據\n');
+      console.log('[Seed] Data cleared\n');
 
-      // 插入數據
+      // Insert data
       const patients = createPatients();
       createBodyCompositionRecords(patients);
       createVitalSignsRecords(patients);
@@ -445,20 +445,20 @@ function main() {
     const vitalSignsCount = db.prepare('SELECT COUNT(*) as count FROM vital_signs').get().count;
     const goalsCount = db.prepare('SELECT COUNT(*) as count FROM goals').get().count;
 
-    console.log('📊 數據統計:');
-    console.log(`   患者: ${patientCount} 位`);
-    console.log(`   體組成記錄: ${bodyCompCount} 筆`);
-    console.log(`   生命徵象記錄: ${vitalSignsCount} 筆`);
-    console.log(`   健康目標: ${goalsCount} 個`);
-    console.log('\n🚀 請重新載入應用程式查看新數據\n');
+    console.log('[Seed] Data statistics:');
+    console.log(`   Patients: ${patientCount}`);
+    console.log(`   Body composition records: ${bodyCompCount}`);
+    console.log(`   Vital signs records: ${vitalSignsCount}`);
+    console.log(`   Health goals: ${goalsCount}`);
+    console.log('\n[Seed] Reload application to see new data\n');
 
   } catch (error) {
-    console.error('❌ 插入數據時發生錯誤:', error);
+    console.error('[Seed] Error inserting data:', error);
     process.exit(1);
   } finally {
     db.close();
   }
 }
 
-// 執行主函數
+// Execute main function
 main();

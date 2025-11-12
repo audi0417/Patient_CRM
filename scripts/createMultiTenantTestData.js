@@ -1,35 +1,35 @@
 /**
  * Multi-Tenant Test Data Generator
  *
- * 建立多組織測試資料以驗證資料隔離
+ * Create multi-organization test data to verify data isolation
  *
- * 功能：
- * - 建立 3 個測試組織
- * - 每個組織有獨立的使用者、患者、預約
- * - 驗證資料隔離
+ * Features:
+ * - Create 3 test organizations
+ * - Each organization has independent users, patients, appointments
+ * - Verify data isolation
  */
 
 const crypto = require('crypto');
 const { db } = require('../server/database/db');
 
-// 產生隨機日期
+// Generate random date
 function randomDate(daysAgo = 180) {
   const date = new Date();
   date.setDate(date.getDate() - Math.floor(Math.random() * daysAgo));
   return date.toISOString().split('T')[0];
 }
 
-// 產生唯一 ID
+// Generate unique ID
 function generateId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-console.log('🚀 開始建立多租戶測試資料...\n');
+console.log('[MultiTenant] Starting multi-tenant test data creation...\n');
 
 const now = new Date().toISOString();
 
-// 1. 建立超級管理員
-console.log('👑 建立超級管理員...');
+// 1. Create super admin
+console.log('[MultiTenant] Creating super admin...');
 const superAdminId = generateId('user');
 const hashedPassword = crypto.createHash('sha256').update('Admin123').digest('hex');
 
@@ -41,49 +41,49 @@ db.prepare(`
   'superadmin',
   hashedPassword,
   'super_admin',
-  '超級管理員',
+  'Super Admin',
   'superadmin@system.com',
   1,
   now,
   now
 );
 
-console.log('✅ 超級管理員已建立');
-console.log('   帳號: superadmin');
-console.log('   密碼: Admin123\n');
+console.log('[MultiTenant] Super admin created');
+console.log('   Username: superadmin');
+console.log('   Password: Admin123\n');
 
-// 2. 建立測試組織
+// 2. Create test organizations
 const organizations = [
   {
-    name: '台北仁愛醫院',
+    name: 'Taipei Renai Hospital',
     slug: 'taipei-hospital',
     plan: 'professional',
     maxUsers: 20,
     maxPatients: 500,
-    contactName: '王院長',
+    contactName: 'Dr. Wang',
     contactEmail: 'admin@taipei-hospital.com'
   },
   {
-    name: '新竹健康診所',
+    name: 'Hsinchu Health Clinic',
     slug: 'hsinchu-clinic',
     plan: 'basic',
     maxUsers: 5,
     maxPatients: 100,
-    contactName: '李醫師',
+    contactName: 'Dr. Lee',
     contactEmail: 'admin@hsinchu-clinic.com'
   },
   {
-    name: '高雄長庚醫療中心',
+    name: 'Kaohsiung Medical Center',
     slug: 'kaohsiung-medical',
     plan: 'enterprise',
     maxUsers: 999,
     maxPatients: 99999,
-    contactName: '張總監',
+    contactName: 'Dr. Chang',
     contactEmail: 'admin@kaohsiung-medical.com'
   }
 ];
 
-console.log('🏢 建立測試組織...');
+console.log('[MultiTenant] Creating test organizations...');
 
 const orgIds = [];
 for (const org of organizations) {
@@ -110,16 +110,16 @@ for (const org of organizations) {
     now
   );
 
-  console.log(`✅ ${org.name} (${org.plan})`);
+  console.log(`[MultiTenant] ${org.name} (${org.plan})`);
 }
 
 console.log('');
 
-// 3. 為每個組織建立使用者和患者
+// 3. Create users and patients for each organization
 for (const org of orgIds) {
-  console.log(`📝 建立 ${org.name} 的測試資料...`);
+  console.log(`[MultiTenant] Creating test data for ${org.name}...`);
 
-  // 建立管理員
+  // Create admin
   const adminId = generateId('user');
   db.prepare(`
     INSERT INTO users (id, username, password, role, name, email, organizationId, isActive, createdAt, updatedAt)
@@ -129,7 +129,7 @@ for (const org of orgIds) {
     `${org.slug}-admin`,
     hashedPassword,
     'admin',
-    `${org.name} 管理員`,
+    `${org.name} Admin`,
     `admin@${org.slug}.com`,
     org.id,
     1,
@@ -137,9 +137,9 @@ for (const org of orgIds) {
     now
   );
 
-  console.log(`   👤 管理員: ${org.slug}-admin`);
+  console.log(`[MultiTenant] Admin: ${org.slug}-admin`);
 
-  // 建立醫師
+  // Create doctor
   const doctorId = generateId('user');
   db.prepare(`
     INSERT INTO users (id, username, password, role, name, email, organizationId, isActive, createdAt, updatedAt)
@@ -149,7 +149,7 @@ for (const org of orgIds) {
     `${org.slug}-doctor`,
     hashedPassword,
     'user',
-    `${org.name} 醫師`,
+    `${org.name} Doctor`,
     `doctor@${org.slug}.com`,
     org.id,
     1,
@@ -157,11 +157,11 @@ for (const org of orgIds) {
     now
   );
 
-  console.log(`   👤 醫師: ${org.slug}-doctor`);
+  console.log(`[MultiTenant] Doctor: ${org.slug}-doctor`);
 
-  // 建立 5 位患者
+  // Create 5 patients
   const patientIds = [];
-  const patientNames = ['王小明', '李美玲', '陳建國', '林雅婷', '張志豪'];
+  const patientNames = ['John Smith', 'Mary Johnson', 'David Chen', 'Lisa Wang', 'Michael Zhang'];
 
   for (let i = 0; i < 5; i++) {
     const patientId = generateId('patient');
@@ -179,17 +179,17 @@ for (const org of orgIds) {
       randomDate(10000),
       `09${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
       `patient${i}@${org.slug}.com`,
-      `${org.name} 地址 ${i + 1}號`,
-      JSON.stringify(['測試資料']),
+      `${org.name} Address ${i + 1}`,
+      JSON.stringify(['Test Data']),
       org.id,
       now,
       now
     );
   }
 
-  console.log(`   🏥 建立 ${patientIds.length} 位患者`);
+  console.log(`[MultiTenant] Created ${patientIds.length} patients`);
 
-  // 為每位患者建立預約
+  // Create appointments for each patient
   let appointmentCount = 0;
   for (const patientId of patientIds) {
     for (let i = 0; i < 3; i++) {
@@ -208,7 +208,7 @@ for (const org of orgIds) {
         patientId,
         date.toISOString().split('T')[0],
         `${9 + Math.floor(Math.random() * 8)}:00`,
-        ['初診', '複診', '定期檢查'][i % 3],
+        ['Initial Visit', 'Follow-up', 'Regular Check'][i % 3],
         daysOffset < 0 ? 'completed' : 'scheduled',
         org.id,
         now,
@@ -219,11 +219,11 @@ for (const org of orgIds) {
     }
   }
 
-  console.log(`   📅 建立 ${appointmentCount} 筆預約\n`);
+  console.log(`[MultiTenant] Created ${appointmentCount} appointments\n`);
 }
 
-// 4. 驗證資料隔離
-console.log('🔍 驗證資料隔離...\n');
+// 4. Verify data isolation
+console.log('[MultiTenant] Verifying data isolation...\n');
 
 for (const org of orgIds) {
   const stats = {
@@ -233,40 +233,40 @@ for (const org of orgIds) {
   };
 
   console.log(`${org.name}:`);
-  console.log(`   使用者: ${stats.users}`);
-  console.log(`   患者: ${stats.patients}`);
-  console.log(`   預約: ${stats.appointments}\n`);
+  console.log(`   Users: ${stats.users}`);
+  console.log(`   Patients: ${stats.patients}`);
+  console.log(`   Appointments: ${stats.appointments}\n`);
 }
 
-// 5. 檢查沒有 organizationId 的資料（應該只有舊資料）
+// 5. Check data without organizationId (should only be legacy data)
 const orphanData = {
   users: db.prepare('SELECT COUNT(*) as count FROM users WHERE organizationId IS NULL').get().count,
   patients: db.prepare('SELECT COUNT(*) as count FROM patients WHERE organizationId IS NULL').get().count,
   appointments: db.prepare('SELECT COUNT(*) as count FROM appointments WHERE organizationId IS NULL').get().count
 };
 
-console.log('📊 無組織資料（舊資料）:');
-console.log(`   使用者: ${orphanData.users}`);
-console.log(`   患者: ${orphanData.patients}`);
-console.log(`   預約: ${orphanData.appointments}\n`);
+console.log('[MultiTenant] Data without organization (legacy):');
+console.log(`   Users: ${orphanData.users}`);
+console.log(`   Patients: ${orphanData.patients}`);
+console.log(`   Appointments: ${orphanData.appointments}\n`);
 
-console.log('✅ 多租戶測試資料建立完成！\n');
+console.log('[MultiTenant] Test data creation completed successfully!\n');
 
-console.log('🔐 測試帳號:');
+console.log('[MultiTenant] Test accounts:');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('超級管理員:');
-console.log('  帳號: superadmin');
-console.log('  密碼: Admin123');
-console.log('  權限: 可管理所有組織\n');
+console.log('Super Admin:');
+console.log('  Username: superadmin');
+console.log('  Password: Admin123');
+console.log('  Role: Can manage all organizations\n');
 
 for (const org of orgIds) {
   console.log(`${org.name}:`);
-  console.log(`  管理員: ${org.slug}-admin / Admin123`);
-  console.log(`  醫師: ${org.slug}-doctor / Admin123\n`);
+  console.log(`  Admin: ${org.slug}-admin / Admin123`);
+  console.log(`  Doctor: ${org.slug}-doctor / Admin123\n`);
 }
 
-console.log('📝 驗證步驟:');
-console.log('1. 使用不同組織的帳號登入');
-console.log('2. 確認只能看到自己組織的患者');
+console.log('[MultiTenant] Verification steps:');
+console.log('1. Login with accounts from different organizations');
+console.log('2. Confirm you can only see patients from your organization');
 console.log('3. 嘗試存取其他組織的患者 ID（應該返回 404）');
 console.log('4. 檢查 API 回應中的 organizationId');
