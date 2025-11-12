@@ -91,7 +91,7 @@ const OrganizationManagement = () => {
 
   const fetchOrganizations = async () => {
     try {
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch("/api/organizations", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -140,7 +140,7 @@ const OrganizationManagement = () => {
     }
 
     try {
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch(`/api/organizations/${orgId}${force ? '?force=true' : ''}`, {
         method: "DELETE",
         headers: {
@@ -377,7 +377,7 @@ const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch("/api/organizations", {
         method: "POST",
         headers: {
@@ -506,7 +506,7 @@ const EditOrganizationDialog = ({
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch(`/api/organizations/${organization.id}`, {
         method: "PUT",
         headers: {

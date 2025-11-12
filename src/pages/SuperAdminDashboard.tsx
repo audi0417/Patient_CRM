@@ -62,7 +62,7 @@ const SuperAdminDashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch("/api/superadmin/dashboard", {
         headers: {
           Authorization: `Bearer ${token}`,
