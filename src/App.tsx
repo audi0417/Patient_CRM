@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import OrganizationManagement from "./pages/OrganizationManagement";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -130,6 +131,16 @@ const AppRoutes = () => {
           <ProtectedRoute requiredRoles={["super_admin"]}>
             <ProtectedLayout>
               <OrganizationManagement />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute requiredRoles={["super_admin"]}>
+            <ProtectedLayout>
+              <Analytics />
             </ProtectedLayout>
           </ProtectedRoute>
         }

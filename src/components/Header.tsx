@@ -1,4 +1,4 @@
-import { Activity, Settings, LogOut, Users, User as UserIcon, Shield } from "lucide-react";
+import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,18 @@ const Header = () => {
           <nav className="ml-8 flex gap-6">
             {user?.role === "super_admin" ? (
               <>
+                <Link
+                  to="/analytics"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                    location.pathname === "/analytics"
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  統計報表
+                </Link>
                 <Link
                   to="/superadmin"
                   className={cn(
