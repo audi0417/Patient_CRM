@@ -29,14 +29,15 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center">
-          <Link to="/" className="flex items-center space-x-2">
-            <Activity className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">醫療CRM系統</span>
-          </Link>
+      <div className="w-full">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center space-x-2">
+              <Activity className="h-6 w-6 text-primary" />
+              <span className="font-semibold text-lg">醫療CRM系統</span>
+            </Link>
 
-          <nav className="ml-8 flex gap-6">
+            <nav className="flex gap-6">
             {user?.role === "super_admin" ? (
               <>
                 <Link
@@ -179,6 +180,7 @@ const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
         </div>
       </div>
     </header>
