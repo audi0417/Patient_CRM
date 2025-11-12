@@ -333,10 +333,25 @@ router.post('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res
   try {
     const { name, email, username } = req.body;
 
-    // 驗證組織是否存在
-    const org = await queryOne('SELECT id, name FROM organizations WHERE id = ?', [req.params.id]);
+    // 驗證組織是否存在並獲取配額資訊
+    const org = await queryOne('SELECT id, name, maxUsers FROM organizations WHERE id = ?', [req.params.id]);
     if (!org) {
       return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 檢查用戶配額
+    const currentUserCount = await queryOne(
+      'SELECT COUNT(*) as count FROM users WHERE organizationId = ? AND isActive = 1',
+      [req.params.id]
+    );
+
+    if (currentUserCount.count >= org.maxUsers) {
+      return res.status(403).json({
+        error: `已達到用戶數量上限 (${org.maxUsers})`,
+        code: 'QUOTA_EXCEEDED',
+        current: currentUserCount.count,
+        limit: org.maxUsers
+      });
     }
 
     // 生成預設帳號資訊

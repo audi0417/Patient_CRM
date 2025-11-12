@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
-const { requireTenant, injectTenantQuery, checkTenantQuota } = require('../middleware/tenantContext');
+const { requireTenant, injectTenantQuery, checkTenantQuota, checkSubscriptionExpiry } = require('../middleware/tenantContext');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 
 // 應用認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
+router.use(checkSubscriptionExpiry); // 檢查訂閱是否過期
 router.use(injectTenantQuery);
 
 // 獲取所有患者（自動過濾組織）

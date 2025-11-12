@@ -10,20 +10,24 @@ const PORT = process.env.PORT || 3001;
 const { loginLimiter, apiLimiter } = require('./middleware/rateLimit');
 
 // CORS 設定 - 限制允許的來源
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:3001'
-];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // 允許沒有 origin 的請求（如 Postman、curl）
+    // 允許沒有 origin 的請求（如 Postman、curl、伺服器間請求）
     if (!origin) return callback(null, true);
 
-    // 在開發環境允許所有 localhost 和 devtunnel
+    // 開發環境：允許所有 localhost 和 devtunnel
     if (process.env.NODE_ENV !== 'production') {
       if (origin.includes('localhost') || origin.includes('devtunnels.ms')) {
+        return callback(null, true);
+      }
+    }
+
+    // 生產環境：如果未設置 ALLOWED_ORIGINS，允許所有 zeabur.app 域名
+    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+      if (origin.includes('zeabur.app') || origin.includes('zeabur.app/')) {
+        console.log(`[CORS] Auto-allowed Zeabur origin: ${origin}`);
         return callback(null, true);
       }
     }
@@ -32,6 +36,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`[CORS] Blocked origin: ${origin}`);
+      console.log(`[CORS] Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },

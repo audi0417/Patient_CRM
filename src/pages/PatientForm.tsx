@@ -97,9 +97,20 @@ const PatientForm = () => {
       await savePatient(patient);
       toast.success(isEdit ? "患者資料已更新" : "患者已新增");
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("保存患者資料失敗:", error);
-      toast.error(isEdit ? "更新患者資料失敗" : "新增患者失敗");
+
+      // 檢查是否為配額或訂閱錯誤
+      const errorMessage = error?.message || error?.error || (isEdit ? "更新患者資料失敗" : "新增患者失敗");
+
+      if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED")) {
+        toast.error("已達到患者數量上限，請聯繫管理員升級方案");
+      } else if (errorMessage.includes("訂閱") || errorMessage.includes("SUBSCRIPTION_EXPIRED")) {
+        toast.error("訂閱已過期，請聯繫管理員續訂");
+      } else {
+        toast.error(errorMessage);
+      }
+
       setIsSubmitting(false);
     }
   };

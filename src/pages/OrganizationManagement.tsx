@@ -610,12 +610,23 @@ const EditOrganizationDialog = ({
         title: "成功",
         description: "管理員帳號已創建",
       });
-    } catch (error) {
-      toast({
-        title: "創建失敗",
-        description: error instanceof Error ? error.message : "無法創建管理員",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.error || "無法創建管理員";
+
+      // 檢查是否為配額錯誤
+      if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED") || errorMessage.includes("數量上限")) {
+        toast({
+          title: "已達用戶上限",
+          description: "此組織已達到用戶數量上限，請升級方案以新增更多用戶",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "創建失敗",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
   };
 
