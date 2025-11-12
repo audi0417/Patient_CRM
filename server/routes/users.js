@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken, checkRole } = require('../middleware/auth');
@@ -57,8 +57,8 @@ router.post('/', [
       return res.status(400).json({ error: '使用者名稱或電子郵件已存在' });
     }
 
-    // 雜湊密碼
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    // 雜湊密碼 - 使用 bcrypt
+    const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString();
     const id = `user_${Date.now()}`;
 
@@ -113,7 +113,7 @@ router.post('/:id/reset-password', [
 
   try {
     const { password } = req.body;
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString();
 
     const result = await execute('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?', [hashedPassword, now, req.params.id]);

@@ -1,6 +1,15 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// 強制要求設置 JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('[Security] FATAL: JWT_SECRET is not set in environment variables');
+  console.error('[Security] Please set JWT_SECRET in your .env file');
+  console.error('[Security] You can generate a secure secret with:');
+  console.error('[Security]   node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  process.exit(1);
+}
 
 // 驗證 JWT Token
 function authenticateToken(req, res, next) {

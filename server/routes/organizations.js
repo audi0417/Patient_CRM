@@ -12,6 +12,8 @@
 
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin, requireTenant } = require('../middleware/tenantContext');
@@ -297,6 +299,180 @@ router.delete('/:id', authenticateToken, requireSuperAdmin, async (req, res) => 
   } catch (error) {
     console.error('Delete organization error:', error);
     res.status(500).json({ error: '刪除組織失敗' });
+  }
+});
+
+// ========== 組織管理員管理端點 ==========
+
+/**
+ * GET /api/organizations/:id/admins
+ * 獲取組織的管理員列表
+ */
+router.get('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const admins = await queryAll(
+      `SELECT id, username, name, email, role, isActive, lastLogin, createdAt
+       FROM users
+       WHERE organizationId = ? AND role = 'admin'
+       ORDER BY createdAt DESC`,
+      [req.params.id]
+    );
+
+    res.json(admins);
+  } catch (error) {
+    console.error('Get organization admins error:', error);
+    res.status(500).json({ error: '獲取管理員列表失敗' });
+  }
+});
+
+/**
+ * POST /api/organizations/:id/admins
+ * 為組織創建管理員帳號（自動生成密碼）
+ */
+router.post('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, email, username } = req.body;
+
+    // 驗證組織是否存在
+    const org = await queryOne('SELECT id, name FROM organizations WHERE id = ?', [req.params.id]);
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 生成預設帳號資訊
+    const defaultUsername = username || `admin_${org.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+    const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12); // 生成 12 位隨機密碼
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+    // 檢查使用者名稱是否已存在
+    const existing = await queryOne('SELECT id FROM users WHERE username = ?', [defaultUsername]);
+    if (existing) {
+      return res.status(400).json({ error: '使用者名稱已存在，請提供自訂使用者名稱' });
+    }
+
+    // 檢查 email 是否已存在（如果提供）
+    if (email) {
+      const existingEmail = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
+      if (existingEmail) {
+        return res.status(400).json({ error: '電子郵件已存在' });
+      }
+    }
+
+    const now = new Date().toISOString();
+    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // 創建管理員帳號
+    await execute(`
+      INSERT INTO users (
+        id, username, password, name, email, role,
+        organizationId, isActive, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `, [
+      id,
+      defaultUsername,
+      hashedPassword,
+      name || `${org.name} 管理員`,
+      email || null,
+      'admin',
+      req.params.id,
+      now,
+      now
+    ]);
+
+    const newAdmin = await queryOne(
+      'SELECT id, username, name, email, role, isActive, organizationId, createdAt FROM users WHERE id = ?',
+      [id]
+    );
+
+    // 返回包含明文密碼的資訊（僅此一次）
+    res.status(201).json({
+      user: newAdmin,
+      credentials: {
+        username: defaultUsername,
+        password: generatedPassword, // 明文密碼僅在創建時返回
+        message: '請妥善保存此密碼，之後將無法再次查看'
+      }
+    });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({ error: '創建管理員失敗' });
+  }
+});
+
+/**
+ * POST /api/organizations/:id/admins/:userId/reset-password
+ * 重置組織管理員密碼
+ */
+router.post('/:id/admins/:userId/reset-password', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    // 驗證該管理員屬於此組織
+    const admin = await queryOne(
+      'SELECT id, username, organizationId FROM users WHERE id = ? AND organizationId = ? AND role = ?',
+      [req.params.userId, req.params.id, 'admin']
+    );
+
+    if (!admin) {
+      return res.status(404).json({ error: '管理員不存在或不屬於此組織' });
+    }
+
+    // 生成新密碼
+    const newPassword = crypto.randomBytes(8).toString('base64').slice(0, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const now = new Date().toISOString();
+
+    await execute(
+      'UPDATE users SET password = ?, updatedAt = ? WHERE id = ?',
+      [hashedPassword, now, req.params.userId]
+    );
+
+    res.json({
+      success: true,
+      credentials: {
+        username: admin.username,
+        password: newPassword,
+        message: '密碼已重置，請妥善保存新密碼'
+      }
+    });
+  } catch (error) {
+    console.error('Reset admin password error:', error);
+    res.status(500).json({ error: '重置密碼失敗' });
+  }
+});
+
+/**
+ * DELETE /api/organizations/:id/admins/:userId
+ * 刪除組織管理員
+ */
+router.delete('/:id/admins/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    // 驗證該管理員屬於此組織
+    const admin = await queryOne(
+      'SELECT id FROM users WHERE id = ? AND organizationId = ? AND role = ?',
+      [req.params.userId, req.params.id, 'admin']
+    );
+
+    if (!admin) {
+      return res.status(404).json({ error: '管理員不存在或不屬於此組織' });
+    }
+
+    // 檢查是否為該組織的最後一個管理員
+    const adminCount = await queryOne(
+      'SELECT COUNT(*) as count FROM users WHERE organizationId = ? AND role = ? AND isActive = 1',
+      [req.params.id, 'admin']
+    );
+
+    if (adminCount.count <= 1) {
+      return res.status(400).json({
+        error: '無法刪除最後一個管理員，組織至少需要一位管理員'
+      });
+    }
+
+    await execute('DELETE FROM users WHERE id = ?', [req.params.userId]);
+
+    res.json({ success: true, message: '管理員已刪除' });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    res.status(500).json({ error: '刪除管理員失敗' });
   }
 });
 

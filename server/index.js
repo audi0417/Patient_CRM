@@ -6,10 +6,36 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS 設定 - 支援所有來源（包括 devtunnels）
+// Rate Limiting
+const { loginLimiter, apiLimiter } = require('./middleware/rateLimit');
+
+// CORS 設定 - 限制允許的來源
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001'
+];
+
 app.use(cors({
-  origin: true, // 允許所有來源
-  credentials: true, // 允許傳送 cookies
+  origin: (origin, callback) => {
+    // 允許沒有 origin 的請求（如 Postman、curl）
+    if (!origin) return callback(null, true);
+
+    // 在開發環境允許所有 localhost 和 devtunnel
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.includes('localhost') || origin.includes('devtunnels.ms')) {
+        return callback(null, true);
+      }
+    }
+
+    // 檢查是否在允許清單中
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -17,6 +43,9 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 為所有 API 端點添加一般限流
+app.use('/api/', apiLimiter);
 
 // 初始化數據庫
 const db = require('./database/db');
@@ -36,6 +65,9 @@ const seedRoutes = require('./routes/seed');
 const serviceTypeRoutes = require('./routes/serviceTypes');
 const organizationRoutes = require('./routes/organizations');
 const superadminRoutes = require('./routes/superadmin');
+
+// 登入端點添加特殊限流保護
+app.use('/api/auth/login', loginLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

@@ -325,10 +325,82 @@ function checkTenantQuota(resourceType) {
 
       next();
     } catch (error) {
-      console.error('Quota check error:', error);
+      console.error('[Quota] Error checking quota:', error);
       next();
     }
   };
+}
+
+/**
+ * 訂閱到期檢查中介層
+ * 檢查組織訂閱是否已過期，自動禁用過期組織
+ */
+async function checkSubscriptionExpiry(req, res, next) {
+  if (!req.tenantContext) {
+    return res.status(403).json({
+      error: '缺少租戶上下文',
+      code: 'NO_TENANT_CONTEXT'
+    });
+  }
+
+  const { organizationId } = req.tenantContext;
+
+  try {
+    // 查詢組織的訂閱資訊
+    const org = await queryOne(`
+      SELECT id, name, subscriptionEndDate, isActive
+      FROM organizations
+      WHERE id = ?
+    `, [organizationId]);
+
+    if (!org) {
+      return res.status(403).json({
+        error: '組織不存在',
+        code: 'ORGANIZATION_NOT_FOUND'
+      });
+    }
+
+    // 檢查訂閱是否過期
+    if (org.subscriptionEndDate) {
+      const now = new Date();
+      const endDate = new Date(org.subscriptionEndDate);
+
+      if (now > endDate && org.isActive) {
+        // 自動禁用過期組織
+        await execute(`
+          UPDATE organizations
+          SET isActive = 0
+          WHERE id = ?
+        `, [organizationId]);
+
+        console.log(`[Subscription] Auto-disabled expired organization: ${org.name} (${organizationId})`);
+
+        return res.status(403).json({
+          error: '訂閱已過期，帳戶已被停用，請聯繫管理員續訂',
+          code: 'SUBSCRIPTION_EXPIRED',
+          organizationName: org.name,
+          expiredDate: org.subscriptionEndDate
+        });
+      }
+
+      if (now > endDate && !org.isActive) {
+        // 組織已被禁用且過期
+        return res.status(403).json({
+          error: '訂閱已過期，請聯繫管理員續訂',
+          code: 'SUBSCRIPTION_EXPIRED',
+          organizationName: org.name,
+          expiredDate: org.subscriptionEndDate
+        });
+      }
+    }
+
+    // 訂閱有效，繼續
+    next();
+  } catch (error) {
+    console.error('[Subscription] Error checking subscription expiry:', error);
+    // 發生錯誤時不阻擋請求，記錄錯誤並繼續
+    next();
+  }
 }
 
 module.exports = {
@@ -336,5 +408,6 @@ module.exports = {
   injectTenantQuery,
   requireSuperAdmin,
   checkTenantQuota,
+  checkSubscriptionExpiry,
   TenantQuery
 };
