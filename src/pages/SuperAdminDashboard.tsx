@@ -148,9 +148,6 @@ const SuperAdminDashboard = () => {
             <Link to="/superadmin/organizations">管理組織</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to="/superadmin/patients">患者總覽</Link>
-          </Button>
-          <Button asChild variant="outline">
             <Link to="/superadmin/revenue">收入報表</Link>
           </Button>
         </div>
@@ -301,9 +298,6 @@ const SuperAdminDashboard = () => {
         <CardContent className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link to="/superadmin/organizations">管理組織</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/superadmin/patients">患者總覽</Link>
           </Button>
           <Button asChild variant="outline">
             <Link to="/superadmin/analytics">使用量分析</Link>

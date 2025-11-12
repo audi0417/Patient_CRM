@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Users, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, Users, X, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,40 +22,86 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getPatients, getGroups } from "@/lib/storage";
 import { Patient, PatientGroup } from "@/types/patient";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface PatientWithOrg extends Patient {
+  organizationName?: string;
+  organizationId?: string;
+}
 
 const PatientList = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<PatientWithOrg[]>([]);
   const [groups, setGroups] = useState<PatientGroup[]>([]);
+  const [organizations, setOrganizations] = useState<Array<{id: string; name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
+  const [selectedOrg, setSelectedOrg] = useState<string>("all");
   const [genderFilter, setGenderFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isSuperAdmin]);
 
   const loadData = async () => {
-    const patientsData = await getPatients();
-    const groupsData = await getGroups();
-    setPatients(patientsData);
-    setGroups(groupsData);
+    try {
+      if (isSuperAdmin) {
+        // 超級管理員：獲取所有組織的患者
+        const token = localStorage.getItem("hospital_crm_auth_token");
+
+        // 獲取所有患者
+        const patientsResponse = await fetch("/api/superadmin/patients", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (patientsResponse.ok) {
+          const patientsData = await patientsResponse.json();
+          setPatients(patientsData);
+        }
+
+        // 獲取組織列表
+        const orgsResponse = await fetch("/api/superadmin/organizations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (orgsResponse.ok) {
+          const orgsData = await orgsResponse.json();
+          setOrganizations(orgsData);
+        }
+      } else {
+        // 一般管理員：只獲取自己組織的患者和群組
+        const patientsData = await getPatients();
+        const groupsData = await getGroups();
+        setPatients(patientsData);
+        setGroups(groupsData);
+      }
+    } catch (error) {
+      console.error("載入數據失敗:", error);
+    }
   };
 
   // 篩選患者
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
-      // 搜尋過濾（姓名、電話、標籤）
+      // 搜尋過濾（姓名、電話、標籤、組織名稱）
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
         patient.name.toLowerCase().includes(searchLower) ||
         patient.phone.includes(searchTerm) ||
-        (patient.tags && patient.tags.some((tag) => tag.toLowerCase().includes(searchLower)));
+        (patient.tags && patient.tags.some((tag) => tag.toLowerCase().includes(searchLower))) ||
+        (isSuperAdmin && patient.organizationName && patient.organizationName.toLowerCase().includes(searchLower));
 
-      // 群組過濾
+      // 組織過濾（超級管理員專用）
+      const matchesOrg =
+        !isSuperAdmin ||
+        selectedOrg === "all" ||
+        patient.organizationId === selectedOrg;
+
+      // 群組過濾（一般管理員專用）
       const matchesGroup =
+        isSuperAdmin ||
         selectedGroup === "all" ||
         (patient.groupIds && patient.groupIds.includes(selectedGroup));
 
@@ -63,9 +109,9 @@ const PatientList = () => {
       const matchesGender =
         genderFilter === "all" || patient.gender === genderFilter;
 
-      return matchesSearch && matchesGroup && matchesGender;
+      return matchesSearch && matchesOrg && matchesGroup && matchesGender;
     });
-  }, [patients, searchTerm, selectedGroup, genderFilter]);
+  }, [patients, searchTerm, selectedOrg, selectedGroup, genderFilter, isSuperAdmin]);
 
   // 分頁邏輯
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
@@ -76,7 +122,7 @@ const PatientList = () => {
   // 當篩選條件改變時，重置回第一頁
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedGroup, genderFilter]);
+  }, [searchTerm, selectedGroup, selectedOrg, genderFilter]);
 
   const calculateAge = (birthDate: string) => {
     const today = new Date();
@@ -120,7 +166,7 @@ const PatientList = () => {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="搜尋患者姓名、電話或標籤..."
+                    placeholder={isSuperAdmin ? "搜尋患者姓名、電話、組織..." : "搜尋患者姓名、電話或標籤..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -141,8 +187,28 @@ const PatientList = () => {
                 </Select>
               </div>
 
-              {/* 群組篩選 */}
-              {groups.length > 0 && (
+              {/* 組織篩選（超級管理員專用） */}
+              {isSuperAdmin && organizations.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="選擇組織" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部組織</SelectItem>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* 群組篩選（一般管理員專用） */}
+              {!isSuperAdmin && groups.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Button
@@ -171,7 +237,7 @@ const PatientList = () => {
               )}
 
               {/* 活動的篩選條件 */}
-              {(searchTerm || selectedGroup !== "all" || genderFilter !== "all") && (
+              {(searchTerm || selectedOrg !== "all" || selectedGroup !== "all" || genderFilter !== "all") && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>已篩選：</span>
                   {searchTerm && (
@@ -183,7 +249,16 @@ const PatientList = () => {
                       />
                     </Badge>
                   )}
-                  {selectedGroup !== "all" && (
+                  {isSuperAdmin && selectedOrg !== "all" && (
+                    <Badge variant="secondary" className="gap-1">
+                      組織: {organizations.find((o) => o.id === selectedOrg)?.name}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setSelectedOrg("all")}
+                      />
+                    </Badge>
+                  )}
+                  {!isSuperAdmin && selectedGroup !== "all" && (
                     <Badge variant="secondary" className="gap-1">
                       群組: {groups.find((g) => g.id === selectedGroup)?.name}
                       <X
@@ -215,16 +290,16 @@ const PatientList = () => {
                 <Search className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                {searchTerm || selectedGroup !== "all" || genderFilter !== "all"
+                {searchTerm || selectedOrg !== "all" || selectedGroup !== "all" || genderFilter !== "all"
                   ? "找不到符合的患者"
                   : "尚無患者資料"}
               </h3>
               <p className="text-muted-foreground mb-6">
-                {searchTerm || selectedGroup !== "all" || genderFilter !== "all"
+                {searchTerm || selectedOrg !== "all" || selectedGroup !== "all" || genderFilter !== "all"
                   ? "請嘗試其他搜尋條件"
                   : "點擊上方按鈕開始新增患者"}
               </p>
-              {!searchTerm && selectedGroup === "all" && genderFilter === "all" && (
+              {!searchTerm && selectedOrg === "all" && selectedGroup === "all" && genderFilter === "all" && !isSuperAdmin && (
                 <Button onClick={() => navigate("/patient/new")}>
                   <Plus className="mr-2 h-4 w-4" />
                   新增第一位患者
@@ -239,6 +314,7 @@ const PatientList = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>姓名</TableHead>
+                    {isSuperAdmin && <TableHead>所屬組織</TableHead>}
                     <TableHead>性別/年齡</TableHead>
                     <TableHead>聯絡方式</TableHead>
                     <TableHead>血型</TableHead>
@@ -257,6 +333,14 @@ const PatientList = () => {
                         <TableCell className="font-medium">
                           {patient.name}
                         </TableCell>
+                        {isSuperAdmin && (
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{patient.organizationName}</span>
+                            </div>
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm">
