@@ -297,10 +297,7 @@ const SuperAdminDashboard = () => {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link to="/superadmin/organizations">查看所有組織</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/superadmin/organizations/new">創建新組織</Link>
+            <Link to="/superadmin/organizations">管理組織</Link>
           </Button>
           <Button asChild variant="outline">
             <Link to="/superadmin/analytics">使用量分析</Link>
