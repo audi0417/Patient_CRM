@@ -6,6 +6,7 @@
   "author": "Patient CRM Team",
   "main": "electron/main.js",
   "scripts": {
+    "start": "node server/index.js",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
