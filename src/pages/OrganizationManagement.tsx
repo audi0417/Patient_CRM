@@ -87,16 +87,6 @@ interface OrganizationFormData {
   subscriptionEndDate: string;
 }
 
-interface OrganizationAdmin {
-  id: string;
-  username: string;
-  name: string;
-  email: string;
-  isActive: boolean;
-  lastLogin?: string;
-  createdAt: string;
-}
-
 interface ResetPasswordResult {
   username: string;
   password: string;
@@ -147,12 +137,14 @@ const OrganizationManagement = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // 管理員相關狀態
-  const [viewingOrgAdmins, setViewingOrgAdmins] = useState<Organization | null>(null);
-  const [orgAdmins, setOrgAdmins] = useState<OrganizationAdmin[]>([]);
-  const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [resetPasswordResult, setResetPasswordResult] = useState<ResetPasswordResult | null>(null);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
+
+  // 確認重置密碼對話框
+  const [confirmResetOrg, setConfirmResetOrg] = useState<Organization | null>(null);
+  const [confirmResetAdmin, setConfirmResetAdmin] = useState<{id: string; username: string} | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const { toast } = useToast();
 
@@ -267,10 +259,39 @@ const OrganizationManagement = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.slug) {
+    // 前端驗證必填欄位
+    const missingFields = [];
+    if (!formData.name || formData.name.trim() === '') missingFields.push('組織名稱');
+    if (!formData.slug || formData.slug.trim() === '') missingFields.push('識別碼 (Slug)');
+    if (!formData.contactName || formData.contactName.trim() === '') missingFields.push('聯絡人姓名');
+    if (!formData.contactEmail || formData.contactEmail.trim() === '') missingFields.push('聯絡人電子郵件');
+
+    if (missingFields.length > 0) {
       toast({
         title: "驗證失敗",
-        description: "組織名稱和識別碼為必填項目",
+        description: `以下欄位為必填項目：${missingFields.join('、')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 驗證 slug 格式
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (!slugRegex.test(formData.slug)) {
+      toast({
+        title: "識別碼格式錯誤",
+        description: "識別碼只能包含小寫英文字母、數字和連字號(-)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 驗證 email 格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.contactEmail)) {
+      toast({
+        title: "電子郵件格式錯誤",
+        description: "請輸入有效的電子郵件地址",
         variant: "destructive",
       });
       return;
@@ -386,45 +407,57 @@ const OrganizationManagement = () => {
     }
   };
 
-  // 查看組織管理員
+  // 打開重置密碼確認對話框
   const handleViewAdmins = async (org: Organization) => {
-    setViewingOrgAdmins(org);
-    setLoadingAdmins(true);
-
     try {
       const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${org.id}/admins`, {
+
+      // 先獲取該組織的管理員
+      const adminsResponse = await fetch(`/api/organizations/${org.id}/admins`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) {
-        throw new Error("無法載入管理員列表");
+      if (!adminsResponse.ok) {
+        throw new Error("無法載入管理員資訊");
       }
 
-      const data = await response.json();
-      setOrgAdmins(data.admins || []);
+      const admins = await adminsResponse.json();
+
+      if (!admins || admins.length === 0) {
+        toast({
+          title: "未找到管理員",
+          description: "此組織尚未創建管理員帳號",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 取得第一個管理員（應該只有一個）
+      const admin = admins[0];
+
+      // 設置狀態並打開確認對話框
+      setConfirmResetOrg(org);
+      setConfirmResetAdmin({ id: admin.id, username: admin.username });
     } catch (error) {
       toast({
-        title: "載入失敗",
-        description: error instanceof Error ? error.message : "無法載入管理員列表",
+        title: "操作失敗",
+        description: error instanceof Error ? error.message : "無法載入管理員資訊",
         variant: "destructive",
       });
-      setViewingOrgAdmins(null);
-    } finally {
-      setLoadingAdmins(false);
     }
   };
 
-  // 重設管理員密碼
-  const handleResetPassword = async (adminId: string, adminUsername: string) => {
-    if (!viewingOrgAdmins) return;
+  // 執行密碼重置
+  const executePasswordReset = async () => {
+    if (!confirmResetOrg || !confirmResetAdmin) return;
 
+    setIsResettingPassword(true);
     try {
       const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(
-        `/api/organizations/${viewingOrgAdmins.id}/admins/${adminId}/reset-password`,
+      const resetResponse = await fetch(
+        `/api/organizations/${confirmResetOrg.id}/admins/${confirmResetAdmin.id}/reset-password`,
         {
           method: "POST",
           headers: {
@@ -433,12 +466,18 @@ const OrganizationManagement = () => {
         }
       );
 
-      if (!response.ok) {
-        const error = await response.json();
+      if (!resetResponse.ok) {
+        const error = await resetResponse.json();
         throw new Error(error.error || "密碼重設失敗");
       }
 
-      const data = await response.json();
+      const data = await resetResponse.json();
+
+      // 關閉確認對話框
+      setConfirmResetOrg(null);
+      setConfirmResetAdmin(null);
+
+      // 顯示密碼結果
       setResetPasswordResult(data.credentials);
       setIsResetPasswordDialogOpen(true);
       setCopiedPassword(false);
@@ -450,11 +489,14 @@ const OrganizationManagement = () => {
     } catch (error) {
       toast({
         title: "重設失敗",
-        description: error instanceof Error ? error.message : "無法重設密碼",
+        description: error instanceof Error ? error.message : "無法重設管理員密碼",
         variant: "destructive",
       });
+    } finally {
+      setIsResettingPassword(false);
     }
   };
+
 
   // 複製密碼到剪貼簿
   const handleCopyPassword = async () => {
@@ -883,85 +925,57 @@ const OrganizationManagement = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* 查看組織管理員對話框 */}
-        <Dialog open={!!viewingOrgAdmins} onOpenChange={() => setViewingOrgAdmins(null)}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>組織管理員 - {viewingOrgAdmins?.name}</DialogTitle>
-              <DialogDescription>
-                管理此組織的管理員帳號，可重設密碼以提供臨時登入憑證
-              </DialogDescription>
-            </DialogHeader>
-
-            {loadingAdmins ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : orgAdmins.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                此組織尚未創建管理員帳號
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>帳號</TableHead>
-                      <TableHead>姓名</TableHead>
-                      <TableHead>電子郵件</TableHead>
-                      <TableHead>狀態</TableHead>
-                      <TableHead>最後登入</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orgAdmins.map((admin) => (
-                      <TableRow key={admin.id}>
-                        <TableCell className="font-medium">{admin.username}</TableCell>
-                        <TableCell>{admin.name}</TableCell>
-                        <TableCell>{admin.email}</TableCell>
-                        <TableCell>
-                          {admin.isActive ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700">
-                              啟用
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-700">
-                              停用
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {admin.lastLogin
-                            ? new Date(admin.lastLogin).toLocaleString("zh-TW")
-                            : "從未登入"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResetPassword(admin.id, admin.username)}
-                            disabled={!admin.isActive}
-                            title={admin.isActive ? "重設密碼" : "帳號已停用"}
-                          >
-                            <Key className="h-4 w-4 mr-1" />
-                            重設密碼
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setViewingOrgAdmins(null)}>
-                關閉
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* 重置密碼確認對話框 */}
+        <AlertDialog
+          open={!!confirmResetOrg && !!confirmResetAdmin}
+          onOpenChange={(open) => {
+            if (!open) {
+              setConfirmResetOrg(null);
+              setConfirmResetAdmin(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>確認重置管理員密碼？</AlertDialogTitle>
+              <AlertDialogDescription>
+                <div className="space-y-3">
+                  <p>即將為以下管理員重置密碼：</p>
+                  <div className="p-3 bg-muted rounded-lg space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">組織：</span>
+                      <span className="font-medium">{confirmResetOrg?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">管理員帳號：</span>
+                      <span className="font-medium">{confirmResetAdmin?.username}</span>
+                    </div>
+                  </div>
+                  <p className="text-sm">
+                    重置後會產生新的<strong>臨時密碼</strong>，請妥善保存並提供給客戶進行登入。
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isResettingPassword}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executePasswordReset}
+                disabled={isResettingPassword}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    重置中...
+                  </>
+                ) : (
+                  '確認重置'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* 密碼重設結果對話框 / 新組織管理員憑證對話框 */}
         <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>

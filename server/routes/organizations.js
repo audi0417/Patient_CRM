@@ -122,93 +122,154 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
       settings
     } = req.body;
 
-    // 驗證必填欄位
-    if (!name || !slug) {
-      return res.status(400).json({ error: '組織名稱和 slug 為必填' });
+    // 詳細驗證必填欄位
+    const missingFields = [];
+    if (!name || name.trim() === '') missingFields.push('組織名稱');
+    if (!slug || slug.trim() === '') missingFields.push('識別碼 (Slug)');
+    if (!contactName || contactName.trim() === '') missingFields.push('聯絡人姓名');
+    if (!contactEmail || contactEmail.trim() === '') missingFields.push('聯絡人電子郵件');
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: `以下欄位為必填項目：${missingFields.join('、')}`,
+        missingFields: missingFields
+      });
     }
 
-    // 檢查 slug 是否已存在
-    const existing = await queryOne('SELECT id FROM organizations WHERE slug = ?', [slug]);
+    // 驗證 slug 格式（只允許小寫字母、數字、連字號）
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (!slugRegex.test(slug)) {
+      return res.status(400).json({
+        error: '識別碼格式錯誤：只能包含小寫英文字母、數字和連字號(-)',
+        field: 'slug'
+      });
+    }
+
+    // 檢查 slug 是否已存在（唯一性約束）
+    const existing = await queryOne('SELECT id, name FROM organizations WHERE slug = ?', [slug]);
     if (existing) {
-      return res.status(400).json({ error: 'Slug 已被使用' });
+      console.log(`[Organizations] Slug conflict detected:`, {
+        requestedSlug: slug,
+        existingOrgId: existing.id,
+        existingOrgName: existing.name
+      });
+      return res.status(400).json({
+        error: `識別碼「${slug}」已被組織「${existing.name}」使用，請使用其他識別碼`,
+        field: 'slug',
+        conflict: true,
+        existingOrg: {
+          id: existing.id,
+          name: existing.name
+        }
+      });
+    }
+    console.log(`[Organizations] Slug "${slug}" is available`);
+
+    // 驗證 email 格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactEmail)) {
+      return res.status(400).json({
+        error: '聯絡人電子郵件格式不正確',
+        field: 'contactEmail'
+      });
     }
 
-    const now = new Date().toISOString();
-    const id = `org_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // 使用事務處理：確保組織和管理員同時創建成功，否則全部回滾
+    await transaction(async () => {
+      const now = new Date().toISOString();
+      const id = `org_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // 根據方案設定預設配額
-    const planLimits = {
-      basic: { maxUsers: 5, maxPatients: 100 },
-      professional: { maxUsers: 20, maxPatients: 500 },
-      enterprise: { maxUsers: 999, maxPatients: 99999 }
-    };
+      // 根據方案設定預設配額
+      const planLimits = {
+        basic: { maxUsers: 9999, maxPatients: 100 },
+        professional: { maxUsers: 9999, maxPatients: 500 },
+        enterprise: { maxUsers: 9999, maxPatients: 99999 }
+      };
 
-    const limits = planLimits[plan] || planLimits.basic;
+      const limits = planLimits[plan] || planLimits.basic;
 
-    await execute(`
-      INSERT INTO organizations (
-        id, name, slug, domain, plan, maxUsers, maxPatients,
-        isActive, settings, billingEmail, contactName, contactPhone, contactEmail,
-        subscriptionStartDate, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      name,
-      slug,
-      domain || null,
-      plan || 'basic',
-      maxUsers || limits.maxUsers,
-      maxPatients || limits.maxPatients,
-      1, // isActive
-      JSON.stringify(settings || {}),
-      billingEmail || null,
-      contactName || null,
-      contactPhone || null,
-      contactEmail || null,
-      now, // subscriptionStartDate
-      now,
-      now
-    ]);
+      // 步驟 1: 創建組織
+      await execute(`
+        INSERT INTO organizations (
+          id, name, slug, domain, plan, maxUsers, maxPatients,
+          isActive, settings, billingEmail, contactName, contactPhone, contactEmail,
+          subscriptionStartDate, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        name.trim(),
+        slug.trim().toLowerCase(),
+        domain || null,
+        plan || 'basic',
+        maxUsers || limits.maxUsers,
+        maxPatients || limits.maxPatients,
+        1, // isActive
+        JSON.stringify(settings || {}),
+        billingEmail || null,
+        contactName.trim(),
+        contactPhone || null,
+        contactEmail.trim(),
+        now, // subscriptionStartDate
+        now,
+        now
+      ]);
 
-    const newOrg = await queryOne('SELECT * FROM organizations WHERE id = ?', [id]);
-    newOrg.settings = JSON.parse(newOrg.settings);
+      // 步驟 2: 創建管理員帳號（使用 slug 作為帳號名稱）
+      const adminUsername = slug.trim().toLowerCase();
+      const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12);
+      const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
+      const adminId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // 自動創建管理員帳號（使用 slug 作為帳號名稱）
-    const adminUsername = slug; // 使用組織 slug 作為管理員帳號
-    const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12); // 生成 12 位隨機密碼
-    const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
+      await execute(`
+        INSERT INTO users (
+          id, username, password, name, email, role,
+          organizationId, isActive, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `, [
+        adminId,
+        adminUsername,
+        hashedPassword,
+        `${name.trim()} 管理員`,
+        contactEmail.trim(),
+        'admin',
+        id,
+        now,
+        now
+      ]);
 
-    const adminId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // 事務成功，返回結果
+      const newOrg = await queryOne('SELECT * FROM organizations WHERE id = ?', [id]);
+      newOrg.settings = JSON.parse(newOrg.settings);
 
-    await execute(`
-      INSERT INTO users (
-        id, username, password, name, email, role,
-        organizationId, isActive, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `, [
-      adminId,
-      adminUsername,
-      hashedPassword,
-      `${name} 管理員`,
-      contactEmail || null,
-      'admin',
-      id,
-      now,
-      now
-    ]);
-
-    // 返回組織資料和管理員登入憑證
-    res.status(201).json({
-      organization: newOrg,
-      adminCredentials: {
-        username: adminUsername,
-        password: generatedPassword,
-        message: '請妥善保存此密碼，提供給客戶進行首次登入'
-      }
+      res.status(201).json({
+        organization: newOrg,
+        adminCredentials: {
+          username: adminUsername,
+          password: generatedPassword,
+          message: '請妥善保存此密碼，提供給客戶進行首次登入'
+        }
+      });
     });
+
   } catch (error) {
     console.error('Create organization error:', error);
-    res.status(500).json({ error: '創建組織失敗' });
+
+    // 提供詳細的錯誤訊息
+    let errorMessage = '創建組織失敗';
+    if (error.message) {
+      if (error.message.includes('UNIQUE constraint failed')) {
+        errorMessage = '識別碼已被使用，請使用其他識別碼';
+      } else if (error.message.includes('NOT NULL constraint failed')) {
+        errorMessage = '必填欄位未填寫完整';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(500).json({
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -299,20 +360,74 @@ router.delete('/:id', authenticateToken, requireSuperAdmin, async (req, res) => 
 
     if (force === 'true') {
       // 硬刪除：刪除組織及所有相關資料
+      console.log(`[Organizations] Starting hard delete for organization: ${req.params.id}`);
+
       await transaction(async () => {
-        await execute('DELETE FROM goals WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM body_composition WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM vital_signs WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM consultations WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM appointments WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM patients WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM users WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM service_types WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM tags WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM groups WHERE organizationId = ?', [req.params.id]);
-        await execute('DELETE FROM organizations WHERE id = ?', [req.params.id]);
+        // 按照依賴順序刪除（子資料 -> 父資料）
+        console.log('[Organizations] Deleting goals...');
+        const goalsResult = await execute('DELETE FROM goals WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${goalsResult.changes || 0} goals`);
+
+        console.log('[Organizations] Deleting body_composition...');
+        const bcResult = await execute('DELETE FROM body_composition WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${bcResult.changes || 0} body_composition records`);
+
+        console.log('[Organizations] Deleting vital_signs...');
+        const vsResult = await execute('DELETE FROM vital_signs WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${vsResult.changes || 0} vital_signs records`);
+
+        console.log('[Organizations] Deleting consultations...');
+        const consultResult = await execute('DELETE FROM consultations WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${consultResult.changes || 0} consultations`);
+
+        console.log('[Organizations] Deleting appointments...');
+        const apptResult = await execute('DELETE FROM appointments WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${apptResult.changes || 0} appointments`);
+
+        console.log('[Organizations] Deleting patients...');
+        const patientResult = await execute('DELETE FROM patients WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${patientResult.changes || 0} patients`);
+
+        console.log('[Organizations] Deleting users...');
+        const userResult = await execute('DELETE FROM users WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${userResult.changes || 0} users`);
+
+        console.log('[Organizations] Deleting service_types...');
+        const stResult = await execute('DELETE FROM service_types WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${stResult.changes || 0} service_types`);
+
+        console.log('[Organizations] Deleting tags...');
+        const tagResult = await execute('DELETE FROM tags WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${tagResult.changes || 0} tags`);
+
+        console.log('[Organizations] Deleting groups...');
+        const groupResult = await execute('DELETE FROM groups WHERE organizationId = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${groupResult.changes || 0} groups`);
+
+        console.log('[Organizations] Deleting organization...');
+        // 在刪除前查詢組織資訊用於日誌
+        const orgToDelete = await queryOne('SELECT id, name, slug FROM organizations WHERE id = ?', [req.params.id]);
+        console.log('[Organizations] Organization to delete:', orgToDelete);
+
+        const orgResult = await execute('DELETE FROM organizations WHERE id = ?', [req.params.id]);
+        console.log(`[Organizations] Deleted ${orgResult.changes || 0} organizations`);
+
+        if (orgResult.changes === 0) {
+          throw new Error('組織不存在或已被刪除');
+        }
+
+        // 確認刪除：檢查是否還存在
+        const checkDeleted = await queryOne('SELECT id FROM organizations WHERE id = ?', [req.params.id]);
+        console.log('[Organizations] Verification - org still exists?', checkDeleted ? 'YES (ERROR!)' : 'NO (correct)');
+
+        // 檢查 slug 是否被釋放
+        if (orgToDelete && orgToDelete.slug) {
+          const slugCheck = await queryOne('SELECT id FROM organizations WHERE slug = ?', [orgToDelete.slug]);
+          console.log(`[Organizations] Verification - slug "${orgToDelete.slug}" still occupied?`, slugCheck ? 'YES (ERROR!)' : 'NO (correct)');
+        }
       });
 
+      console.log(`[Organizations] Successfully deleted organization: ${req.params.id}`);
       res.json({ success: true, message: '組織及所有相關資料已刪除' });
     } else {
       // 軟刪除：停用組織
