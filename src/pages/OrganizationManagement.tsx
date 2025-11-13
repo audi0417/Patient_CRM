@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Search, Building2, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,47 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import {
-  Building2,
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  UserCheck,
-  AlertCircle,
-  Key,
-  Copy,
-  RefreshCw,
-  UserPlus
-} from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 interface Organization {
@@ -67,7 +26,6 @@ interface Organization {
   contactPhone?: string;
   isActive: boolean;
   createdAt: string;
-  subscriptionEndDate?: string;
   currentUsers?: number;
   currentPatients?: number;
 }
@@ -86,24 +44,15 @@ const PLAN_COLORS = {
 
 const OrganizationManagement = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [filteredOrgs, setFilteredOrgs] = useState<Organization[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterPlan, setFilterPlan] = useState<string>("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchOrganizations();
+    loadData();
   }, []);
 
-  useEffect(() => {
-    filterOrganizations();
-  }, [searchTerm, filterPlan, organizations]);
-
-  const fetchOrganizations = async () => {
+  const loadData = async () => {
     try {
       const token = localStorage.getItem("hospital_crm_auth_token");
       const response = await fetch("/api/organizations", {
@@ -129,64 +78,11 @@ const OrganizationManagement = () => {
     }
   };
 
-  const filterOrganizations = () => {
-    let filtered = organizations;
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (org) =>
-          org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          org.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          org.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterPlan !== "all") {
-      filtered = filtered.filter((org) => org.plan === filterPlan);
-    }
-
-    setFilteredOrgs(filtered);
-  };
-
-  const handleDeleteOrganization = async (orgId: string, force: boolean = false) => {
-    if (!confirm(force ? "確定要永久刪除此組織嗎？此操作無法恢復！" : "確定要停用此組織嗎？")) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${orgId}${force ? '?force=true' : ''}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("刪除失敗");
-      }
-
-      toast({
-        title: "成功",
-        description: force ? "組織已永久刪除" : "組織已停用",
-      });
-
-      fetchOrganizations();
-    } catch (error) {
-      toast({
-        title: "操作失敗",
-        description: error instanceof Error ? error.message : "無法刪除組織",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getUsageColor = (current: number, max: number) => {
-    const percentage = (current / max) * 100;
-    if (percentage >= 90) return "text-red-600";
-    if (percentage >= 80) return "text-orange-600";
-    return "text-green-600";
-  };
+  const filteredOrganizations = organizations.filter((org) =>
+    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    org.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    org.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -203,789 +99,134 @@ const OrganizationManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-[90vw] py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">企業管理</h1>
             <p className="text-muted-foreground">管理所有租戶組織與訂閱方案</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Plus className="mr-2 h-5 w-5" />
-                創建組織
-              </Button>
-            </DialogTrigger>
-            <CreateOrganizationDialog
-              onSuccess={() => {
-                setIsCreateDialogOpen(false);
-                fetchOrganizations();
-              }}
-            />
-          </Dialog>
+          <Button size="lg">
+            <Plus className="mr-2 h-5 w-5" />
+            創建組織
+          </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>組織列表</CardTitle>
-            <CardDescription>共 {filteredOrgs.length} 個組織</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>組織名稱</TableHead>
-                    <TableHead>方案</TableHead>
-                    <TableHead>用戶數</TableHead>
-                    <TableHead>患者數</TableHead>
-                    <TableHead>聯絡人</TableHead>
-                    <TableHead>狀態</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrgs.map((org) => (
-                    <TableRow key={org.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{org.name}</div>
-                          <div className="text-xs text-muted-foreground">{org.slug}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={PLAN_COLORS[org.plan]}>
-                          {PLAN_LABELS[org.plan]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className={getUsageColor(org.currentUsers || 0, org.maxUsers)}>
-                            {org.currentUsers || 0}/{org.maxUsers}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <UserCheck className="h-4 w-4 text-muted-foreground" />
-                          <span className={getUsageColor(org.currentPatients || 0, org.maxPatients)}>
-                            {org.currentPatients || 0}/{org.maxPatients}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="text-sm font-medium">{org.contactName}</div>
-                          <div className="text-xs text-muted-foreground">{org.contactEmail}</div>
-                          {org.contactPhone && (
-                            <div className="text-xs text-muted-foreground">{org.contactPhone}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {org.isActive ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700">
-                            啟用
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-700">
-                            停用
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedOrg(org);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteOrganization(org.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        {/* 搜尋區域 */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜尋組織名稱、識別碼或聯絡信箱..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Edit Dialog */}
-        {selectedOrg && (
-          <EditOrganizationDialog
-            organization={selectedOrg}
-            isOpen={isEditDialogOpen}
-            onClose={() => {
-              setIsEditDialogOpen(false);
-              setSelectedOrg(null);
-            }}
-            onSuccess={() => {
-              setIsEditDialogOpen(false);
-              setSelectedOrg(null);
-              fetchOrganizations();
-            }}
-          />
+        {/* 組織列表 */}
+        {filteredOrganizations.length === 0 ? (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-muted mb-4">
+                <Building2 className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {searchTerm ? "找不到符合的組織" : "尚無組織"}
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                {searchTerm ? "請嘗試其他搜尋條件" : "點擊上方按鈕開始創建組織"}
+              </p>
+              {!searchTerm && (
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  創建第一個組織
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>組織列表</CardTitle>
+              <CardDescription>共 {filteredOrganizations.length} 個組織</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>組織名稱</TableHead>
+                      <TableHead>方案</TableHead>
+                      <TableHead>用戶數</TableHead>
+                      <TableHead>患者數</TableHead>
+                      <TableHead>聯絡人</TableHead>
+                      <TableHead>狀態</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOrganizations.map((org) => (
+                      <TableRow key={org.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{org.name}</div>
+                            <div className="text-xs text-muted-foreground">{org.slug}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={PLAN_COLORS[org.plan]}>
+                            {PLAN_LABELS[org.plan]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {org.currentUsers || 0}/{org.maxUsers}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {org.currentPatients || 0}/{org.maxPatients}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="text-sm font-medium">{org.contactName}</div>
+                            <div className="text-xs text-muted-foreground">{org.contactEmail}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {org.isActive ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700">
+                              啟用
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-700">
+                              停用
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
-  );
-};
-
-// Create Organization Dialog Component
-const CreateOrganizationDialog = ({ onSuccess }: { onSuccess: () => void }) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    plan: "basic",
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch("/api/organizations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "創建失敗");
-      }
-
-      toast({
-        title: "成功",
-        description: "組織已創建",
-      });
-
-      onSuccess();
-    } catch (error) {
-      toast({
-        title: "創建失敗",
-        description: error instanceof Error ? error.message : "無法創建組織",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DialogContent className="max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <DialogHeader>
-          <DialogTitle>創建新組織</DialogTitle>
-          <DialogDescription>填寫組織基本資訊</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">組織名稱 *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="slug">識別碼 *</Label>
-              <Input
-                id="slug"
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="例如: taipei-hospital"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="plan">訂閱方案 *</Label>
-            <Select value={formData.plan} onValueChange={(value) => setFormData({ ...formData, plan: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="basic">基礎版 - TWD 99/月</SelectItem>
-                <SelectItem value="professional">專業版 - TWD 499/月</SelectItem>
-                <SelectItem value="enterprise">企業版 - TWD 1,999/月</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contactName">聯絡人姓名 *</Label>
-              <Input
-                id="contactName"
-                value={formData.contactName}
-                onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactEmail">聯絡信箱 *</Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                value={formData.contactEmail}
-                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactPhone">聯絡電話</Label>
-            <Input
-              id="contactPhone"
-              type="tel"
-              value={formData.contactPhone}
-              onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-              placeholder="例如: 02-2345-6789"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit" disabled={loading}>
-            {loading ? "創建中..." : "創建組織"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  );
-};
-
-// Edit Organization Dialog Component with Admin Management
-const EditOrganizationDialog = ({
-  organization,
-  isOpen,
-  onClose,
-  onSuccess,
-}: {
-  organization: Organization;
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) => {
-  const [formData, setFormData] = useState({
-    name: organization.name,
-    plan: organization.plan,
-    maxUsers: organization.maxUsers,
-    maxPatients: organization.maxPatients,
-    isActive: organization.isActive,
-    contactName: organization.contactName || "",
-    contactEmail: organization.contactEmail || "",
-    contactPhone: organization.contactPhone || "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [admins, setAdmins] = useState<any[]>([]);
-  const [loadingAdmins, setLoadingAdmins] = useState(false);
-  const [showCredentials, setShowCredentials] = useState<any>(null);
-  const [newAdminForm, setNewAdminForm] = useState({ name: "", email: "", username: "" });
-  const [showNewAdminForm, setShowNewAdminForm] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchAdmins();
-    }
-  }, [isOpen]);
-
-  const fetchAdmins = async () => {
-    setLoadingAdmins(true);
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${organization.id}/admins`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAdmins(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch admins:", error);
-    } finally {
-      setLoadingAdmins(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${organization.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "更新失敗");
-      }
-
-      toast({
-        title: "成功",
-        description: "組織資訊已更新",
-      });
-
-      onSuccess();
-    } catch (error) {
-      toast({
-        title: "更新失敗",
-        description: error instanceof Error ? error.message : "無法更新組織",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateAdmin = async () => {
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${organization.id}/admins`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newAdminForm),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "創建失敗");
-      }
-
-      const data = await response.json();
-      setShowCredentials(data.credentials);
-      setNewAdminForm({ name: "", email: "", username: "" });
-      setShowNewAdminForm(false);
-      fetchAdmins();
-
-      toast({
-        title: "成功",
-        description: "管理員帳號已創建",
-      });
-    } catch (error: any) {
-      const errorMessage = error?.message || error?.error || "無法創建管理員";
-
-      if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED") || errorMessage.includes("數量上限")) {
-        toast({
-          title: "已達用戶上限",
-          description: "此組織已達到用戶數量上限，請升級方案以新增更多用戶",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "創建失敗",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleResetPassword = async (userId: string) => {
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(
-        `/api/organizations/${organization.id}/admins/${userId}/reset-password`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "重置失敗");
-      }
-
-      const data = await response.json();
-      setShowCredentials(data.credentials);
-
-      toast({
-        title: "成功",
-        description: "密碼已重置",
-      });
-    } catch (error) {
-      toast({
-        title: "重置失敗",
-        description: error instanceof Error ? error.message : "無法重置密碼",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteAdmin = async (userId: string) => {
-    if (!confirm("確定要刪除此管理員嗎？")) return;
-
-    try {
-      const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch(`/api/organizations/${organization.id}/admins/${userId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "刪除失敗");
-      }
-
-      fetchAdmins();
-      toast({
-        title: "成功",
-        description: "管理員已刪除",
-      });
-    } catch (error) {
-      toast({
-        title: "刪除失敗",
-        description: error instanceof Error ? error.message : "無法刪除管理員",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: "已複製", description: "已複製到剪貼簿" });
-  };
-
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>編輯組織</DialogTitle>
-            <DialogDescription>{organization.name}</DialogDescription>
-          </DialogHeader>
-
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="info">組織資訊</TabsTrigger>
-              <TabsTrigger value="admins">管理員</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="info">
-              <form onSubmit={handleSubmit}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-name">組織名稱 *</Label>
-                      <Input
-                        id="edit-name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-plan">訂閱方案 *</Label>
-                      <Select
-                        value={formData.plan}
-                        onValueChange={(value: any) => setFormData({ ...formData, plan: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="basic">基礎版</SelectItem>
-                          <SelectItem value="professional">專業版</SelectItem>
-                          <SelectItem value="enterprise">企業版</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-maxUsers">最大用戶數 *</Label>
-                      <Input
-                        id="edit-maxUsers"
-                        type="number"
-                        value={formData.maxUsers}
-                        onChange={(e) =>
-                          setFormData({ ...formData, maxUsers: parseInt(e.target.value) })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-maxPatients">最大患者數 *</Label>
-                      <Input
-                        id="edit-maxPatients"
-                        type="number"
-                        value={formData.maxPatients}
-                        onChange={(e) =>
-                          setFormData({ ...formData, maxPatients: parseInt(e.target.value) })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-contactName">聯絡人姓名 *</Label>
-                      <Input
-                        id="edit-contactName"
-                        value={formData.contactName}
-                        onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-contactEmail">聯絡信箱 *</Label>
-                      <Input
-                        id="edit-contactEmail"
-                        type="email"
-                        value={formData.contactEmail}
-                        onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-contactPhone">聯絡電話</Label>
-                    <Input
-                      id="edit-contactPhone"
-                      type="tel"
-                      value={formData.contactPhone}
-                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="edit-isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="edit-isActive">啟用組織</Label>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={onClose}>
-                    取消
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "更新中..." : "儲存變更"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="admins" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">組織管理員</h3>
-                <Button
-                  size="sm"
-                  onClick={() => setShowNewAdminForm(!showNewAdminForm)}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  新增管理員
-                </Button>
-              </div>
-
-              {showNewAdminForm && (
-                <Card>
-                  <CardContent className="pt-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="admin-name">姓名</Label>
-                        <Input
-                          id="admin-name"
-                          value={newAdminForm.name}
-                          onChange={(e) =>
-                            setNewAdminForm({ ...newAdminForm, name: e.target.value })
-                          }
-                          placeholder="留空則自動生成"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="admin-email">電子郵件</Label>
-                        <Input
-                          id="admin-email"
-                          type="email"
-                          value={newAdminForm.email}
-                          onChange={(e) =>
-                            setNewAdminForm({ ...newAdminForm, email: e.target.value })
-                          }
-                          placeholder="選填"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-username">使用者名稱</Label>
-                      <Input
-                        id="admin-username"
-                        value={newAdminForm.username}
-                        onChange={(e) =>
-                          setNewAdminForm({ ...newAdminForm, username: e.target.value })
-                        }
-                        placeholder="留空則自動生成"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleCreateAdmin}>創建</Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowNewAdminForm(false);
-                          setNewAdminForm({ name: "", email: "", username: "" });
-                        }}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="space-y-2">
-                {loadingAdmins ? (
-                  <div className="text-center py-4">載入中...</div>
-                ) : admins.length === 0 ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>此組織尚無管理員</AlertDescription>
-                  </Alert>
-                ) : (
-                  admins.map((admin) => (
-                    <Card key={admin.id}>
-                      <CardContent className="flex items-center justify-between py-4">
-                        <div className="flex-1">
-                          <div className="font-medium">{admin.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            @{admin.username}
-                          </div>
-                          {admin.email && (
-                            <div className="text-sm text-muted-foreground">{admin.email}</div>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleResetPassword(admin.id)}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            重置密碼
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteAdmin(admin.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-
-      {/* Credentials Display Dialog */}
-      <AlertDialog open={!!showCredentials} onOpenChange={() => setShowCredentials(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              帳號資訊
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {showCredentials?.message}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {showCredentials && (
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">使用者名稱：</span>
-                  <div className="flex items-center gap-2">
-                    <code className="text-sm bg-background px-2 py-1 rounded">
-                      {showCredentials.username}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(showCredentials.username)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">密碼：</span>
-                  <div className="flex items-center gap-2">
-                    <code className="text-sm bg-background px-2 py-1 rounded font-mono">
-                      {showCredentials.password}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(showCredentials.password)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  此密碼僅顯示一次，請務必複製並妥善保管
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowCredentials(null)}>
-              我已複製密碼
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   );
 };
 

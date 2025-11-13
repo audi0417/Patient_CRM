@@ -30,7 +30,7 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="w-full">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container max-w-[90vw] flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center space-x-2">
               <Activity className="h-6 w-6 text-primary" />

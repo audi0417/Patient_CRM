@@ -11,6 +11,9 @@ export default function Settings() {
   const appVersion = "1.0.0";
   const { user } = useAuth();
 
+  // 超級管理員不需要看到群組管理和服務類別管理（企業層級功能）
+  const isSuperAdmin = user?.role === "super_admin";
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3 mb-6">
@@ -35,7 +38,7 @@ export default function Settings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm font-medium">當前登入使用者</p>
-            <p className="text-sm text-muted-foreground">{user?.username} ({user?.name})</p>
+            <p className="text-sm text-muted-foreground">{user?.username} ({user?.fullName})</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">密碼管理</p>
@@ -44,37 +47,41 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* 群組管理 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            群組管理
-          </CardTitle>
-          <CardDescription>
-            建立和管理個案群組以更好地組織和分類
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <GroupManagement />
-        </CardContent>
-      </Card>
+      {/* 群組管理 - 僅組織使用者可見 */}
+      {!isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              群組管理
+            </CardTitle>
+            <CardDescription>
+              建立和管理個案群組以更好地組織和分類
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GroupManagement />
+          </CardContent>
+        </Card>
+      )}
 
-      {/* 服務類別管理 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
-            服務類別管理
-          </CardTitle>
-          <CardDescription>
-            管理預約的服務類別及其對應的顏色設定
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ServiceTypeManagement />
-        </CardContent>
-      </Card>
+      {/* 服務類別管理 - 僅組織使用者可見 */}
+      {!isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              服務類別管理
+            </CardTitle>
+            <CardDescription>
+              管理預約的服務類別及其對應的顏色設定
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ServiceTypeManagement />
+          </CardContent>
+        </Card>
+      )}
 
       {/* 資料庫管理 */}
       <DatabaseManagement />

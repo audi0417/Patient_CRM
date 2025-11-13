@@ -24,9 +24,10 @@ app.use(cors({
       }
     }
 
-    // 生產環境：如果未設置 ALLOWED_ORIGINS，允許所有 zeabur.app 域名
-    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
-      if (origin.includes('zeabur.app') || origin.includes('zeabur.app/')) {
+    // 如果未設置 ALLOWED_ORIGINS，對 zeabur.app 子域名自動開放（方便在 Zeabur 平台部署時不用額外設定）
+    // 注意：這僅在 ALLOWED_ORIGINS 為空時啟用；若需要更嚴格控制，請在部署時設定 ALLOWED_ORIGINS 環境變數。
+    if (allowedOrigins.length === 0) {
+      if (origin && origin.includes('zeabur.app')) {
         console.log(`[CORS] Auto-allowed Zeabur origin: ${origin}`);
         return callback(null, true);
       }
