@@ -5,7 +5,10 @@ import {
   Building2,
   Edit,
   Trash2,
-  Loader2
+  Loader2,
+  Key,
+  Copy,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +87,22 @@ interface OrganizationFormData {
   subscriptionEndDate: string;
 }
 
+interface OrganizationAdmin {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
+}
+
+interface ResetPasswordResult {
+  username: string;
+  password: string;
+  message: string;
+}
+
 const PLAN_LIMITS = {
   basic: { maxUsers: 9999, maxPatients: 100 },
   professional: { maxUsers: 9999, maxPatients: 500 },
@@ -126,6 +145,15 @@ const OrganizationManagement = () => {
   });
   const [manuallyEditedQuota, setManuallyEditedQuota] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // 管理員相關狀態
+  const [viewingOrgAdmins, setViewingOrgAdmins] = useState<Organization | null>(null);
+  const [orgAdmins, setOrgAdmins] = useState<OrganizationAdmin[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState<ResetPasswordResult | null>(null);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -277,6 +305,19 @@ const OrganizationManagement = () => {
         throw new Error(error.error || "操作失敗");
       }
 
+      const data = await response.json();
+
+      // 如果是創建新組織，顯示管理員登入憑證
+      if (!editingOrg && data.adminCredentials) {
+        setResetPasswordResult({
+          username: data.adminCredentials.username,
+          password: data.adminCredentials.password,
+          message: data.adminCredentials.message
+        });
+        setIsResetPasswordDialogOpen(true);
+        setCopiedPassword(false);
+      }
+
       toast({
         title: "成功",
         description: editingOrg ? "組織已更新" : "組織已創建",
@@ -340,6 +381,99 @@ const OrganizationManagement = () => {
       toast({
         title: "刪除失敗",
         description: error instanceof Error ? error.message : "無法刪除組織",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 查看組織管理員
+  const handleViewAdmins = async (org: Organization) => {
+    setViewingOrgAdmins(org);
+    setLoadingAdmins(true);
+
+    try {
+      const token = localStorage.getItem("hospital_crm_auth_token");
+      const response = await fetch(`/api/organizations/${org.id}/admins`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("無法載入管理員列表");
+      }
+
+      const data = await response.json();
+      setOrgAdmins(data.admins || []);
+    } catch (error) {
+      toast({
+        title: "載入失敗",
+        description: error instanceof Error ? error.message : "無法載入管理員列表",
+        variant: "destructive",
+      });
+      setViewingOrgAdmins(null);
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  // 重設管理員密碼
+  const handleResetPassword = async (adminId: string, adminUsername: string) => {
+    if (!viewingOrgAdmins) return;
+
+    try {
+      const token = localStorage.getItem("hospital_crm_auth_token");
+      const response = await fetch(
+        `/api/organizations/${viewingOrgAdmins.id}/admins/${adminId}/reset-password`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "密碼重設失敗");
+      }
+
+      const data = await response.json();
+      setResetPasswordResult(data.credentials);
+      setIsResetPasswordDialogOpen(true);
+      setCopiedPassword(false);
+
+      toast({
+        title: "密碼已重設",
+        description: "請妥善保存臨時密碼，提供給客戶登入使用",
+      });
+    } catch (error) {
+      toast({
+        title: "重設失敗",
+        description: error instanceof Error ? error.message : "無法重設密碼",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 複製密碼到剪貼簿
+  const handleCopyPassword = async () => {
+    if (!resetPasswordResult) return;
+
+    try {
+      await navigator.clipboard.writeText(resetPasswordResult.password);
+      setCopiedPassword(true);
+      toast({
+        title: "已複製",
+        description: "臨時密碼已複製到剪貼簿",
+      });
+
+      // 3 秒後恢復圖示
+      setTimeout(() => setCopiedPassword(false), 3000);
+    } catch (error) {
+      toast({
+        title: "複製失敗",
+        description: "無法複製到剪貼簿，請手動複製",
         variant: "destructive",
       });
     }
@@ -474,6 +608,14 @@ const OrganizationManagement = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewAdmins(org)}
+                              title="查看管理員"
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -740,6 +882,178 @@ const OrganizationManagement = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* 查看組織管理員對話框 */}
+        <Dialog open={!!viewingOrgAdmins} onOpenChange={() => setViewingOrgAdmins(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>組織管理員 - {viewingOrgAdmins?.name}</DialogTitle>
+              <DialogDescription>
+                管理此組織的管理員帳號，可重設密碼以提供臨時登入憑證
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingAdmins ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : orgAdmins.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                此組織尚未創建管理員帳號
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>帳號</TableHead>
+                      <TableHead>姓名</TableHead>
+                      <TableHead>電子郵件</TableHead>
+                      <TableHead>狀態</TableHead>
+                      <TableHead>最後登入</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orgAdmins.map((admin) => (
+                      <TableRow key={admin.id}>
+                        <TableCell className="font-medium">{admin.username}</TableCell>
+                        <TableCell>{admin.name}</TableCell>
+                        <TableCell>{admin.email}</TableCell>
+                        <TableCell>
+                          {admin.isActive ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700">
+                              啟用
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-700">
+                              停用
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {admin.lastLogin
+                            ? new Date(admin.lastLogin).toLocaleString("zh-TW")
+                            : "從未登入"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResetPassword(admin.id, admin.username)}
+                            disabled={!admin.isActive}
+                            title={admin.isActive ? "重設密碼" : "帳號已停用"}
+                          >
+                            <Key className="h-4 w-4 mr-1" />
+                            重設密碼
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewingOrgAdmins(null)}>
+                關閉
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 密碼重設結果對話框 / 新組織管理員憑證對話框 */}
+        <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {resetPasswordResult?.message?.includes('首次登入') ? '組織創建成功' : '密碼已重設'}
+              </DialogTitle>
+              <DialogDescription>
+                請將以下登入憑證提供給客戶
+              </DialogDescription>
+            </DialogHeader>
+
+            {resetPasswordResult && (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2 text-sm text-amber-800 mb-3">
+                    <svg
+                      className="h-5 w-5 flex-shrink-0 mt-0.5"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <p className="font-medium">
+                      此密碼僅顯示一次，請務必立即複製並妥善保存！
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">
+                      {resetPasswordResult.message?.includes('首次登入') ? '管理員帳號' : '帳號'}
+                    </Label>
+                    <Input
+                      value={resetPasswordResult.username}
+                      readOnly
+                      className="mt-1 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm text-muted-foreground">
+                      {resetPasswordResult.message?.includes('首次登入') ? '初始密碼' : '臨時密碼'}
+                    </Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        value={resetPasswordResult.password}
+                        readOnly
+                        className="font-mono font-bold text-lg"
+                      />
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={handleCopyPassword}
+                        title="複製密碼"
+                      >
+                        {copiedPassword ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>提醒客戶：</strong>登入後請立即前往「設定」修改密碼，以確保帳號安全。
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  setIsResetPasswordDialogOpen(false);
+                  setResetPasswordResult(null);
+                }}
+              >
+                我已記錄密碼
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -173,7 +173,39 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
     const newOrg = await queryOne('SELECT * FROM organizations WHERE id = ?', [id]);
     newOrg.settings = JSON.parse(newOrg.settings);
 
-    res.status(201).json(newOrg);
+    // 自動創建管理員帳號（使用 slug 作為帳號名稱）
+    const adminUsername = slug; // 使用組織 slug 作為管理員帳號
+    const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12); // 生成 12 位隨機密碼
+    const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
+
+    const adminId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    await execute(`
+      INSERT INTO users (
+        id, username, password, name, email, role,
+        organizationId, isActive, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `, [
+      adminId,
+      adminUsername,
+      hashedPassword,
+      `${name} 管理員`,
+      contactEmail || null,
+      'admin',
+      id,
+      now,
+      now
+    ]);
+
+    // 返回組織資料和管理員登入憑證
+    res.status(201).json({
+      organization: newOrg,
+      adminCredentials: {
+        username: adminUsername,
+        password: generatedPassword,
+        message: '請妥善保存此密碼，提供給客戶進行首次登入'
+      }
+    });
   } catch (error) {
     console.error('Create organization error:', error);
     res.status(500).json({ error: '創建組織失敗' });
