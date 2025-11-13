@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
@@ -29,8 +29,9 @@ router.post('/login', [
       });
     }
 
-    // 驗證密碼 - 使用 bcrypt
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // 驗證密碼 - 使用 SHA256
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const isPasswordValid = hashedPassword === user.password;
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -176,8 +177,9 @@ router.post('/change-password', [
       });
     }
 
-    // 驗證舊密碼 - 使用 bcrypt
-    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    // 驗證舊密碼 - 使用 SHA256
+    const hashedOldPassword = crypto.createHash('sha256').update(oldPassword).digest('hex');
+    const isOldPasswordValid = hashedOldPassword === user.password;
     if (!isOldPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -193,8 +195,8 @@ router.post('/change-password', [
       });
     }
 
-    // 更新密碼 - 使用 bcrypt 加密
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    // 更新密碼 - 使用 SHA256 加密
+    const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
     const now = new Date().toISOString();
     await execute('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?', [hashedNewPassword, now, userId]);
 

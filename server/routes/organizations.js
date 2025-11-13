@@ -12,7 +12,6 @@
 
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
@@ -357,7 +356,7 @@ router.post('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res
     // 生成預設帳號資訊
     const defaultUsername = username || `admin_${org.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
     const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12); // 生成 12 位隨機密碼
-    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+    const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
 
     // 檢查使用者名稱是否已存在
     const existing = await queryOne('SELECT id FROM users WHERE username = ?', [defaultUsername]);
@@ -432,7 +431,7 @@ router.post('/:id/admins/:userId/reset-password', authenticateToken, requireSupe
 
     // 生成新密碼
     const newPassword = crypto.randomBytes(8).toString('base64').slice(0, 12);
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
     const now = new Date().toISOString();
 
     await execute(
