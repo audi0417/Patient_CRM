@@ -6,6 +6,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - 必須在 rate limiter 之前設定
+// 當應用部署在 proxy/load balancer 後方時（如 Zeabur, Nginx, Cloudflare 等），需要此設定
+// 這讓 Express 能正確讀取 X-Forwarded-For header 來識別真實客戶端 IP
+app.set('trust proxy', 1);
+
 // Rate Limiting
 const { loginLimiter, apiLimiter } = require('./middleware/rateLimit');
 
