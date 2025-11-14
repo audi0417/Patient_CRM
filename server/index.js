@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 // Rate Limiting
-const { loginLimiter, apiLimiter } = require('./middleware/rateLimit');
+const { accountLoginLimiter, loginLimiter, apiLimiter } = require('./middleware/rateLimit');
 
 // CORS 設定 - 限制允許的來源
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
@@ -79,7 +79,9 @@ const organizationRoutes = require('./routes/organizations');
 const superadminRoutes = require('./routes/superadmin');
 
 // 登入端點添加特殊限流保護
-app.use('/api/auth/login', loginLimiter);
+// accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
+// loginLimiter: 基於IP的請求頻率限制（防止暴力嘗試多個帳號）
+app.use('/api/auth/login', accountLoginLimiter, loginLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
