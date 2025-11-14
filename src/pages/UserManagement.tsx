@@ -397,10 +397,10 @@ const UserManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {currentUser?.role === "super_admin" && (
-                        <>
-                          <SelectItem value="super_admin">超級管理員</SelectItem>
-                          <SelectItem value="admin">管理員</SelectItem>
-                        </>
+                        <SelectItem value="super_admin">超級管理員</SelectItem>
+                      )}
+                      {(currentUser?.role === "super_admin" || currentUser?.role === "admin") && (
+                        <SelectItem value="admin">管理員</SelectItem>
                       )}
                       <SelectItem value="user">一般使用者</SelectItem>
                     </SelectContent>
@@ -489,10 +489,10 @@ const UserManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {currentUser?.role === "super_admin" && (
-                        <>
-                          <SelectItem value="super_admin">超級管理員</SelectItem>
-                          <SelectItem value="admin">管理員</SelectItem>
-                        </>
+                        <SelectItem value="super_admin">超級管理員</SelectItem>
+                      )}
+                      {(currentUser?.role === "super_admin" || currentUser?.role === "admin") && (
+                        <SelectItem value="admin">管理員</SelectItem>
                       )}
                       <SelectItem value="user">一般使用者</SelectItem>
                     </SelectContent>

@@ -55,7 +55,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
     canViewHealthRecords: true,
     canEditHealthRecords: true,
     canManageAppointments: true,
-    canManageUsers: true,
+    canManageUsers: false,
     canAccessSettings: true,
     canExportData: true,
     canManageHospitalSettings: true,
