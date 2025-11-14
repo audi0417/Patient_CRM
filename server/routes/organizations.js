@@ -705,4 +705,87 @@ router.put('/me/settings', authenticateToken, requireTenant, async (req, res) =>
   }
 });
 
+// ========== 模組管理 ==========
+
+// 獲取可用的模組列表（超級管理員）
+router.get('/modules/available', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { AVAILABLE_MODULES } = require('../database/migrations/002_add_module_settings');
+    res.json({ modules: AVAILABLE_MODULES });
+  } catch (error) {
+    console.error('Get available modules error:', error);
+    res.status(500).json({ error: '獲取模組列表失敗' });
+  }
+});
+
+// 獲取組織的模組配置（超級管理員）
+router.get('/:id/modules', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.params.id]);
+
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    let modules = {};
+    if (org.settings) {
+      try {
+        const settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+        modules = settings.modules || {};
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    res.json({ modules });
+  } catch (error) {
+    console.error('Get organization modules error:', error);
+    res.status(500).json({ error: '獲取組織模組配置失敗' });
+  }
+});
+
+// 更新組織的模組配置（超級管理員）
+router.put('/:id/modules', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { modules } = req.body;
+
+    if (!modules || typeof modules !== 'object') {
+      return res.status(400).json({ error: '無效的模組配置' });
+    }
+
+    // 檢查組織是否存在
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.params.id]);
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 解析現有設定
+    let settings = {};
+    if (org.settings) {
+      try {
+        settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 更新模組設定
+    settings.modules = modules;
+
+    // 儲存回資料庫
+    const now = new Date().toISOString();
+    const settingsJson = JSON.stringify(settings);
+    await execute('UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?', [settingsJson, now, req.params.id]);
+
+    res.json({
+      success: true,
+      message: '模組配置已更新',
+      modules
+    });
+  } catch (error) {
+    console.error('Update organization modules error:', error);
+    res.status(500).json({ error: '更新模組配置失敗' });
+  }
+});
+
 module.exports = router;

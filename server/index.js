@@ -96,6 +96,13 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/superadmin', superadminRoutes);
 
 // ========================================
+// 模組配置端點
+// ========================================
+const { getOrganizationModules } = require('./middleware/moduleAccess');
+const { authenticateToken: authToken } = require('./middleware/auth');
+app.get('/api/modules', authToken, getOrganizationModules);
+
+// ========================================
 // 健康檢查端點
 // ========================================
 app.get('/api/health-check', (req, res) => {

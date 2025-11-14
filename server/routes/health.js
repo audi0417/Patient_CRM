@@ -3,8 +3,12 @@ const router = express.Router();
 const { db } = require('../database/db');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
+const { requireModule } = require('../middleware/moduleAccess');
 
 router.use(authenticateToken);
+
+// 健康數據相關路由需要 healthManagement 模組
+router.use(requireModule('healthManagement'));
 
 // ===== 體組成記錄 =====
 

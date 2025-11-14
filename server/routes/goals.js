@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
+const { requireModule } = require('../middleware/moduleAccess');
 
 router.use(authenticateToken);
+router.use(requireModule('healthManagement'));
 
 // 獲取健康目標
 router.get('/', async (req, res) => {

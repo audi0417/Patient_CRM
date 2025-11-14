@@ -3,11 +3,13 @@ const router = express.Router();
 const { queryAll } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireTenant, injectTenantQuery, checkSubscriptionExpiry } = require('../middleware/tenantContext');
+const { requireModule } = require('../middleware/moduleAccess');
 
 // 應用認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
 router.use(checkSubscriptionExpiry); // 檢查訂閱是否過期
+router.use(requireModule('appointments')); // 檢查預約模組是否啟用
 router.use(injectTenantQuery);
 
 // 獲取預約（自動過濾組織）

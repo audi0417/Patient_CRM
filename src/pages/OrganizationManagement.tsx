@@ -8,7 +8,8 @@ import {
   Loader2,
   Key,
   Copy,
-  Check
+  Check,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { ModuleSettingsDialog } from "@/components/ModuleSettingsDialog";
 
 interface Organization {
   id: string;
@@ -145,6 +147,9 @@ const OrganizationManagement = () => {
   const [confirmResetOrg, setConfirmResetOrg] = useState<Organization | null>(null);
   const [confirmResetAdmin, setConfirmResetAdmin] = useState<{id: string; username: string} | null>(null);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  // 模組設定對話框
+  const [moduleSettingsOrg, setModuleSettingsOrg] = useState<Organization | null>(null);
 
   const { toast } = useToast();
 
@@ -653,6 +658,14 @@ const OrganizationManagement = () => {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => setModuleSettingsOrg(org)}
+                              title="模組設定"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleViewAdmins(org)}
                               title="查看管理員"
                             >
@@ -1068,6 +1081,17 @@ const OrganizationManagement = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* 模組設定對話框 */}
+        {moduleSettingsOrg && (
+          <ModuleSettingsDialog
+            organizationId={moduleSettingsOrg.id}
+            organizationName={moduleSettingsOrg.name}
+            open={!!moduleSettingsOrg}
+            onOpenChange={(open) => !open && setModuleSettingsOrg(null)}
+            onSuccess={loadData}
+          />
+        )}
       </div>
     </div>
   );

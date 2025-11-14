@@ -2,6 +2,7 @@ import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModules } from "@/hooks/useModules";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, permissions } = useAuth();
+  const { isModuleEnabled } = useModules();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -89,28 +91,32 @@ const Header = () => {
                 >
                   患者列表
                 </Link>
-                <Link
-                  to="/health-analytics"
-                  className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
-                    isActive("/health-analytics")
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  健康數據
-                </Link>
-                <Link
-                  to="/appointments"
-                  className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
-                    isActive("/appointments")
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  回診管理
-                </Link>
+                {isModuleEnabled('healthManagement') && (
+                  <Link
+                    to="/health-analytics"
+                    className={cn(
+                      "text-sm font-medium transition-colors hover:text-primary",
+                      isActive("/health-analytics")
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    健康管理
+                  </Link>
+                )}
+                {isModuleEnabled('appointments') && (
+                  <Link
+                    to="/appointments"
+                    className={cn(
+                      "text-sm font-medium transition-colors hover:text-primary",
+                      isActive("/appointments")
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    回診管理
+                  </Link>
+                )}
                 {permissions?.canManageUsers && (
                   <Link
                     to="/users"

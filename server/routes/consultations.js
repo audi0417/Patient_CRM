@@ -4,6 +4,7 @@ const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
+// 諮詢記錄不需要模組保護（未使用模組化）
 
 // 獲取諮詢記錄
 router.get('/', async (req, res) => {
