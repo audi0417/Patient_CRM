@@ -4,12 +4,13 @@ export interface User {
   id: string;
   username: string;
   password: string; // hashed password
-  fullName: string;
+  name: string;
   email: string;
   role: UserRole;
   isActive: boolean;
   isFirstLogin?: boolean;
   lastLogin?: string;
+  organizationId?: string;
   createdAt: string;
   updatedAt: string;
   createdBy?: string; // ID of the user who created this user

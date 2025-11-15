@@ -52,7 +52,7 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({
     username: "",
     password: "",
-    fullName: "",
+    name: "",
     email: "",
     role: "user" as UserRole,
     isActive: true,
@@ -74,7 +74,7 @@ const UserManagement = () => {
   const handleCreateUser = async () => {
     setError("");
 
-    if (!formData.username || !formData.password || !formData.fullName || !formData.email) {
+    if (!formData.username || !formData.password || !formData.name || !formData.email) {
       setError("請填寫所有必填欄位");
       return;
     }
@@ -110,7 +110,7 @@ const UserManagement = () => {
     if (!selectedUser) return;
     setError("");
 
-    if (!formData.username || !formData.fullName || !formData.email) {
+    if (!formData.username || !formData.name || !formData.email) {
       setError("請填寫所有必填欄位");
       return;
     }
@@ -118,7 +118,7 @@ const UserManagement = () => {
     try {
       await updateUser(selectedUser.id, {
         username: formData.username,
-        fullName: formData.fullName,
+        name: formData.name,
         email: formData.email,
         role: formData.role,
         isActive: formData.isActive,
@@ -192,7 +192,7 @@ const UserManagement = () => {
     setFormData({
       username: user.username,
       password: "",
-      fullName: user.fullName,
+      name: user.name,
       email: user.email,
       role: user.role,
       isActive: user.isActive,
@@ -215,7 +215,7 @@ const UserManagement = () => {
     setFormData({
       username: "",
       password: "",
-      fullName: "",
+      name: "",
       email: "",
       role: "user",
       isActive: true,
@@ -273,7 +273,7 @@ const UserManagement = () => {
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{user.fullName}</TableCell>
+                      <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Badge variant={getRoleBadgeVariant(user.role)}>
@@ -347,11 +347,11 @@ const UserManagement = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="create-fullName">姓名 *</Label>
+                  <Label htmlFor="create-name">姓名 *</Label>
                   <Input
-                    id="create-fullName"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    id="create-name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -450,11 +450,11 @@ const UserManagement = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-fullName">姓名 *</Label>
+                  <Label htmlFor="edit-name">姓名 *</Label>
                   <Input
-                    id="edit-fullName"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    id="edit-name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">

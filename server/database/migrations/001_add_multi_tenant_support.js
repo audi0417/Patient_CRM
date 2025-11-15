@@ -20,11 +20,22 @@ async function up() {
     // This migration is mainly for existing legacy databases
 
     // Check if organizations table exists
-    const tableExists = await dbAdapter.queryOne(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name='organizations'
-      UNION ALL
-      SELECT tablename as name FROM pg_tables WHERE tablename='organizations'
-    `);
+    const dbType = (process.env.DB_TYPE || process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
+    let tableExists;
+
+    if (dbType === 'postgres' || dbType === 'postgresql') {
+      const result = await dbAdapter.queryOne(
+        "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = ?",
+        ['organizations']
+      );
+      tableExists = result && result.count > 0;
+    } else {
+      const result = await dbAdapter.queryOne(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name = ?",
+        ['organizations']
+      );
+      tableExists = result && result.count > 0;
+    }
 
     if (!tableExists) {
       console.log('[Migration] Creating organizations table...');

@@ -80,11 +80,15 @@ router.post('/', [
     const now = new Date().toISOString();
     const id = `user_${Date.now()}`;
 
+    // 決定 organizationId
+    // Admin 創建的使用者屬於同一組織，super_admin 創建的使用者不設定組織
+    const organizationId = req.user.role === 'admin' ? req.user.organizationId : null;
+
     // 插入使用者
     await execute(`
-      INSERT INTO users (id, username, password, name, email, role, isActive, isFirstLogin, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
-    `, [id, username, hashedPassword, name, email, role, now, now]);
+      INSERT INTO users (id, username, password, name, email, role, organizationId, isActive, isFirstLogin, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+    `, [id, username, hashedPassword, name, email, role, organizationId, now, now]);
 
     const newUser = await queryOne('SELECT id, username, name, email, role, isActive, createdAt, updatedAt FROM users WHERE id = ?', [id]);
 

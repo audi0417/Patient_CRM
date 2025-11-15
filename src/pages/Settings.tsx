@@ -38,7 +38,7 @@ export default function Settings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm font-medium">當前登入使用者</p>
-            <p className="text-sm text-muted-foreground">{user?.username} ({user?.fullName})</p>
+            <p className="text-sm text-muted-foreground">{user?.username} ({user?.name})</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">密碼管理</p>
