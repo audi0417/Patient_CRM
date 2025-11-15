@@ -14,13 +14,15 @@
       "env": {
         "NODE_ENV": "production",
         "PORT": "3001",
-        "DATABASE_TYPE": "postgres",
-        "DATABASE_HOST": "postgres",
-        "DATABASE_PORT": "5432",
-        "DATABASE_NAME": "patient_crm",
-        "DATABASE_USER": "patient_user",
-        "DATABASE_PASSWORD": "changeme123"
+        "DATABASE_TYPE": "sqlite",
+        "DATABASE_PATH": "/app/data/patient_crm.db"
       },
+      "volumes": [
+        {
+          "mount": "/app/data",
+          "name": "sqlite_data"
+        }
+      ],
       "healthcheck": {
         "test": ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health-check', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"],
         "interval": 30,
@@ -51,6 +53,7 @@
     }
   },
   "volumes": {
+    "sqlite_data": {},
     "postgres_data": {}
   }
 }

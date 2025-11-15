@@ -40,10 +40,10 @@ COPY --from=builder /app/dist ./dist
 # 複製服務器代碼和初始化腳本
 COPY server ./server
 COPY scripts ./scripts
-COPY data ./data
 
 # 建立數據目錄（用於 SQLite 或其他存儲）
-RUN mkdir -p /app/data
+# 注意：不複製本地 data 目錄，讓 volume 掛載管理
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # 暴露端口
 EXPOSE 3001

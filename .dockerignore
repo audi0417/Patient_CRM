@@ -8,8 +8,10 @@ README.md
 .env.*.local
 vite.config.ts.timestamp-*
 coverage
+*.db
 *.db-shm
 *.db-wal
+data/
 electron/
 electron-builder.json
 .DS_Store
