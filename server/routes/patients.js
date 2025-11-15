@@ -58,7 +58,7 @@ router.get('/:id', async (req, res) => {
 // 創建患者（自動檢查配額並關聯組織）
 router.post('/', checkTenantQuota('patients'), async (req, res) => {
   try {
-    const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes, tags, groups, healthProfile } = req.body;
+    const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, notes, tags, groups, healthProfile } = req.body;
 
     const now = new Date().toISOString();
     const id = `patient_${Date.now()}`;
@@ -74,6 +74,7 @@ router.post('/', checkTenantQuota('patients'), async (req, res) => {
       address: address || null,
       emergencyContact: emergencyContact || null,
       emergencyPhone: emergencyPhone || null,
+      bloodType: bloodType || null,
       notes: notes || null,
       tags: JSON.stringify(tags || []),
       groups: JSON.stringify(groups || []),
@@ -97,7 +98,7 @@ router.post('/', checkTenantQuota('patients'), async (req, res) => {
 // 更新患者（自動驗證組織權限）
 router.put('/:id', async (req, res) => {
   try {
-    const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, notes, tags, groups, healthProfile } = req.body;
+    const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, notes, tags, groups, healthProfile } = req.body;
     const now = new Date().toISOString();
 
     const data = {
@@ -109,6 +110,7 @@ router.put('/:id', async (req, res) => {
       address,
       emergencyContact,
       emergencyPhone,
+      bloodType,
       notes,
       tags: JSON.stringify(tags || []),
       groups: JSON.stringify(groups || []),

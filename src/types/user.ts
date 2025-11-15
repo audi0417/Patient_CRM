@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  isFirstLogin?: boolean;
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export interface LoginResponse {
   success: boolean;
   user?: User;
   token?: string;
+  isFirstLogin?: boolean;
   message?: string;
 }
 

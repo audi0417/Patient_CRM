@@ -17,6 +17,7 @@ const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin, requireTenant } = require('../middleware/tenantContext');
 const { queryOne, queryAll, execute, transaction } = require('../database/helpers');
+const { getDefaultModuleSettings } = require('../database/migrations/002_add_module_settings');
 
 // ========== 超級管理員端點 ==========
 
@@ -188,6 +189,12 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
 
       const limits = planLimits[plan] || planLimits.basic;
 
+      // 準備預設設定（包含模組配置）
+      const defaultSettings = {
+        modules: getDefaultModuleSettings(),
+        ...(settings || {})
+      };
+
       // 步驟 1: 創建組織
       await execute(`
         INSERT INTO organizations (
@@ -204,7 +211,7 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
         maxUsers || limits.maxUsers,
         maxPatients || limits.maxPatients,
         1, // isActive
-        JSON.stringify(settings || {}),
+        JSON.stringify(defaultSettings),
         billingEmail || null,
         contactName.trim(),
         contactPhone || null,
@@ -223,8 +230,8 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
       await execute(`
         INSERT INTO users (
           id, username, password, name, email, role,
-          organizationId, isActive, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+          organizationId, isActive, isFirstLogin, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
       `, [
         adminId,
         adminUsername,
@@ -526,8 +533,8 @@ router.post('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res
     await execute(`
       INSERT INTO users (
         id, username, password, name, email, role,
-        organizationId, isActive, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        organizationId, isActive, isFirstLogin, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
     `, [
       id,
       defaultUsername,

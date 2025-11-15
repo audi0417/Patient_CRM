@@ -122,6 +122,38 @@ export const getUserPermissions = (user: User | null) => {
   return ROLE_PERMISSIONS[user.role];
 };
 
+// 首次登入修改密碼
+export const firstLoginChangePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> => {
+  // 驗證新密碼規則
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.valid) {
+    return { success: false, message: passwordValidation.message || "密碼格式不正確" };
+  }
+
+  try {
+    const result = await api.auth.firstLoginPassword(currentPassword, newPassword);
+
+    // 如果成功，更新本地使用者資料
+    if (result.success) {
+      const user = getCurrentUser();
+      if (user) {
+        user.isFirstLogin = false;
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      }
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "密碼更新失敗"
+    };
+  }
+};
+
 // 修改密碼（使用者自己修改）
 export const changePassword = async (
   oldPassword: string,

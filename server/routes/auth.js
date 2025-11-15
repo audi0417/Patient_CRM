@@ -96,6 +96,7 @@ router.post('/login', [
       success: true,
       user: userWithoutPassword,
       token,
+      isFirstLogin: user.isFirstLogin === 1 || user.isFirstLogin === true,
       message: '登入成功'
     });
   } catch (error) {
@@ -142,6 +143,85 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json(userWithoutPassword);
   } catch (error) {
     res.status(500).json({ error: '獲取使用者資訊失敗' });
+  }
+});
+
+// 首次登入修改密碼 (強制修改)
+router.post('/first-login-password', [
+  authenticateToken,
+  body('currentPassword').notEmpty().withMessage('目前密碼不能為空'),
+  body('newPassword').notEmpty().withMessage('新密碼不能為空')
+    .isLength({ min: 8 }).withMessage('密碼長度至少需要 8 個字元')
+    .matches(/[A-Z]/).withMessage('密碼需包含至少一個大寫字母')
+    .matches(/[a-z]/).withMessage('密碼需包含至少一個小寫字母')
+    .matches(/[0-9]/).withMessage('密碼需包含至少一個數字')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: errors.array()[0].msg
+    });
+  }
+
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // 獲取使用者
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [userId]);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '使用者不存在'
+      });
+    }
+
+    // 檢查是否為首次登入
+    if (user.isFirstLogin !== 1 && user.isFirstLogin !== true) {
+      return res.status(400).json({
+        success: false,
+        message: '此端點僅供首次登入使用，請使用一般修改密碼功能'
+      });
+    }
+
+    // 驗證目前密碼 - 使用 SHA256
+    const hashedCurrentPassword = crypto.createHash('sha256').update(currentPassword).digest('hex');
+    const isCurrentPasswordValid = hashedCurrentPassword === user.password;
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: '目前密碼錯誤'
+      });
+    }
+
+    // 檢查新密碼是否與目前密碼相同
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: '新密碼不能與目前密碼相同'
+      });
+    }
+
+    // 更新密碼並標記非首次登入 - 使用 SHA256 加密
+    const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+    const now = new Date().toISOString();
+    await execute(
+      'UPDATE users SET password = ?, isFirstLogin = ?, updatedAt = ? WHERE id = ?',
+      [hashedNewPassword, false, now, userId]
+    );
+
+    res.json({
+      success: true,
+      message: '密碼已成功更新'
+    });
+  } catch (error) {
+    console.error('First login password change error:', error);
+    res.status(500).json({
+      success: false,
+      message: '密碼更新失敗，請稍後再試'
+    });
   }
 });
 

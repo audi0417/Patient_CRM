@@ -132,8 +132,8 @@ async function initialize() {
       const now = new Date().toISOString();
       const targetOrg = await dbAdapter.queryOne('SELECT id FROM organizations ORDER BY createdAt ASC LIMIT 1');
       await dbAdapter.execute(
-        `INSERT INTO users (id, username, password, name, email, role, "isActive", "organizationId", "createdAt", "updatedAt")
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO users (id, username, password, name, email, role, "isActive", "isFirstLogin", "organizationId", "createdAt", "updatedAt")
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           'user_superadmin_001',
           'superadmin',
@@ -142,6 +142,7 @@ async function initialize() {
           'superadmin@system.com',
           'super_admin',
           true,
+          false, // 超級管理員不強制修改密碼（已經使用環境變數設定）
           targetOrg ? targetOrg.id : null,
           now,
           now

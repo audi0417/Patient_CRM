@@ -82,8 +82,8 @@ router.post('/', [
 
     // 插入使用者
     await execute(`
-      INSERT INTO users (id, username, password, name, email, role, isActive, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+      INSERT INTO users (id, username, password, name, email, role, isActive, isFirstLogin, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
     `, [id, username, hashedPassword, name, email, role, now, now]);
 
     const newUser = await queryOne('SELECT id, username, name, email, role, isActive, createdAt, updatedAt FROM users WHERE id = ?', [id]);

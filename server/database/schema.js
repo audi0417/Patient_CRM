@@ -61,6 +61,7 @@ function getSchemaSQL(dbType = 'sqlite') {
       email ${types.text} UNIQUE NOT NULL,
       role ${types.text} NOT NULL CHECK(role IN ('super_admin', 'admin', 'user')),
       "isActive" ${types.boolean} DEFAULT ${boolTrue},
+      "isFirstLogin" ${types.boolean} DEFAULT ${boolTrue},
       "lastLogin" ${types.timestamp},
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,

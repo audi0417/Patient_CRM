@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Hospital, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { FirstLoginPasswordDialog } from "@/components/FirstLoginPasswordDialog";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -14,6 +15,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showFirstLoginDialog, setShowFirstLoginDialog] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -32,7 +34,12 @@ const Login = () => {
       const response = await login({ username, password });
 
       if (response.success) {
-        navigate("/");
+        // 檢查是否為首次登入
+        if (response.isFirstLogin) {
+          setShowFirstLoginDialog(true);
+        } else {
+          navigate("/");
+        }
       } else {
         setError(response.message || "登入失敗");
       }
@@ -41,6 +48,11 @@ const Login = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFirstLoginSuccess = () => {
+    setShowFirstLoginDialog(false);
+    navigate("/");
   };
 
   return (
@@ -115,6 +127,11 @@ const Login = () => {
           </form>
         </CardContent>
       </Card>
+
+      <FirstLoginPasswordDialog
+        open={showFirstLoginDialog}
+        onSuccess={handleFirstLoginSuccess}
+      />
     </div>
   );
 };

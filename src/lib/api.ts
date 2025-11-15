@@ -204,6 +204,16 @@ export const api = {
         body: JSON.stringify({ oldPassword, newPassword }),
       });
     },
+
+    /**
+     * 首次登入修改密碼
+     */
+    firstLoginPassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+      return apiRequest('/auth/first-login-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+    },
   },
 
   /**
