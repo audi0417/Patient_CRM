@@ -735,8 +735,8 @@ export const treatmentApi = {
       if (params?.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
 
       const url = queryParams.toString()
-        ? `${API_BASE_URL}/service-items?${queryParams}`
-        : `${API_BASE_URL}/service-items`;
+        ? `/service-items?${queryParams}`
+        : `/service-items`;
 
       return apiRequest<ServiceItem[]>(url);
     },
@@ -745,28 +745,28 @@ export const treatmentApi = {
      * 取得所有分類
      */
     getCategories: async (): Promise<string[]> => {
-      return apiRequest<string[]>(`${API_BASE_URL}/service-items/categories`);
+      return apiRequest<string[]>(`/service-items/categories`);
     },
 
     /**
      * 取得啟用的服務項目
      */
     getActive: async (): Promise<ServiceItem[]> => {
-      return apiRequest<ServiceItem[]>(`${API_BASE_URL}/service-items/active`);
+      return apiRequest<ServiceItem[]>(`/service-items/active`);
     },
 
     /**
      * 取得單一服務項目
      */
     getById: async (id: number): Promise<ServiceItem> => {
-      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items/${id}`);
+      return apiRequest<ServiceItem>(`/service-items/${id}`);
     },
 
     /**
      * 建立服務項目
      */
     create: async (data: CreateServiceItemData): Promise<ServiceItem> => {
-      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items`, {
+      return apiRequest<ServiceItem>(`/service-items`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -776,7 +776,7 @@ export const treatmentApi = {
      * 更新服務項目
      */
     update: async (id: number, data: Partial<CreateServiceItemData> & { isActive?: boolean }): Promise<ServiceItem> => {
-      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items/${id}`, {
+      return apiRequest<ServiceItem>(`/service-items/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -786,7 +786,7 @@ export const treatmentApi = {
      * 刪除服務項目
      */
     delete: async (id: number): Promise<{ message: string }> => {
-      return apiRequest<{ message: string }>(`${API_BASE_URL}/service-items/${id}`, {
+      return apiRequest<{ message: string }>(`/service-items/${id}`, {
         method: 'DELETE',
       });
     },
@@ -795,7 +795,7 @@ export const treatmentApi = {
      * 批次重新排序
      */
     reorder: async (items: { id: number; displayOrder: number }[]): Promise<ServiceItem[]> => {
-      return apiRequest<ServiceItem[]>(`${API_BASE_URL}/service-items/batch/reorder`, {
+      return apiRequest<ServiceItem[]>(`/service-items/batch/reorder`, {
         method: 'PUT',
         body: JSON.stringify({ items }),
       });
@@ -820,8 +820,8 @@ export const treatmentApi = {
       if (params?.endDate) queryParams.append('endDate', params.endDate);
 
       const url = queryParams.toString()
-        ? `${API_BASE_URL}/treatment-packages?${queryParams}`
-        : `${API_BASE_URL}/treatment-packages`;
+        ? `/treatment-packages?${queryParams}`
+        : `/treatment-packages`;
 
       return apiRequest<TreatmentPackage[]>(url);
     },
@@ -830,21 +830,21 @@ export const treatmentApi = {
      * 取得某病患的所有療程方案
      */
     getByPatient: async (patientId: string): Promise<TreatmentPackage[]> => {
-      return apiRequest<TreatmentPackage[]>(`${API_BASE_URL}/treatment-packages/patient/${patientId}`);
+      return apiRequest<TreatmentPackage[]>(`/treatment-packages/patient/${patientId}`);
     },
 
     /**
      * 取得單一療程方案（含使用記錄）
      */
     getById: async (id: number): Promise<PackageDetail> => {
-      return apiRequest<PackageDetail>(`${API_BASE_URL}/treatment-packages/${id}`);
+      return apiRequest<PackageDetail>(`/treatment-packages/${id}`);
     },
 
     /**
      * 建立療程方案
      */
     create: async (data: CreatePackageData): Promise<TreatmentPackage> => {
-      return apiRequest<TreatmentPackage>(`${API_BASE_URL}/treatment-packages`, {
+      return apiRequest<TreatmentPackage>(`/treatment-packages`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -854,7 +854,7 @@ export const treatmentApi = {
      * 更新療程方案
      */
     update: async (id: number, data: Partial<CreatePackageData> & { status?: string }): Promise<TreatmentPackage> => {
-      return apiRequest<TreatmentPackage>(`${API_BASE_URL}/treatment-packages/${id}`, {
+      return apiRequest<TreatmentPackage>(`/treatment-packages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -864,7 +864,7 @@ export const treatmentApi = {
      * 刪除療程方案
      */
     delete: async (id: number): Promise<{ message: string }> => {
-      return apiRequest<{ message: string }>(`${API_BASE_URL}/treatment-packages/${id}`, {
+      return apiRequest<{ message: string }>(`/treatment-packages/${id}`, {
         method: 'DELETE',
       });
     },
@@ -877,7 +877,7 @@ export const treatmentApi = {
       log: PackageUsageLog;
       remainingQuantity: number;
     }> => {
-      return apiRequest(`${API_BASE_URL}/treatment-packages/${id}/execute`, {
+      return apiRequest(`/treatment-packages/${id}/execute`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -887,7 +887,7 @@ export const treatmentApi = {
      * 取得使用記錄
      */
     getUsageLogs: async (id: number): Promise<PackageUsageLog[]> => {
-      return apiRequest<PackageUsageLog[]>(`${API_BASE_URL}/treatment-packages/${id}/usage-logs`);
+      return apiRequest<PackageUsageLog[]>(`/treatment-packages/${id}/usage-logs`);
     },
 
     /**
@@ -895,7 +895,7 @@ export const treatmentApi = {
      */
     deleteUsageLog: async (packageId: number, logId: number): Promise<{ message: string }> => {
       return apiRequest<{ message: string }>(
-        `${API_BASE_URL}/treatment-packages/${packageId}/usage-logs/${logId}`,
+        `/treatment-packages/${packageId}/usage-logs/${logId}`,
         { method: 'DELETE' }
       );
     },
@@ -904,7 +904,7 @@ export const treatmentApi = {
      * 取得方案摘要
      */
     getSummary: async (id: number): Promise<PackageSummary> => {
-      return apiRequest<PackageSummary>(`${API_BASE_URL}/treatment-packages/${id}/summary`);
+      return apiRequest<PackageSummary>(`/treatment-packages/${id}/summary`);
     },
   },
 };
