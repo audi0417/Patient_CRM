@@ -1,4 +1,4 @@
-import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3 } from "lucide-react";
+import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3, MessageSquare, UsersRound, Heart, Calendar } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,12 +69,13 @@ const Header = () => {
                 <Link
                   to="/"
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
+                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
                     isActive("/")
                       ? "text-foreground"
                       : "text-muted-foreground"
                   )}
                 >
+                  <UsersRound className="h-4 w-4" />
                   患者列表
                 </Link>
               </>
@@ -83,24 +84,26 @@ const Header = () => {
                 <Link
                   to="/"
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
+                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
                     isActive("/")
                       ? "text-foreground"
                       : "text-muted-foreground"
                   )}
                 >
+                  <UsersRound className="h-4 w-4" />
                   患者列表
                 </Link>
                 {isModuleEnabled('healthManagement') && (
                   <Link
                     to="/health-analytics"
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
+                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
                       isActive("/health-analytics")
                         ? "text-foreground"
                         : "text-muted-foreground"
                     )}
                   >
+                    <Heart className="h-4 w-4" />
                     健康管理
                   </Link>
                 )}
@@ -108,26 +111,28 @@ const Header = () => {
                   <Link
                     to="/appointments"
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
+                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
                       isActive("/appointments")
                         ? "text-foreground"
                         : "text-muted-foreground"
                     )}
                   >
+                    <Calendar className="h-4 w-4" />
                     回診管理
                   </Link>
                 )}
-                {permissions?.canManageUsers && (
+                {isModuleEnabled('lineMessaging') && (
                   <Link
-                    to="/users"
+                    to="/line/messages"
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
-                      isActive("/users")
+                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                      location.pathname.startsWith("/line")
                         ? "text-foreground"
                         : "text-muted-foreground"
                     )}
                   >
-                    使用者管理
+                    <MessageSquare className="h-4 w-4" />
+                    LINE訊息
                   </Link>
                 )}
               </>
@@ -137,19 +142,6 @@ const Header = () => {
 
         <div className="flex items-center gap-2">
           <NotificationBell />
-
-          <Link
-            to="/settings"
-            className={cn(
-              "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary",
-              isActive("/settings")
-                ? "text-foreground"
-                : "text-muted-foreground"
-            )}
-          >
-            <Settings className="h-4 w-4" />
-            設定
-          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

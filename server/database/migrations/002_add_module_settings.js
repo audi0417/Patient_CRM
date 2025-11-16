@@ -26,6 +26,13 @@ const AVAILABLE_MODULES = {
     description: '預約排程與提醒',
     defaultEnabled: true,
     features: ['appointments']
+  },
+  lineMessaging: {
+    id: 'lineMessaging',
+    name: 'Line 訊息互動',
+    description: 'Line@ 官方帳號整合，支援即時訊息、預約通知與貼圖互動',
+    defaultEnabled: false,
+    features: ['line_messaging', 'line_webhook', 'sticker_support', 'appointment_notifications']
   }
 };
 

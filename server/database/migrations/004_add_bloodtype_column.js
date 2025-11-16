@@ -28,11 +28,9 @@ async function up() {
         );
         columnExists = !!result;
       } else {
-        const result = await queryOne(
-          `PRAGMA table_info(patients)`
-        );
-        // SQLite PRAGMA 返回所有列，需要檢查
-        const allColumns = await execute(`PRAGMA table_info(patients)`);
+        // SQLite: 使用 PRAGMA table_info 檢查
+        const { queryAll } = require('../helpers');
+        const allColumns = await queryAll(`PRAGMA table_info(patients)`);
         columnExists = allColumns.some(col => col.name === 'bloodType');
       }
     } catch (e) {

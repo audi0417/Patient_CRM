@@ -19,6 +19,8 @@ import UserManagement from "./pages/UserManagement";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import OrganizationManagement from "./pages/OrganizationManagement";
 import Analytics from "./pages/Analytics";
+import LineSettings from "./pages/LineSettings";
+import LineMessages from "./pages/LineMessages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -141,6 +143,26 @@ const AppRoutes = () => {
           <ProtectedRoute requiredRoles={["super_admin"]}>
             <ProtectedLayout>
               <Analytics />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/line/settings"
+        element={
+          <ProtectedRoute requiredRoles={["super_admin", "admin"]}>
+            <ProtectedLayout>
+              <LineSettings />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/line/messages"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <LineMessages />
             </ProtectedLayout>
           </ProtectedRoute>
         }

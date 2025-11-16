@@ -565,6 +565,77 @@ export const api = {
   },
 
   /**
+   * LINE 訊息整合 API
+   */
+  line: {
+    /**
+     * 取得 LINE 配置
+     */
+    getConfig: async (): Promise<any> => {
+      return apiRequest('/line/config');
+    },
+
+    /**
+     * 儲存 LINE 配置
+     */
+    saveConfig: async (config: any): Promise<any> => {
+      return apiRequest('/line/config', {
+        method: 'POST',
+        body: JSON.stringify(config),
+      });
+    },
+
+    /**
+     * 停用 LINE 配置
+     */
+    disableConfig: async (): Promise<any> => {
+      return apiRequest('/line/config', {
+        method: 'DELETE',
+      });
+    },
+
+    /**
+     * 取得對話列表
+     */
+    getConversations: async (params?: any): Promise<any> => {
+      const query = new URLSearchParams(params).toString();
+      const url = query ? `/line/conversations?${query}` : '/line/conversations';
+      return apiRequest(url);
+    },
+
+    /**
+     * 取得對話訊息
+     */
+    getMessages: async (conversationId: string, params?: any): Promise<any> => {
+      const query = new URLSearchParams(params).toString();
+      const url = query
+        ? `/line/conversations/${conversationId}/messages?${query}`
+        : `/line/conversations/${conversationId}/messages`;
+      return apiRequest(url);
+    },
+
+    /**
+     * 發送文字訊息
+     */
+    sendText: async (patientId: string, text: string): Promise<any> => {
+      return apiRequest('/line/send/text', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, text }),
+      });
+    },
+
+    /**
+     * 發送貼圖
+     */
+    sendSticker: async (patientId: string, packageId: string, stickerId: string): Promise<any> => {
+      return apiRequest('/line/send/sticker', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, packageId, stickerId }),
+      });
+    },
+  },
+
+  /**
    * 服務類別 API
    */
   serviceTypes: {

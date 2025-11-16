@@ -25,6 +25,7 @@ interface ModuleConfig {
 interface OrganizationModules {
   healthManagement?: ModuleConfig;
   appointments?: ModuleConfig;
+  lineMessaging?: ModuleConfig;
 }
 
 interface AvailableModule {
@@ -167,7 +168,8 @@ export function ModuleSettingsDialog({
 
   const moduleOrder: (keyof OrganizationModules)[] = [
     'healthManagement',
-    'appointments'
+    'appointments',
+    'lineMessaging'
   ];
 
   return (

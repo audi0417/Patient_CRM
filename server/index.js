@@ -77,6 +77,8 @@ const seedRoutes = require('./routes/seed');
 const serviceTypeRoutes = require('./routes/serviceTypes');
 const organizationRoutes = require('./routes/organizations');
 const superadminRoutes = require('./routes/superadmin');
+const lineRoutes = require('./routes/line');
+const lineWebhookRoutes = require('./routes/lineWebhook');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -94,6 +96,9 @@ app.use('/api/seed', seedRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/superadmin', superadminRoutes);
+app.use('/api/line', lineRoutes);
+// Line Webhook 不需要 rate limiting（Line 平台自身就有頻率控制）
+app.use('/api/line/webhook', lineWebhookRoutes);
 
 // ========================================
 // 模組配置端點

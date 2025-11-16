@@ -11,6 +11,7 @@ export interface ModuleConfig {
 export interface OrganizationModules {
   healthManagement?: ModuleConfig;
   appointments?: ModuleConfig;
+  lineMessaging?: ModuleConfig;
 }
 
 interface ModulesResponse {
