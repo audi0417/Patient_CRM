@@ -21,6 +21,9 @@ import OrganizationManagement from "./pages/OrganizationManagement";
 import Analytics from "./pages/Analytics";
 import LineSettings from "./pages/LineSettings";
 import LineMessages from "./pages/LineMessages";
+import ServiceItems from "./pages/ServiceItems";
+import TreatmentPackages from "./pages/TreatmentPackages";
+import TreatmentPackageDetail from "./pages/TreatmentPackageDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -163,6 +166,36 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <ProtectedLayout>
               <LineMessages />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/service-items"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <ServiceItems />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/treatment-packages"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <TreatmentPackages />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/treatment-packages/:id"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <TreatmentPackageDetail />
             </ProtectedLayout>
           </ProtectedRoute>
         }

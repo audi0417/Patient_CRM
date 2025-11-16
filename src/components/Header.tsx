@@ -1,4 +1,4 @@
-import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3, MessageSquare, UsersRound, Heart, Calendar } from "lucide-react";
+import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3, MessageSquare, UsersRound, Heart, Calendar, Package } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -133,6 +133,20 @@ const Header = () => {
                   >
                     <MessageSquare className="h-4 w-4" />
                     LINE訊息
+                  </Link>
+                )}
+                {isModuleEnabled('treatmentPackages') && (
+                  <Link
+                    to="/treatment-packages"
+                    className={cn(
+                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                      location.pathname.startsWith("/treatment-packages") || location.pathname.startsWith("/service-items")
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <Package className="h-4 w-4" />
+                    療程管理
                   </Link>
                 )}
               </>

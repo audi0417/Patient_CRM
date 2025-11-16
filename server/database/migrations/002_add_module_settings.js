@@ -33,6 +33,13 @@ const AVAILABLE_MODULES = {
     description: 'Line@ 官方帳號整合，支援即時訊息、預約通知與貼圖互動',
     defaultEnabled: false,
     features: ['line_messaging', 'line_webhook', 'sticker_support', 'appointment_notifications']
+  },
+  treatmentPackages: {
+    id: 'treatmentPackages',
+    name: '療程追蹤管理',
+    description: '管理病患療程方案，追蹤復健次數、注射劑量等服務使用狀況',
+    defaultEnabled: true,
+    features: ['treatment_tracking', 'usage_logging', 'package_management']
   }
 };
 

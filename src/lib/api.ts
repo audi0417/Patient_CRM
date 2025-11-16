@@ -15,6 +15,16 @@ import {
   BodyCompositionRecord,
   VitalSignsRecord
 } from "@/types/patient";
+import type {
+  ServiceItem,
+  TreatmentPackage,
+  PackageDetail,
+  PackageUsageLog,
+  PackageSummary,
+  CreateServiceItemData,
+  CreatePackageData,
+  ExecutePackageData
+} from "@/types/treatment";
 
 /**
  * 動態取得 API Base URL
@@ -708,4 +718,193 @@ export const tokenManager = {
   get: getToken,
   set: setToken,
   clear: clearToken,
+};
+
+/**
+ * 療程追蹤模組 API
+ */
+export const treatmentApi = {
+  // ========== 服務項目 ==========
+  serviceItems: {
+    /**
+     * 取得所有服務項目
+     */
+    getAll: async (params?: { category?: string; isActive?: boolean }): Promise<ServiceItem[]> => {
+      const queryParams = new URLSearchParams();
+      if (params?.category) queryParams.append('category', params.category);
+      if (params?.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+
+      const url = queryParams.toString()
+        ? `${API_BASE_URL}/service-items?${queryParams}`
+        : `${API_BASE_URL}/service-items`;
+
+      return apiRequest<ServiceItem[]>(url);
+    },
+
+    /**
+     * 取得所有分類
+     */
+    getCategories: async (): Promise<string[]> => {
+      return apiRequest<string[]>(`${API_BASE_URL}/service-items/categories`);
+    },
+
+    /**
+     * 取得啟用的服務項目
+     */
+    getActive: async (): Promise<ServiceItem[]> => {
+      return apiRequest<ServiceItem[]>(`${API_BASE_URL}/service-items/active`);
+    },
+
+    /**
+     * 取得單一服務項目
+     */
+    getById: async (id: number): Promise<ServiceItem> => {
+      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items/${id}`);
+    },
+
+    /**
+     * 建立服務項目
+     */
+    create: async (data: CreateServiceItemData): Promise<ServiceItem> => {
+      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    /**
+     * 更新服務項目
+     */
+    update: async (id: number, data: Partial<CreateServiceItemData> & { isActive?: boolean }): Promise<ServiceItem> => {
+      return apiRequest<ServiceItem>(`${API_BASE_URL}/service-items/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    /**
+     * 刪除服務項目
+     */
+    delete: async (id: number): Promise<{ message: string }> => {
+      return apiRequest<{ message: string }>(`${API_BASE_URL}/service-items/${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    /**
+     * 批次重新排序
+     */
+    reorder: async (items: { id: number; displayOrder: number }[]): Promise<ServiceItem[]> => {
+      return apiRequest<ServiceItem[]>(`${API_BASE_URL}/service-items/batch/reorder`, {
+        method: 'PUT',
+        body: JSON.stringify({ items }),
+      });
+    },
+  },
+
+  // ========== 療程方案 ==========
+  packages: {
+    /**
+     * 取得所有療程方案
+     */
+    getAll: async (params?: {
+      patientId?: string;
+      status?: string;
+      startDate?: string;
+      endDate?: string;
+    }): Promise<TreatmentPackage[]> => {
+      const queryParams = new URLSearchParams();
+      if (params?.patientId) queryParams.append('patientId', params.patientId);
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+      const url = queryParams.toString()
+        ? `${API_BASE_URL}/treatment-packages?${queryParams}`
+        : `${API_BASE_URL}/treatment-packages`;
+
+      return apiRequest<TreatmentPackage[]>(url);
+    },
+
+    /**
+     * 取得某病患的所有療程方案
+     */
+    getByPatient: async (patientId: string): Promise<TreatmentPackage[]> => {
+      return apiRequest<TreatmentPackage[]>(`${API_BASE_URL}/treatment-packages/patient/${patientId}`);
+    },
+
+    /**
+     * 取得單一療程方案（含使用記錄）
+     */
+    getById: async (id: number): Promise<PackageDetail> => {
+      return apiRequest<PackageDetail>(`${API_BASE_URL}/treatment-packages/${id}`);
+    },
+
+    /**
+     * 建立療程方案
+     */
+    create: async (data: CreatePackageData): Promise<TreatmentPackage> => {
+      return apiRequest<TreatmentPackage>(`${API_BASE_URL}/treatment-packages`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    /**
+     * 更新療程方案
+     */
+    update: async (id: number, data: Partial<CreatePackageData> & { status?: string }): Promise<TreatmentPackage> => {
+      return apiRequest<TreatmentPackage>(`${API_BASE_URL}/treatment-packages/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    /**
+     * 刪除療程方案
+     */
+    delete: async (id: number): Promise<{ message: string }> => {
+      return apiRequest<{ message: string }>(`${API_BASE_URL}/treatment-packages/${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    /**
+     * 執行療程（核銷次數）
+     */
+    execute: async (id: number, data: ExecutePackageData): Promise<{
+      message: string;
+      log: PackageUsageLog;
+      remainingQuantity: number;
+    }> => {
+      return apiRequest(`${API_BASE_URL}/treatment-packages/${id}/execute`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    /**
+     * 取得使用記錄
+     */
+    getUsageLogs: async (id: number): Promise<PackageUsageLog[]> => {
+      return apiRequest<PackageUsageLog[]>(`${API_BASE_URL}/treatment-packages/${id}/usage-logs`);
+    },
+
+    /**
+     * 刪除使用記錄
+     */
+    deleteUsageLog: async (packageId: number, logId: number): Promise<{ message: string }> => {
+      return apiRequest<{ message: string }>(
+        `${API_BASE_URL}/treatment-packages/${packageId}/usage-logs/${logId}`,
+        { method: 'DELETE' }
+      );
+    },
+
+    /**
+     * 取得方案摘要
+     */
+    getSummary: async (id: number): Promise<PackageSummary> => {
+      return apiRequest<PackageSummary>(`${API_BASE_URL}/treatment-packages/${id}/summary`);
+    },
+  },
 };
