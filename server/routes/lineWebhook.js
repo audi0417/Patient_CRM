@@ -12,37 +12,43 @@ const { queryOne, queryAll, execute } = require('../database/helpers');
 const LineMessagingService = require('../services/lineMessaging');
 
 /**
- * POST /api/line/webhook
- * Line Bot Webhook 端點
+ * POST /api/line/webhook/:organizationId
+ * Line Bot Webhook 端點（依組織 ID 區分）
  */
-router.post('/', async (req, res) => {
+router.post('/:organizationId', async (req, res) => {
   try {
+    const { organizationId } = req.params;
+
     // 1. 取得簽名和 body
     const signature = req.headers['x-line-signature'];
     const body = JSON.stringify(req.body);
 
     if (!signature) {
+      console.warn(`[Webhook] 缺少簽名 - 組織: ${organizationId}`);
       return res.status(401).json({ error: '缺少 X-Line-Signature' });
     }
 
-    // 2. 驗證簽名（嘗試所有活躍的 Line 配置）
-    const configs = await queryAll('SELECT * FROM line_configs WHERE "isActive" = 1');
-
-    let validConfig = null;
-    for (const config of configs) {
-      const channelSecret = require('../utils/encryption').decrypt(config.channelSecret);
-      const isValid = LineMessagingService.verifySignature(body, signature, channelSecret);
-
-      if (isValid) {
-        validConfig = config;
-        break;
-      }
-    }
+    // 2. 根據 organizationId 取得 Line 配置
+    const validConfig = await queryOne(
+      'SELECT * FROM line_configs WHERE "organizationId" = ? AND "isActive" = 1',
+      [organizationId]
+    );
 
     if (!validConfig) {
-      console.warn('Line Webhook 簽名驗證失敗');
+      console.warn(`[Webhook] 找不到組織配置 - 組織: ${organizationId}`);
+      return res.status(404).json({ error: '找不到 Line 配置或配置未啟用' });
+    }
+
+    // 3. 驗證簽名
+    const channelSecret = require('../utils/encryption').decrypt(validConfig.channelSecret);
+    const isValid = LineMessagingService.verifySignature(body, signature, channelSecret);
+
+    if (!isValid) {
+      console.warn(`[Webhook] 簽名驗證失敗 - 組織: ${organizationId}`);
       return res.status(401).json({ error: '簽名驗證失敗' });
     }
+
+    console.log(`[Webhook] 簽名驗證成功 - 組織: ${organizationId}, 事件數: ${req.body.events?.length || 0}`);
 
     // 3. 處理事件
     const { events } = req.body;

@@ -12,13 +12,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { lineApi, LineConfig, LineConfigInput } from '@/lib/api/lineApi';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, Save, Trash2 } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertCircle, Save, Trash2, Copy, Check, Zap, ExternalLink } from 'lucide-react';
 
 const LineSettingsContent = () => {
+  const { user } = useAuth();
   const [config, setConfig] = useState<LineConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [formData, setFormData] = useState<LineConfigInput>({
     channelId: '',
     channelSecret: '',
@@ -28,6 +32,10 @@ const LineSettingsContent = () => {
     monthlyMessageLimit: 30000,
   });
   const { toast } = useToast();
+
+  // 生成預覽 Webhook URL（即使還沒有配置也要顯示）
+  const webhookUrl = config?.webhookUrl ||
+    `${window.location.origin}/api/line/webhook/${user?.organizationId || 'your-org-id'}`;
 
   // 載入現有配置
   useEffect(() => {
@@ -129,6 +137,80 @@ const LineSettingsContent = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyWebhookUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      setCopied(true);
+      toast({
+        title: '已複製',
+        description: 'Webhook URL 已複製到剪貼簿',
+      });
+
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toast({
+        title: '複製失敗',
+        description: '請手動複製 URL',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const testWebhook = async () => {
+    try {
+      setTesting(true);
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Line-Signature': 'test-signature',
+        },
+        body: JSON.stringify({ events: [] }),
+      });
+
+      if (response.status === 401) {
+        toast({
+          title: '✅ Webhook 端點運作正常',
+          description: '路由已正確註冊，簽名驗證機制正常運作。現在可以在 LINE Developers Console 設定此 URL。',
+        });
+      } else if (response.status === 404) {
+        toast({
+          title: '❌ Webhook 端點不存在',
+          description: '路由未找到。請確認：1) 伺服器正在運行 2) 組織 ID 正確 3) 路由已正確註冊',
+          variant: 'destructive',
+        });
+      } else if (response.ok) {
+        toast({
+          title: '✅ Webhook 運作正常',
+          description: '端點回應正常',
+        });
+      } else {
+        toast({
+          title: `⚠️ 收到非預期回應 (${response.status})`,
+          description: '端點存在但返回異常狀態碼，請檢查伺服器日誌',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+        toast({
+          title: '❌ 無法連線到伺服器',
+          description: `無法連接到 ${webhookUrl}。請確認：1) 伺服器正在運行 2) API_ENDPOINT 環境變數正確 3) 沒有防火牆阻擋`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: '測試失敗',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -278,17 +360,98 @@ const LineSettingsContent = () => {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="webhookUrl">Webhook URL</Label>
-            <Input
-              id="webhookUrl"
-              value={formData.webhookUrl}
-              onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-              placeholder="https://your-domain.com/api/line/webhook"
-            />
-            <p className="text-xs text-muted-foreground">
-              請在 LINE Developers Console 設定此 Webhook URL
-            </p>
+          <Separator />
+
+          {/* Webhook URL 區塊 */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <Label className="text-base font-semibold">Webhook URL</Label>
+              {config && (
+                <div className="flex items-center gap-2 sm:shrink-0">
+                  {config.isActive ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span className="text-xs font-medium text-green-700">已啟用</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-500/10 border border-gray-500/20 rounded-full">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                      <span className="text-xs font-medium text-gray-700">未啟用</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* URL 顯示區 */}
+            <div className="relative group">
+              <div className="p-4 bg-muted/50 border-2 border-dashed border-primary/20 rounded-lg hover:border-primary/40 transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-medium text-muted-foreground">您的專屬 Webhook URL</p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">可選取複製</Badge>
+                </div>
+                <p className="font-mono text-sm break-all select-all text-foreground leading-relaxed">
+                  {webhookUrl}
+                </p>
+              </div>
+              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="bg-primary text-primary-foreground text-[10px] px-2 py-1 rounded-md shadow-lg">
+                  點選文字可複製
+                </div>
+              </div>
+            </div>
+
+            {/* 操作按鈕 */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant={copied ? "default" : "outline"}
+                onClick={copyWebhookUrl}
+                className="w-full"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    已複製
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2" />
+                    複製 URL
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={testWebhook}
+                disabled={testing}
+                className="w-full"
+              >
+                {testing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    測試中...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    測試連線
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {!config ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>提示：</strong>測試連線功能僅用於檢查 Webhook 端點是否存在。完整的訊息接收測試需要先儲存 Channel 設定，並在 LINE Developers Console 中設定此 URL。
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                請在 LINE Developers Console 的 Messaging API 設定中貼上此 Webhook URL
+              </p>
+            )}
           </div>
 
           <Separator />

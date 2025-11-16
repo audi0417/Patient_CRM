@@ -39,12 +39,15 @@ router.get('/config', requireModule('lineMessaging'), async (req, res) => {
       });
     }
 
+    // 生成 Webhook URL
+    const webhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
+
     // 解密敏感欄位（但不回傳完整的 access token 和 secret）
     const safeConfig = {
       id: config.id,
       organizationId: config.organizationId,
       channelId: config.channelId,
-      webhookUrl: config.webhookUrl,
+      webhookUrl, // 使用動態生成的 Webhook URL
       isActive: config.isActive,
       isVerified: config.isVerified,
       lastVerifiedAt: config.lastVerifiedAt,
@@ -159,17 +162,24 @@ router.post('/config', requireModule('lineMessaging'), async (req, res) => {
         ]
       );
 
+      // 生成 Webhook URL
+      const generatedWebhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
+
       res.json({
         success: true,
         message: 'Line 配置已更新',
         data: {
           id: existingConfig.id,
+          webhookUrl: generatedWebhookUrl,
           botInfo
         }
       });
     } else {
       // 建立新配置
       const id = uuidv4();
+
+      // 生成 Webhook URL
+      const generatedWebhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
 
       await execute(
         `INSERT INTO line_configs (
@@ -184,7 +194,7 @@ router.post('/config', requireModule('lineMessaging'), async (req, res) => {
           channelId,
           encrypt(channelSecret),
           encrypt(accessToken),
-          webhookUrl,
+          generatedWebhookUrl, // 使用自動生成的 URL
           1, // isActive
           1, // isVerified
           now,
@@ -203,6 +213,7 @@ router.post('/config', requireModule('lineMessaging'), async (req, res) => {
         message: 'Line 配置已建立',
         data: {
           id,
+          webhookUrl: generatedWebhookUrl,
           botInfo
         }
       });
