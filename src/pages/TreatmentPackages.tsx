@@ -103,6 +103,12 @@ export default function TreatmentPackages() {
     loadPatients();
   }, []);
 
+  // 取得病患名稱
+  const getPatientName = (patientId: string) => {
+    const patient = patients.find((p) => p.id === patientId);
+    return patient ? patient.name : patientId;
+  };
+
   // 篩選後的方案
   const filteredPackages = packages.filter((pkg) => {
     const patientName = getPatientName(pkg.patientId);
@@ -238,12 +244,6 @@ export default function TreatmentPackages() {
   // 查看詳情
   const handleView = (id: number) => {
     navigate(`/treatment-packages/${id}`);
-  };
-
-  // 取得病患名稱
-  const getPatientName = (patientId: string) => {
-    const patient = patients.find((p) => p.id === patientId);
-    return patient ? patient.name : patientId;
   };
 
   return (
