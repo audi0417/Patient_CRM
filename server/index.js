@@ -56,8 +56,15 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 為所有 API 端點添加一般限流
-app.use('/api/', apiLimiter);
+// 為所有 API 端點添加一般限流（排除超級管理員路由）
+app.use('/api/', (req, res, next) => {
+  // 超級管理員和組織管理路由不受限流（需要頻繁操作多個組織）
+  if (req.path.startsWith('/superadmin') ||
+      req.path.startsWith('/organizations')) {
+    return next();
+  }
+  return apiLimiter(req, res, next);
+});
 
 // 初始化數據庫
 const db = require('./database/db');
