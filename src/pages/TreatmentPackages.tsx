@@ -105,9 +105,11 @@ export default function TreatmentPackages() {
 
   // 篩選後的方案
   const filteredPackages = packages.filter((pkg) => {
+    const patientName = getPatientName(pkg.patientId);
     const matchesSearch =
       pkg.packageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pkg.packageNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      pkg.packageNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || pkg.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -273,7 +275,7 @@ export default function TreatmentPackages() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="搜尋方案名稱或編號..."
+                    placeholder="搜尋方案名稱、編號或病患姓名..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
