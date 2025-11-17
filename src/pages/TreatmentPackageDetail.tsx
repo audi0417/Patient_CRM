@@ -229,6 +229,10 @@ export default function TreatmentPackageDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
+                  <p className="text-sm font-medium text-muted-foreground">病患姓名</p>
+                  <p className="text-sm font-semibold">{packageDetail.patientName}</p>
+                </div>
+                <div>
                   <p className="text-sm font-medium text-muted-foreground">開始日期</p>
                   <p className="text-sm">{packageDetail.startDate || "-"}</p>
                 </div>

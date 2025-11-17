@@ -36,6 +36,7 @@ import type { TreatmentPackage, CreatePackageData, PackageItem } from "@/types/t
 import type { Patient } from "@/types/patient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { PatientCombobox } from "@/components/PatientCombobox";
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   active: "default",
@@ -371,18 +372,12 @@ export default function TreatmentPackages() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="patient">病患 *</Label>
-                <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="選擇病患" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map((patient) => (
-                      <SelectItem key={patient.id} value={patient.id}>
-                        {patient.name} ({patient.phone})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PatientCombobox
+                  patients={patients}
+                  value={selectedPatient}
+                  onValueChange={setSelectedPatient}
+                  placeholder="搜尋病患姓名或電話..."
+                />
               </div>
 
               <div className="space-y-2">

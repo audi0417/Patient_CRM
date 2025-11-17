@@ -133,5 +133,6 @@ export interface ExecutePackageData {
  * 療程方案詳情（含使用記錄）
  */
 export interface PackageDetail extends TreatmentPackage {
+  patientName: string;
   usageLogs: PackageUsageLog[];
 }

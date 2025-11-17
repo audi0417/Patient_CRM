@@ -23,6 +23,7 @@ import { Appointment, Patient } from "@/types/patient";
 import { toast } from "sonner";
 import { addDays, addWeeks, addMonths, addYears, isBefore, format } from "date-fns";
 import { useServiceTypes } from "@/hooks/useServiceTypes";
+import { PatientCombobox } from "@/components/PatientCombobox";
 
 interface RecurringAppointmentFormProps {
   patientId?: string;
@@ -212,22 +213,13 @@ const RecurringAppointmentForm = ({
             <Label htmlFor="patient">
               病患 <span className="text-destructive">*</span>
             </Label>
-            <Select
+            <PatientCombobox
+              patients={patients}
               value={formData.patientId}
               onValueChange={(value) => setFormData({ ...formData, patientId: value })}
               disabled={!!patientId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="請選擇病患" />
-              </SelectTrigger>
-              <SelectContent>
-                {patients.map((patient) => (
-                  <SelectItem key={patient.id} value={patient.id}>
-                    {patient.name} - {patient.phone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="搜尋病患姓名或電話..."
+            />
             {patientId && (
               <p className="text-xs text-muted-foreground">
                 已指定病患，無法變更

@@ -117,6 +117,12 @@ router.get('/:id', async (req, res) => {
     // 解析 items
     pkg.items = JSON.parse(pkg.items || '[]');
 
+    // 獲取病患姓名
+    const patient = await queryOne(
+      'SELECT name FROM patients WHERE id = ? AND organizationId = ?',
+      [pkg.patientId, organizationId]
+    );
+
     // 獲取使用記錄
     const usageLogs = await queryAll(
       `SELECT ul.*, si.name as serviceName, si.unit, u.name as performedByName
@@ -130,6 +136,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       ...pkg,
+      patientName: patient?.name || '未知病患',
       usageLogs
     });
   } catch (error) {
