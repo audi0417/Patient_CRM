@@ -127,6 +127,7 @@ export default function TreatmentPackageDetail() {
         return;
       }
 
+      console.log('[Execute] 提交資料:', executeData);
       await treatmentApi.packages.execute(packageDetail.id, executeData);
       toast({
         title: "執行成功",
@@ -135,9 +136,10 @@ export default function TreatmentPackageDetail() {
       setShowExecuteDialog(false);
       loadPackageDetail();
     } catch (error: any) {
+      console.error('[Execute] 失敗:', error);
       toast({
         title: "執行失敗",
-        description: error.message,
+        description: error.message || "無法執行療程，請檢查輸入資料",
         variant: "destructive",
       });
     }

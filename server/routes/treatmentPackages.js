@@ -334,8 +334,15 @@ router.post('/:id/execute', async (req, res) => {
     const packageId = req.params.id;
 
     // 驗證必填欄位
-    if (!serviceItemId || !quantity || quantity <= 0 || !usageDate) {
-      return res.status(400).json({ error: '請提供完整的執行資訊' });
+    if (serviceItemId === undefined || serviceItemId === null || !quantity || quantity <= 0 || !usageDate) {
+      return res.status(400).json({
+        error: '請提供完整的執行資訊',
+        missing: {
+          serviceItemId: !serviceItemId,
+          quantity: !quantity || quantity <= 0,
+          usageDate: !usageDate
+        }
+      });
     }
 
     // 檢查方案是否存在
