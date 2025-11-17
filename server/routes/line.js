@@ -14,6 +14,32 @@ const { queryOne, queryAll, execute } = require('../database/helpers');
 const { encrypt, decrypt, encryptFields, decryptFields } = require('../utils/encryption');
 const LineMessagingService = require('../services/lineMessaging');
 
+/**
+ * 取得 API 端點 URL（支援動態生成）
+ * 優先順序：
+ * 1. 環境變數 API_ENDPOINT
+ * 2. 從請求中推導（適用於 Zeabur 等雲端平台）
+ * 3. 本地開發預設值
+ */
+function getApiEndpoint(req) {
+  // 如果有設置環境變數，直接使用
+  if (process.env.API_ENDPOINT) {
+    return process.env.API_ENDPOINT;
+  }
+
+  // 從請求推導（生產環境）
+  if (req) {
+    const protocol = req.protocol || 'https';
+    const host = req.get('host');
+    if (host && !host.includes('localhost')) {
+      return `${protocol}://${host}`;
+    }
+  }
+
+  // 本地開發預設值
+  return 'http://localhost:3001';
+}
+
 // 所有 Line 路由都需要認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
@@ -40,7 +66,7 @@ router.get('/config', requireModule('lineMessaging'), async (req, res) => {
     }
 
     // 生成 Webhook URL
-    const webhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
+    const webhookUrl = `${getApiEndpoint(req)}/api/line/webhook/${organizationId}`;
 
     // 解密敏感欄位（但不回傳完整的 access token 和 secret）
     const safeConfig = {
@@ -163,7 +189,7 @@ router.post('/config', requireModule('lineMessaging'), async (req, res) => {
       );
 
       // 生成 Webhook URL
-      const generatedWebhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
+      const generatedWebhookUrl = `${getApiEndpoint(req)}/api/line/webhook/${organizationId}`;
 
       res.json({
         success: true,
@@ -179,7 +205,7 @@ router.post('/config', requireModule('lineMessaging'), async (req, res) => {
       const id = uuidv4();
 
       // 生成 Webhook URL
-      const generatedWebhookUrl = `${process.env.API_ENDPOINT || 'http://localhost:3001'}/api/line/webhook/${organizationId}`;
+      const generatedWebhookUrl = `${getApiEndpoint(req)}/api/line/webhook/${organizationId}`;
 
       await execute(
         `INSERT INTO line_configs (
