@@ -159,7 +159,8 @@ router.post('/', async (req, res) => {
     }
 
     // 驗證所有服務項目
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (!item.itemName || !item.itemName.trim() || !item.totalQuantity || item.totalQuantity <= 0) {
         return res.status(400).json({ error: '服務項目資料不完整' });
       }
@@ -168,6 +169,8 @@ router.post('/', async (req, res) => {
       item.serviceName = item.itemName.trim();
       item.unit = '次'; // 預設單位
       item.usedQuantity = 0; // 初始化已使用數量
+      // 為每個項目生成唯一 ID（使用索引，從 1 開始）
+      item.serviceItemId = i + 1;
 
       // 移除 itemName 欄位，只保留 serviceName
       delete item.itemName;
