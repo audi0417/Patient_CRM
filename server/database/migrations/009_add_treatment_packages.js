@@ -94,7 +94,7 @@ async function up() {
         CREATE TABLE IF NOT EXISTS treatment_packages (
           id SERIAL PRIMARY KEY,
           "organizationId" INTEGER NOT NULL,
-          "patientId" INTEGER NOT NULL,
+          "patientId" VARCHAR(255) NOT NULL,
 
           "packageName" VARCHAR(255) NOT NULL,
           "packageNumber" VARCHAR(50),
@@ -132,7 +132,7 @@ async function up() {
         CREATE TABLE IF NOT EXISTS treatment_packages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           organizationId INTEGER NOT NULL,
-          patientId INTEGER NOT NULL,
+          patientId VARCHAR(255) NOT NULL,
 
           packageName VARCHAR(255) NOT NULL,
           packageNumber VARCHAR(50),
