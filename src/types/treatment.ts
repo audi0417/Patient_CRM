@@ -109,7 +109,7 @@ export interface CreatePackageData {
   patientId: string;
   packageName: string;
   items: {
-    serviceItemId: number;
+    itemName: string;
     totalQuantity: number;
   }[];
   startDate?: string;

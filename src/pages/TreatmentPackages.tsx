@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Trash2, Search, Filter } from "lucide-react";
+import { Plus, Eye, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { treatmentApi } from "@/lib/api";
 import { api } from "@/lib/api";
-import type { TreatmentPackage, ServiceItem, CreatePackageData, PackageItem } from "@/types/treatment";
+import type { TreatmentPackage, CreatePackageData, PackageItem } from "@/types/treatment";
 import type { Patient } from "@/types/patient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,14 +55,13 @@ export default function TreatmentPackages() {
   const navigate = useNavigate();
   const [packages, setPackages] = useState<TreatmentPackage[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDialog, setShowDialog] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<string>("");
   const [packageName, setPackageName] = useState("");
-  const [selectedItems, setSelectedItems] = useState<{ serviceItemId: number; totalQuantity: number }[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{ itemName: string; totalQuantity: number }[]>([]);
   const [startDate, setStartDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -98,20 +97,9 @@ export default function TreatmentPackages() {
     }
   };
 
-  // 載入服務項目
-  const loadServiceItems = async () => {
-    try {
-      const data = await treatmentApi.serviceItems.getActive();
-      setServiceItems(data);
-    } catch (error) {
-      console.error("Failed to load service items:", error);
-    }
-  };
-
   useEffect(() => {
     loadPackages();
     loadPatients();
-    loadServiceItems();
   }, []);
 
   // 篩選後的方案
@@ -145,7 +133,7 @@ export default function TreatmentPackages() {
 
   // 新增服務項目到方案
   const handleAddItem = () => {
-    setSelectedItems([...selectedItems, { serviceItemId: 0, totalQuantity: 1 }]);
+    setSelectedItems([...selectedItems, { itemName: "", totalQuantity: 1 }]);
   };
 
   // 移除服務項目
@@ -154,9 +142,13 @@ export default function TreatmentPackages() {
   };
 
   // 更新項目資料
-  const updateItem = (index: number, field: "serviceItemId" | "totalQuantity", value: number) => {
+  const updateItem = (index: number, field: "itemName" | "totalQuantity", value: string | number) => {
     const newItems = [...selectedItems];
-    newItems[index][field] = value;
+    if (field === "itemName") {
+      newItems[index].itemName = value as string;
+    } else {
+      newItems[index].totalQuantity = value as number;
+    }
     setSelectedItems(newItems);
   };
 
@@ -172,12 +164,22 @@ export default function TreatmentPackages() {
         return;
       }
 
-      // 檢查是否有重複的服務項目
-      const serviceIds = selectedItems.map((item) => item.serviceItemId);
-      if (new Set(serviceIds).size !== serviceIds.length) {
+      // 檢查是否有重複的服務項目名稱
+      const itemNames = selectedItems.map((item) => item.itemName.trim());
+      if (new Set(itemNames).size !== itemNames.length) {
         toast({
           title: "驗證失敗",
-          description: "不可重複選擇相同的服務項目",
+          description: "不可重複輸入相同的服務項目",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 檢查是否所有項目都有名稱
+      if (selectedItems.some((item) => !item.itemName.trim())) {
+        toast({
+          title: "驗證失敗",
+          description: "請填寫所有服務項目名稱",
           variant: "destructive",
         });
         return;
@@ -398,21 +400,12 @@ export default function TreatmentPackages() {
                 <div className="space-y-2">
                   {selectedItems.map((item, index) => (
                     <div key={index} className="flex gap-2">
-                      <Select
-                        value={item.serviceItemId.toString()}
-                        onValueChange={(value) => updateItem(index, "serviceItemId", parseInt(value))}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="選擇服務項目" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {serviceItems.map((service) => (
-                            <SelectItem key={service.id} value={service.id.toString()}>
-                              {service.name} ({service.unit})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        value={item.itemName}
+                        onChange={(e) => updateItem(index, "itemName", e.target.value)}
+                        className="flex-1"
+                        placeholder="輸入服務項目名稱（例：物理治療、針灸治療）"
+                      />
 
                       <Input
                         type="number"

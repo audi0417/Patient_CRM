@@ -160,23 +160,17 @@ router.post('/', async (req, res) => {
 
     // 驗證所有服務項目
     for (const item of items) {
-      if (!item.serviceItemId || !item.totalQuantity || item.totalQuantity <= 0) {
+      if (!item.itemName || !item.itemName.trim() || !item.totalQuantity || item.totalQuantity <= 0) {
         return res.status(400).json({ error: '服務項目資料不完整' });
       }
 
-      const serviceItem = await queryOne(
-        'SELECT id, name, unit FROM service_items WHERE id = ? AND organizationId = ?',
-        [item.serviceItemId, organizationId]
-      );
-
-      if (!serviceItem) {
-        return res.status(404).json({ error: `服務項目 ID ${item.serviceItemId} 不存在` });
-      }
-
-      // 補充服務項目資訊
-      item.serviceName = serviceItem.name;
-      item.unit = serviceItem.unit;
+      // 使用自由輸入的項目名稱
+      item.serviceName = item.itemName.trim();
+      item.unit = '次'; // 預設單位
       item.usedQuantity = 0; // 初始化已使用數量
+
+      // 移除 itemName 欄位，只保留 serviceName
+      delete item.itemName;
     }
 
     // 生成方案編號
