@@ -10,7 +10,8 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 
 # 安裝所有依賴（包括 devDependencies，構建需要）
-RUN npm ci --include=dev
+# 使用 npm install 替代 npm ci 以避免 ETXTBSY 錯誤
+RUN npm install --legacy-peer-deps
 
 # 複製源代碼（排除 node_modules 和 .git）
 COPY . .
@@ -52,5 +53,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/api/health-check', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
-# 啟動命令
-CMD ["node", "server/index.js"]
+# 啟動命令（執行 migration 然後啟動伺服器）
+CMD ["npm", "start"]
