@@ -2,6 +2,7 @@
  * Database Schema Definitions
  *
  * 定義資料庫結構，支援 SQLite 和 PostgreSQL
+ * 包含所有功能的完整 Schema
  */
 
 /**
@@ -14,12 +15,18 @@ function getSchemaSQL(dbType = 'sqlite') {
 
   // 資料類型映射
   const types = {
-    text: isPostgres ? 'TEXT' : 'TEXT',
-    integer: isPostgres ? 'INTEGER' : 'INTEGER',
-    real: isPostgres ? 'REAL' : 'REAL',
+    text: 'TEXT',
+    integer: 'INTEGER',
+    real: 'REAL',
     boolean: isPostgres ? 'BOOLEAN' : 'INTEGER',
     timestamp: isPostgres ? 'TIMESTAMP' : 'TEXT',
-    primaryKey: isPostgres ? 'TEXT PRIMARY KEY' : 'TEXT PRIMARY KEY',
+    primaryKey: 'TEXT PRIMARY KEY',
+    varcharLong: isPostgres ? 'VARCHAR(500)' : 'TEXT',
+    varchar50: isPostgres ? 'VARCHAR(50)' : 'TEXT',
+    varchar20: isPostgres ? 'VARCHAR(20)' : 'TEXT',
+    varchar10: isPostgres ? 'VARCHAR(10)' : 'TEXT',
+    json: isPostgres ? 'JSONB' : 'TEXT',
+    date: isPostgres ? 'DATE' : 'TEXT',
     autoIncrement: isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'
   };
 
@@ -27,8 +34,7 @@ function getSchemaSQL(dbType = 'sqlite') {
   const boolTrue = isPostgres ? 'TRUE' : '1';
   const boolFalse = isPostgres ? 'FALSE' : '0';
 
-  // 如果是 PostgreSQL，使用 IF NOT EXISTS 替代方案
-  const createTablePrefix = isPostgres ? 'CREATE TABLE IF NOT EXISTS' : 'CREATE TABLE IF NOT EXISTS';
+  const createTablePrefix = 'CREATE TABLE IF NOT EXISTS';
 
   return `
     -- 組織表
@@ -65,27 +71,42 @@ function getSchemaSQL(dbType = 'sqlite') {
       "lastLogin" ${types.timestamp},
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
-      "updatedAt" ${types.timestamp} NOT NULL
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- 模組設定表
+    ${createTablePrefix} module_settings (
+      id ${types.primaryKey},
+      "organizationId" ${types.text} NOT NULL,
+      "moduleName" ${types.text} NOT NULL,
+      "isEnabled" ${types.boolean} DEFAULT ${boolFalse},
+      settings ${types.json},
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
+      UNIQUE("organizationId", "moduleName")
     );
 
     -- 患者表
     ${createTablePrefix} patients (
       id ${types.primaryKey},
       name ${types.text} NOT NULL,
-      gender ${types.text} CHECK(gender IN ('male', 'female', 'other')),
-      "birthDate" ${types.text},
-      phone ${types.text},
-      email ${types.text},
+      phone ${types.varchar50},
+      email ${types.varcharLong},
+      "birthDate" ${types.date},
+      gender ${types.varchar20} CHECK(gender IN ('male', 'female', 'other')),
+      "bloodType" ${types.varchar10},
       address ${types.text},
-      "emergencyContact" ${types.text},
-      "emergencyPhone" ${types.text},
+      "emergencyContact" ${types.varcharLong},
+      "emergencyPhone" ${types.varchar50},
+      "medicalHistory" ${types.text},
+      allergies ${types.text},
       notes ${types.text},
-      tags ${types.text},
-      groups ${types.text},
-      "healthProfile" ${types.text},
-      "organizationId" ${types.text},
+      "organizationId" ${types.varcharLong} NOT NULL,
       "createdAt" ${types.timestamp} NOT NULL,
-      "updatedAt" ${types.timestamp} NOT NULL
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 體組成記錄表
@@ -105,7 +126,8 @@ function getSchemaSQL(dbType = 'sqlite') {
       notes ${types.text},
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 生命徵象記錄表
@@ -123,7 +145,8 @@ function getSchemaSQL(dbType = 'sqlite') {
       notes ${types.text},
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 健康目標表
@@ -144,7 +167,8 @@ function getSchemaSQL(dbType = 'sqlite') {
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 預約表
@@ -165,41 +189,98 @@ function getSchemaSQL(dbType = 'sqlite') {
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 標籤表
     ${createTablePrefix} tags (
       id ${types.primaryKey},
-      name ${types.text} UNIQUE NOT NULL,
+      name ${types.text} NOT NULL,
       color ${types.text} NOT NULL,
       "organizationId" ${types.text},
-      "createdAt" ${types.timestamp} NOT NULL
+      "createdAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 群組表
     ${createTablePrefix} groups (
       id ${types.primaryKey},
-      name ${types.text} UNIQUE NOT NULL,
+      name ${types.text} NOT NULL,
       description ${types.text},
       color ${types.text} NOT NULL,
       "patientIds" ${types.text},
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
-      "updatedAt" ${types.timestamp} NOT NULL
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 服務類別表
     ${createTablePrefix} service_types (
       id ${types.primaryKey},
-      name ${types.text} UNIQUE NOT NULL,
+      name ${types.text} NOT NULL,
       description ${types.text},
       color ${types.text} NOT NULL,
       "isActive" ${types.boolean} DEFAULT ${boolTrue},
       "displayOrder" ${types.integer} DEFAULT 0,
-      "organizationId" ${types.text},
+      "organizationId" ${types.text} NOT NULL,
       "createdAt" ${types.timestamp} NOT NULL,
-      "updatedAt" ${types.timestamp} NOT NULL
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
+      UNIQUE("organizationId", name)
+    );
+
+    -- 服務項目表
+    ${createTablePrefix} service_items (
+      id ${types.primaryKey},
+      "serviceTypeId" ${types.text} NOT NULL,
+      name ${types.text} NOT NULL,
+      description ${types.text},
+      price ${types.real} NOT NULL,
+      duration ${types.integer},
+      "isActive" ${types.boolean} DEFAULT ${boolTrue},
+      "displayOrder" ${types.integer} DEFAULT 0,
+      "organizationId" ${types.text} NOT NULL,
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("serviceTypeId") REFERENCES service_types(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- 療程套裝表
+    ${createTablePrefix} treatment_packages (
+      id ${types.primaryKey},
+      "patientId" ${types.text} NOT NULL,
+      "packageName" ${types.text} NOT NULL,
+      "totalSessions" ${types.integer} NOT NULL,
+      "usedSessions" ${types.integer} DEFAULT 0,
+      price ${types.real} NOT NULL,
+      "purchaseDate" ${types.date} NOT NULL,
+      "expiryDate" ${types.date},
+      status ${types.varchar50} DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED')),
+      notes ${types.text},
+      "organizationId" ${types.text} NOT NULL,
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- 套裝使用記錄表
+    ${createTablePrefix} package_usage_logs (
+      id ${types.primaryKey},
+      "packageId" ${types.text} NOT NULL,
+      "patientId" ${types.text} NOT NULL,
+      "usedAt" ${types.timestamp} NOT NULL,
+      "sessionsUsed" ${types.integer} DEFAULT 1,
+      notes ${types.text},
+      "performedBy" ${types.text},
+      "organizationId" ${types.text} NOT NULL,
+      "createdAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("packageId") REFERENCES treatment_packages(id) ON DELETE CASCADE,
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- 諮詢記錄表
@@ -215,7 +296,100 @@ function getSchemaSQL(dbType = 'sqlite') {
       "organizationId" ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- LINE 配置表
+    ${createTablePrefix} line_configs (
+      id ${types.primaryKey},
+      "organizationId" ${types.text} NOT NULL,
+      "channelId" ${types.text} NOT NULL,
+      "channelSecret" ${types.text} NOT NULL,
+      "accessToken" ${types.text} NOT NULL,
+      "webhookUrl" ${types.text},
+      "isActive" ${types.boolean} DEFAULT ${boolTrue},
+      "autoReply" ${types.boolean} DEFAULT ${boolFalse},
+      "autoReplyMessage" ${types.text},
+      "welcomeMessage" ${types.text},
+      "totalMessagesReceived" ${types.integer} DEFAULT 0,
+      "totalMessagesSent" ${types.integer} DEFAULT 0,
+      "lastActivityAt" ${types.timestamp},
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
+      UNIQUE("organizationId")
+    );
+
+    -- LINE 用戶表（獨立於患者）
+    ${createTablePrefix} line_users (
+      id ${types.primaryKey},
+      "lineUserId" ${types.varcharLong} NOT NULL UNIQUE,
+      "organizationId" ${types.varcharLong} NOT NULL,
+      "displayName" ${types.varcharLong},
+      "pictureUrl" ${types.text},
+      "statusMessage" ${types.text},
+      "language" ${types.varchar50},
+      "patientId" ${types.varcharLong},
+      "isActive" ${types.boolean} DEFAULT ${boolTrue},
+      "followedAt" ${types.timestamp},
+      "unfollowedAt" ${types.timestamp},
+      "lastInteractionAt" ${types.timestamp},
+      tags ${types.json},
+      notes ${types.text},
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE SET NULL
+    );
+
+    -- 對話管理表
+    ${createTablePrefix} conversations (
+      id ${types.primaryKey},
+      "lineUserId" ${types.varcharLong},
+      "patientId" ${types.varcharLong},
+      "organizationId" ${types.varcharLong} NOT NULL,
+      status ${types.varchar50} DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'ARCHIVED', 'CLOSED')),
+      priority ${types.varchar50} DEFAULT 'MEDIUM' CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')),
+      "lastMessageAt" ${types.timestamp},
+      "lastMessagePreview" ${types.text},
+      "unreadCount" ${types.integer} DEFAULT 0,
+      "createdAt" ${types.timestamp} NOT NULL,
+      "updatedAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("lineUserId") REFERENCES line_users(id) ON DELETE CASCADE,
+      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- LINE 訊息記錄表
+    ${createTablePrefix} line_messages (
+      id ${types.primaryKey},
+      "conversationId" ${types.text},
+      "organizationId" ${types.text} NOT NULL,
+      "messageType" ${types.text} NOT NULL CHECK("messageType" IN ('TEXT', 'STICKER', 'IMAGE', 'SYSTEM')),
+      "messageContent" ${types.text} NOT NULL,
+      "senderId" ${types.text},
+      "recipientId" ${types.text},
+      "senderType" ${types.text} NOT NULL CHECK("senderType" IN ('PATIENT', 'ADMIN', 'SYSTEM')),
+      "recipientType" ${types.text} CHECK("recipientType" IN ('PATIENT', 'ADMIN')),
+      "lineMessageId" ${types.text},
+      "replyToken" ${types.text},
+      status ${types.text} NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'SENT', 'DELIVERED', 'FAILED')),
+      "errorMessage" ${types.text},
+      metadata ${types.json},
+      "isReply" ${types.boolean} DEFAULT ${boolFalse},
+      "readAt" ${types.timestamp},
+      "sentAt" ${types.timestamp},
+      "createdAt" ${types.timestamp} NOT NULL,
+      FOREIGN KEY ("conversationId") REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+    );
+
+    -- 遷移追蹤表
+    ${createTablePrefix} migrations (
+      id ${types.autoIncrement},
+      name ${types.text} NOT NULL UNIQUE,
+      executed_at ${types.timestamp} DEFAULT CURRENT_TIMESTAMP
     );
   `;
 }
@@ -229,6 +403,7 @@ function getIndexesSQL(dbType = 'sqlite') {
   return `
     -- 基本索引
     CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(name);
+    CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone);
     CREATE INDEX IF NOT EXISTS idx_body_composition_patient ON body_composition("patientId", date);
     CREATE INDEX IF NOT EXISTS idx_vital_signs_patient ON vital_signs("patientId", date);
     CREATE INDEX IF NOT EXISTS idx_goals_patient ON goals("patientId", status);
@@ -238,6 +413,7 @@ function getIndexesSQL(dbType = 'sqlite') {
     -- 多租戶複合索引
     CREATE INDEX IF NOT EXISTS idx_users_org ON users("organizationId", "isActive");
     CREATE INDEX IF NOT EXISTS idx_users_org_username ON users("organizationId", username);
+    CREATE INDEX IF NOT EXISTS idx_module_settings_org ON module_settings("organizationId", "moduleName");
     CREATE INDEX IF NOT EXISTS idx_patients_org ON patients("organizationId");
     CREATE INDEX IF NOT EXISTS idx_patients_org_name ON patients("organizationId", name);
     CREATE INDEX IF NOT EXISTS idx_patients_org_updated ON patients("organizationId", "updatedAt" DESC);
@@ -254,8 +430,30 @@ function getIndexesSQL(dbType = 'sqlite') {
     CREATE INDEX IF NOT EXISTS idx_consultations_org ON consultations("organizationId");
     CREATE INDEX IF NOT EXISTS idx_consultations_org_patient ON consultations("organizationId", "patientId", date DESC);
     CREATE INDEX IF NOT EXISTS idx_service_types_org ON service_types("organizationId", "isActive");
+    CREATE INDEX IF NOT EXISTS idx_service_items_org ON service_items("organizationId", "isActive");
+    CREATE INDEX IF NOT EXISTS idx_service_items_type ON service_items("serviceTypeId");
+    CREATE INDEX IF NOT EXISTS idx_treatment_packages_patient ON treatment_packages("patientId", status);
+    CREATE INDEX IF NOT EXISTS idx_treatment_packages_org ON treatment_packages("organizationId", status);
+    CREATE INDEX IF NOT EXISTS idx_treatment_packages_org_patient ON treatment_packages("organizationId", "patientId");
+    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_package ON package_usage_logs("packageId", "usedAt" DESC);
+    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_patient ON package_usage_logs("patientId", "usedAt" DESC);
+    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_org ON package_usage_logs("organizationId");
     CREATE INDEX IF NOT EXISTS idx_tags_org ON tags("organizationId");
     CREATE INDEX IF NOT EXISTS idx_groups_org ON groups("organizationId");
+
+    -- LINE 整合索引
+    CREATE INDEX IF NOT EXISTS idx_line_configs_org ON line_configs("organizationId", "isActive");
+    CREATE INDEX IF NOT EXISTS idx_line_users_line_user_id ON line_users("lineUserId");
+    CREATE INDEX IF NOT EXISTS idx_line_users_organization ON line_users("organizationId");
+    CREATE INDEX IF NOT EXISTS idx_line_users_patient ON line_users("patientId");
+    CREATE INDEX IF NOT EXISTS idx_conversations_line_user ON conversations("lineUserId");
+    CREATE INDEX IF NOT EXISTS idx_conversations_patient ON conversations("patientId");
+    CREATE INDEX IF NOT EXISTS idx_conversations_organization ON conversations("organizationId");
+    CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
+    CREATE INDEX IF NOT EXISTS idx_conversations_org_status ON conversations("organizationId", status);
+    CREATE INDEX IF NOT EXISTS idx_line_messages_conversation ON line_messages("conversationId", "createdAt" DESC);
+    CREATE INDEX IF NOT EXISTS idx_line_messages_org ON line_messages("organizationId");
+    CREATE INDEX IF NOT EXISTS idx_line_messages_line_id ON line_messages("lineMessageId");
   `;
 }
 
