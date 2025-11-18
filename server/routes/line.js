@@ -368,12 +368,36 @@ router.get('/conversations/:conversationId/messages', requireModule('lineMessagi
       [conversationId, parseInt(limit), parseInt(offset)]
     );
 
-    // 解析 JSON 欄位
-    const formattedMessages = messages.map(msg => ({
-      ...msg,
-      messageContent: typeof msg.messageContent === 'string' ? JSON.parse(msg.messageContent) : msg.messageContent,
-      metadata: msg.metadata ? JSON.parse(msg.metadata) : null
-    }));
+    // 解析 JSON 欄位（安全處理）
+    const formattedMessages = messages.map(msg => {
+      let messageContent = msg.messageContent;
+      let metadata = msg.metadata;
+
+      // 安全解析 messageContent
+      if (typeof messageContent === 'string') {
+        try {
+          messageContent = JSON.parse(messageContent);
+        } catch (error) {
+          // 如果解析失敗，保持原字串或包裝為 { text: ... }
+          messageContent = { text: messageContent };
+        }
+      }
+
+      // 安全解析 metadata
+      if (metadata && typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch (error) {
+          metadata = null;
+        }
+      }
+
+      return {
+        ...msg,
+        messageContent,
+        metadata
+      };
+    });
 
     res.json({
       success: true,
