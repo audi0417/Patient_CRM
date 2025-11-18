@@ -302,10 +302,16 @@ router.get('/conversations', requireModule('lineMessaging'), async (req, res) =>
     const conversations = await queryAll(
       `SELECT
          c.*,
+         lu."displayName" as lineUserName,
+         lu."pictureUrl" as lineUserPicture,
+         lu."lineUserId" as lineUserId,
+         lu."isActive" as lineUserActive,
+         p.id as patientId,
          p.name as patientName,
          p.phone as patientPhone,
          p.email as patientEmail
        FROM conversations c
+       LEFT JOIN line_users lu ON c."lineUserId" = lu.id
        LEFT JOIN patients p ON c."patientId" = p.id
        WHERE c."organizationId" = ? AND c.status = ?
        ORDER BY c."lastMessageAt" DESC
@@ -313,15 +319,23 @@ router.get('/conversations', requireModule('lineMessaging'), async (req, res) =>
       [organizationId, status, parseInt(limit), parseInt(offset)]
     );
 
-    // 解析 JSON 欄位
+    // 格式化對話資料
     const formattedConversations = conversations.map(conv => ({
       ...conv,
-      patient: {
+      lineUser: {
+        displayName: conv.lineUserName,
+        pictureUrl: conv.lineUserPicture,
+        lineUserId: conv.lineUserId,
+        isActive: conv.lineUserActive
+      },
+      patient: conv.patientId ? {
         id: conv.patientId,
         name: conv.patientName,
         phone: conv.patientPhone,
         email: conv.patientEmail
-      }
+      } : null,
+      // 顯示名稱：優先使用患者名稱，其次使用 LINE 顯示名稱
+      displayName: conv.patientName || conv.lineUserName || '未知用戶'
     }));
 
     res.json({

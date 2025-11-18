@@ -369,17 +369,98 @@ class LineMessagingService {
   }
 
   /**
-   * 取得或建立對話
-   * @param {string} patientId - 患者 ID
+   * 取得或建立 LINE 用戶
+   * @param {string} lineUserId - LINE User ID
    * @param {string} organizationId - 組織 ID
+   * @param {Object} profile - LINE 用戶資料
+   * @returns {Promise<Object>} LINE 用戶記錄
+   */
+  static async getOrCreateLineUser(lineUserId, organizationId, profile = null) {
+    try {
+      // 查詢現有 LINE 用戶
+      let lineUser = await queryOne(
+        'SELECT * FROM line_users WHERE "lineUserId" = ? AND "organizationId" = ?',
+        [lineUserId, organizationId]
+      );
+
+      if (lineUser) {
+        // 更新用戶資料（如果有提供新的 profile）
+        if (profile) {
+          const now = new Date().toISOString();
+          await execute(
+            `UPDATE line_users
+             SET "displayName" = ?,
+                 "pictureUrl" = ?,
+                 "statusMessage" = ?,
+                 "lastInteractionAt" = ?,
+                 "updatedAt" = ?
+             WHERE id = ?`,
+            [
+              profile.displayName || lineUser.displayName,
+              profile.pictureUrl || lineUser.pictureUrl,
+              profile.statusMessage || lineUser.statusMessage,
+              now,
+              now,
+              lineUser.id
+            ]
+          );
+
+          lineUser = await queryOne('SELECT * FROM line_users WHERE id = ?', [lineUser.id]);
+        }
+
+        return lineUser;
+      }
+
+      // 建立新 LINE 用戶
+      if (profile) {
+        const id = `lu_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = new Date().toISOString();
+
+        await execute(
+          `INSERT INTO line_users (
+            id, "lineUserId", "organizationId", "displayName", "pictureUrl",
+            "statusMessage", "language", "isActive", "followedAt", "lastInteractionAt",
+            "createdAt", "updatedAt"
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            lineUserId,
+            organizationId,
+            profile.displayName || `LINE 用戶 ${lineUserId.slice(-8)}`,
+            profile.pictureUrl || null,
+            profile.statusMessage || null,
+            profile.language || null,
+            1, // isActive
+            now,
+            now,
+            now,
+            now
+          ]
+        );
+
+        lineUser = await queryOne('SELECT * FROM line_users WHERE id = ?', [id]);
+      }
+
+      return lineUser;
+    } catch (error) {
+      console.error('取得或建立 LINE 用戶失敗:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 取得或建立對話
+   * @param {string} lineUserId - LINE 用戶 ID（line_users.id，不是 lineUserId）
+   * @param {string} organizationId - 組織 ID
+   * @param {string} patientId - 患者 ID（可選）
    * @returns {Promise<Object>} 對話記錄
    */
-  static async getOrCreateConversation(patientId, organizationId) {
+  static async getOrCreateConversation(lineUserId, organizationId, patientId = null) {
     try {
       // 查詢現有對話
       let conversation = await queryOne(
-        'SELECT * FROM conversations WHERE "patientId" = ? AND "organizationId" = ?',
-        [patientId, organizationId]
+        'SELECT * FROM conversations WHERE "lineUserId" = ? AND "organizationId" = ?',
+        [lineUserId, organizationId]
       );
 
       // 如不存在，建立新對話
@@ -389,10 +470,10 @@ class LineMessagingService {
 
         await execute(
           `INSERT INTO conversations (
-            id, "patientId", "organizationId", status, priority,
+            id, "lineUserId", "patientId", "organizationId", status, priority,
             "unreadCount", "lastMessageAt", "createdAt", "updatedAt"
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, patientId, organizationId, 'ACTIVE', 'MEDIUM', 0, now, now, now]
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, lineUserId, patientId, organizationId, 'ACTIVE', 'MEDIUM', 0, now, now, now]
         );
 
         conversation = await queryOne('SELECT * FROM conversations WHERE id = ?', [id]);
@@ -401,6 +482,62 @@ class LineMessagingService {
       return conversation;
     } catch (error) {
       console.error('取得或建立對話失敗:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 綁定 LINE 用戶到患者
+   * @param {string} lineUserIdDb - LINE 用戶 ID（line_users.id）
+   * @param {string} patientId - 患者 ID
+   */
+  static async bindLineUserToPatient(lineUserIdDb, patientId) {
+    try {
+      const now = new Date().toISOString();
+
+      await execute(
+        `UPDATE line_users
+         SET "patientId" = ?, "updatedAt" = ?
+         WHERE id = ?`,
+        [patientId, now, lineUserIdDb]
+      );
+
+      // 同時更新對話的 patientId
+      await execute(
+        `UPDATE conversations
+         SET "patientId" = ?, "updatedAt" = ?
+         WHERE "lineUserId" = ?`,
+        [patientId, now, lineUserIdDb]
+      );
+    } catch (error) {
+      console.error('綁定 LINE 用戶到患者失敗:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 解除 LINE 用戶與患者的綁定
+   * @param {string} lineUserIdDb - LINE 用戶 ID（line_users.id）
+   */
+  static async unbindLineUserFromPatient(lineUserIdDb) {
+    try {
+      const now = new Date().toISOString();
+
+      await execute(
+        `UPDATE line_users
+         SET "patientId" = NULL, "updatedAt" = ?
+         WHERE id = ?`,
+        [now, lineUserIdDb]
+      );
+
+      await execute(
+        `UPDATE conversations
+         SET "patientId" = NULL, "updatedAt" = ?
+         WHERE "lineUserId" = ?`,
+        [now, lineUserIdDb]
+      );
+    } catch (error) {
+      console.error('解除 LINE 用戶綁定失敗:', error);
       throw error;
     }
   }

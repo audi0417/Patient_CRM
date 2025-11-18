@@ -99,34 +99,35 @@ async function handleMessageEvent(event, config) {
   const { message, source, replyToken } = event;
   const userId = source.userId;
 
-  // 取得或建立患者
-  let patient = await getOrCreatePatient(userId, config);
+  // 取得或建立 LINE 用戶
+  const accessToken = require('../utils/encryption').decrypt(config.accessToken);
+  let lineUser = await LineMessagingService.getOrCreateLineUser(userId, config.organizationId);
 
-  // 如果患者不存在，嘗試取得用戶資料並建立
-  if (!patient) {
-    const accessToken = require('../utils/encryption').decrypt(config.accessToken);
+  // 如果 LINE 用戶不存在，嘗試取得用戶資料並建立
+  if (!lineUser) {
     const profile = await LineMessagingService.getUserProfile(userId, accessToken);
-    patient = await getOrCreatePatient(userId, config, profile);
+    lineUser = await LineMessagingService.getOrCreateLineUser(userId, config.organizationId, profile);
   }
 
-  if (!patient) {
-    console.warn(`找不到或無法建立患者 (Line User ID: ${userId})`);
+  if (!lineUser) {
+    console.warn(`找不到或無法建立 LINE 用戶 (Line User ID: ${userId})`);
     return;
   }
 
   // 取得或建立對話
   const conversation = await LineMessagingService.getOrCreateConversation(
-    patient.id,
-    config.organizationId
+    lineUser.id,
+    config.organizationId,
+    lineUser.patientId // 如果已綁定患者，傳入患者 ID
   );
 
   // 根據訊息類型處理
   switch (message.type) {
     case 'text':
-      await handleTextMessage(message, patient, conversation, config, replyToken);
+      await handleTextMessage(message, lineUser, conversation, config, replyToken);
       break;
     case 'sticker':
-      await handleStickerMessage(message, patient, conversation, config, replyToken);
+      await handleStickerMessage(message, lineUser, conversation, config, replyToken);
       break;
     default:
       console.log(`未處理的訊息類型: ${message.type}`);
@@ -136,7 +137,7 @@ async function handleMessageEvent(event, config) {
 /**
  * 處理文字訊息
  */
-async function handleTextMessage(message, patient, conversation, config, replyToken) {
+async function handleTextMessage(message, lineUser, conversation, config, replyToken) {
   const text = message.text;
   const messageId = message.id;
 
@@ -147,7 +148,7 @@ async function handleTextMessage(message, patient, conversation, config, replyTo
     organizationId: config.organizationId,
     messageType: 'TEXT',
     messageContent: text,
-    senderId: patient.id,
+    senderId: lineUser.patientId, // 如果已綁定患者，使用患者 ID，否則為 null
     recipientId: null,
     senderType: 'PATIENT',
     recipientType: 'ADMIN',
@@ -164,7 +165,13 @@ async function handleTextMessage(message, patient, conversation, config, replyTo
   let replyText = null;
 
   if (text.includes('預約') || text.includes('約診')) {
-    replyText = await handleAppointmentQuery(patient, config);
+    // 只有已綁定患者才能查詢預約
+    if (lineUser.patientId) {
+      const patient = await queryOne('SELECT * FROM patients WHERE id = ?', [lineUser.patientId]);
+      replyText = await handleAppointmentQuery(patient, config);
+    } else {
+      replyText = '您尚未綁定患者資料，無法查詢預約記錄。\n\n請聯絡我們的服務人員進行綁定。';
+    }
   } else if (text.includes('幫助') || text.includes('說明')) {
     replyText = '您好！我是客服機器人。\n\n您可以:\n• 輸入「預約」查詢您的預約記錄\n• 輸入「說明」查看功能介紹\n\n如需進一步協助，請聯絡我們的服務人員。';
   } else {
@@ -195,7 +202,7 @@ async function handleTextMessage(message, patient, conversation, config, replyTo
 /**
  * 處理貼圖訊息
  */
-async function handleStickerMessage(message, patient, conversation, config, replyToken) {
+async function handleStickerMessage(message, lineUser, conversation, config, replyToken) {
   const { packageId, stickerId, id: messageId } = message;
 
   // 儲存貼圖訊息
@@ -205,7 +212,7 @@ async function handleStickerMessage(message, patient, conversation, config, repl
     organizationId: config.organizationId,
     messageType: 'STICKER',
     messageContent: JSON.stringify({ packageId, stickerId }),
-    senderId: patient.id,
+    senderId: lineUser.patientId,
     recipientId: null,
     senderType: 'PATIENT',
     recipientType: 'ADMIN',
@@ -236,7 +243,7 @@ async function handleStickerMessage(message, patient, conversation, config, repl
     messageType: 'SYSTEM',
     messageContent: replyText,
     senderId: null,
-    recipientId: patient.id,
+    recipientId: lineUser.patientId,
     senderType: 'SYSTEM',
     recipientType: 'PATIENT',
     status: 'SENT',
@@ -251,25 +258,26 @@ async function handleFollowEvent(event, config) {
   const { source } = event;
   const userId = source.userId;
 
-  console.log(`Line 用戶 ${userId} 加入好友`);
+  console.log(`LINE 用戶 ${userId} 加入好友`);
 
   // 取得用戶資料
   const accessToken = require('../utils/encryption').decrypt(config.accessToken);
   const profile = await LineMessagingService.getUserProfile(userId, accessToken);
 
-  // 建立或更新患者
-  const patient = await getOrCreatePatient(userId, config, profile);
+  // 建立或更新 LINE 用戶
+  const lineUser = await LineMessagingService.getOrCreateLineUser(userId, config.organizationId, profile);
 
-  if (patient) {
+  if (lineUser) {
     // 發送歡迎訊息
-    const welcomeMessage = `歡迎使用我們的 Line 服務！\n\n您已成功綁定帳號，可以透過 Line 與我們聯繫。\n\n輸入「說明」查看可用功能。`;
+    const welcomeMessage = `歡迎使用我們的 LINE 服務！\n\n您可以透過 LINE 與我們聯繫。\n\n輸入「說明」查看可用功能。`;
 
     await LineMessagingService.pushTextMessage(userId, welcomeMessage, config);
 
     // 建立對話並儲存歡迎訊息
     const conversation = await LineMessagingService.getOrCreateConversation(
-      patient.id,
-      config.organizationId
+      lineUser.id,
+      config.organizationId,
+      lineUser.patientId
     );
 
     await LineMessagingService.saveMessage({
@@ -279,7 +287,7 @@ async function handleFollowEvent(event, config) {
       messageType: 'SYSTEM',
       messageContent: welcomeMessage,
       senderId: null,
-      recipientId: patient.id,
+      recipientId: lineUser.patientId,
       senderType: 'SYSTEM',
       recipientType: 'PATIENT',
       status: 'SENT'
@@ -296,53 +304,19 @@ async function handleUnfollowEvent(event, config) {
   const { source } = event;
   const userId = source.userId;
 
-  console.log(`Line 用戶 ${userId} 取消關注`);
+  console.log(`LINE 用戶 ${userId} 取消關注`);
 
-  // 可選：更新患者狀態或記錄日誌
-  // 不刪除患者資料，保留歷史記錄
-}
-
-/**
- * 取得或建立患者
- */
-async function getOrCreatePatient(lineUserId, config, profile = null) {
+  // 更新 LINE 用戶狀態
   try {
-    // 查詢現有患者
-    let patient = await queryOne(
-      'SELECT * FROM patients WHERE "lineUserId" = ? AND "organizationId" = ?',
-      [lineUserId, config.organizationId]
+    const now = new Date().toISOString();
+    await execute(
+      `UPDATE line_users
+       SET "isActive" = 0, "unfollowedAt" = ?, "updatedAt" = ?
+       WHERE "lineUserId" = ? AND "organizationId" = ?`,
+      [now, now, userId, config.organizationId]
     );
-
-    if (patient) {
-      return patient;
-    }
-
-    // 建立新患者（如有提供 profile）
-    if (profile) {
-      const id = uuidv4();
-      const now = new Date().toISOString();
-
-      await execute(
-        `INSERT INTO patients (
-          id, name, "lineUserId", "organizationId", "createdAt", "updatedAt"
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          profile.displayName || `Line 用戶 ${lineUserId.slice(-8)}`,
-          lineUserId,
-          config.organizationId,
-          now,
-          now
-        ]
-      );
-
-      patient = await queryOne('SELECT * FROM patients WHERE id = ?', [id]);
-    }
-
-    return patient;
   } catch (error) {
-    console.error('取得或建立患者失敗:', error);
-    return null;
+    console.error('更新 LINE 用戶狀態失敗:', error);
   }
 }
 
