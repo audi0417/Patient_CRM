@@ -141,14 +141,14 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
   const text = message.text;
   const messageId = message.id;
 
-  // 儲存訊息
+  // 儲存訊息（發送者是 LINE 用戶，不是病患）
   await LineMessagingService.saveMessage({
     id: uuidv4(),
     conversationId: conversation.id,
     organizationId: config.organizationId,
     messageType: 'TEXT',
     messageContent: text,
-    senderId: lineUser.patientId, // 如果已綁定患者，使用患者 ID，否則為 null
+    senderId: lineUser.id, // LINE 用戶 ID（顯示 LINE 頭貼和名字）
     recipientId: null,
     senderType: 'PATIENT',
     recipientType: 'ADMIN',
@@ -163,11 +163,12 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
   // 關鍵字回應
   const accessToken = require('../utils/encryption').decrypt(config.accessToken);
   let replyText = null;
+  let patient = null;
 
   if (text.includes('預約') || text.includes('約診')) {
     // 只有已綁定患者才能查詢預約
     if (lineUser.patientId) {
-      const patient = await queryOne('SELECT * FROM patients WHERE id = ?', [lineUser.patientId]);
+      patient = await queryOne('SELECT * FROM patients WHERE id = ?', [lineUser.patientId]);
       replyText = await handleAppointmentQuery(patient, config);
     } else {
       replyText = '您尚未綁定患者資料，無法查詢預約記錄。\n\n請聯絡我們的服務人員進行綁定。';
@@ -182,7 +183,7 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
   if (replyText) {
     await LineMessagingService.replyTextMessage(replyToken, replyText, accessToken);
 
-    // 儲存回覆訊息
+    // 儲存回覆訊息（接收者是 LINE 用戶）
     await LineMessagingService.saveMessage({
       id: uuidv4(),
       conversationId: conversation.id,
@@ -190,7 +191,7 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
       messageType: 'SYSTEM',
       messageContent: replyText,
       senderId: null,
-      recipientId: patient.id,
+      recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
       senderType: 'SYSTEM',
       recipientType: 'PATIENT',
       status: 'SENT',
@@ -205,14 +206,14 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
 async function handleStickerMessage(message, lineUser, conversation, config, replyToken) {
   const { packageId, stickerId, id: messageId } = message;
 
-  // 儲存貼圖訊息
+  // 儲存貼圖訊息（發送者是 LINE 用戶）
   await LineMessagingService.saveMessage({
     id: uuidv4(),
     conversationId: conversation.id,
     organizationId: config.organizationId,
     messageType: 'STICKER',
     messageContent: JSON.stringify({ packageId, stickerId }),
-    senderId: lineUser.patientId,
+    senderId: lineUser.id, // LINE 用戶 ID（顯示 LINE 頭貼和名字）
     recipientId: null,
     senderType: 'PATIENT',
     recipientType: 'ADMIN',
@@ -243,7 +244,7 @@ async function handleStickerMessage(message, lineUser, conversation, config, rep
     messageType: 'SYSTEM',
     messageContent: replyText,
     senderId: null,
-    recipientId: lineUser.patientId,
+    recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
     senderType: 'SYSTEM',
     recipientType: 'PATIENT',
     status: 'SENT',
@@ -287,7 +288,7 @@ async function handleFollowEvent(event, config) {
       messageType: 'SYSTEM',
       messageContent: welcomeMessage,
       senderId: null,
-      recipientId: lineUser.patientId,
+      recipientId: lineUser.id, // 發送給 LINE 用戶（顯示 LINE 頭貼和名字）
       senderType: 'SYSTEM',
       recipientType: 'PATIENT',
       status: 'SENT'
