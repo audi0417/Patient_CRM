@@ -461,7 +461,7 @@ const LineMessages = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <p className="font-medium truncate">
-                              {conversation.patientName || '未知患者'}
+                              {conversation.displayName || conversation.lineUser?.displayName || '未知用戶'}
                             </p>
                             {getPriorityBadge(conversation.priority)}
                           </div>
@@ -503,7 +503,7 @@ const LineMessages = () => {
                     </Avatar>
                     <div>
                       <p className="font-semibold">
-                        {selectedConversation.patientName || '未知患者'}
+                        {selectedConversation.displayName || selectedConversation.lineUser?.displayName || '未知用戶'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {selectedConversation.status === 'ACTIVE' ? '活躍' : '非活躍'}

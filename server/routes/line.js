@@ -301,12 +301,23 @@ router.get('/conversations', requireModule('lineMessaging'), async (req, res) =>
 
     const conversations = await queryAll(
       `SELECT
-         c.*,
+         c.id,
+         c."lineUserId",
+         c."patientId",
+         c."organizationId",
+         c.status,
+         c.priority,
+         c."unreadCount",
+         c."lastMessageAt",
+         c."lastMessagePreview",
+         c."createdAt",
+         c."updatedAt",
+         lu.id as lineUserDbId,
          lu."displayName" as lineUserName,
          lu."pictureUrl" as lineUserPicture,
-         lu."lineUserId" as lineUserId,
+         lu."lineUserId" as linePlatformUserId,
          lu."isActive" as lineUserActive,
-         p.id as patientId,
+         p.id as patientDbId,
          p.name as patientName,
          p.phone as patientPhone,
          p.email as patientEmail
@@ -321,15 +332,25 @@ router.get('/conversations', requireModule('lineMessaging'), async (req, res) =>
 
     // 格式化對話資料
     const formattedConversations = conversations.map(conv => ({
-      ...conv,
+      id: conv.id,
+      lineUserId: conv.lineUserId,  // line_users.id (資料庫 ID)
+      patientId: conv.patientId,
+      organizationId: conv.organizationId,
+      status: conv.status,
+      priority: conv.priority,
+      unreadCount: conv.unreadCount,
+      lastMessageAt: conv.lastMessageAt,
+      lastMessagePreview: conv.lastMessagePreview,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
       lineUser: {
         displayName: conv.lineUserName,
         pictureUrl: conv.lineUserPicture,
-        lineUserId: conv.lineUserId,
+        lineUserId: conv.linePlatformUserId,  // LINE 平台的 User ID
         isActive: conv.lineUserActive
       },
-      patient: conv.patientId ? {
-        id: conv.patientId,
+      patient: conv.patientDbId ? {
+        id: conv.patientDbId,
         name: conv.patientName,
         phone: conv.patientPhone,
         email: conv.patientEmail
