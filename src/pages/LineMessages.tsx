@@ -440,22 +440,22 @@ const LineMessages = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 h-screen flex flex-col">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">LINE 訊息</h1>
         <p className="text-muted-foreground mt-2">與患者進行即時對話</p>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-12 gap-6 flex-1 min-h-0">
         {/* 對話列表 */}
-        <Card className="col-span-4 flex flex-col">
-          <CardHeader>
+        <Card className="col-span-4 flex flex-col overflow-hidden">
+          <CardHeader className="shrink-0">
             <CardTitle className="flex items-center justify-between">
               <span>對話列表</span>
               <Badge variant="secondary">{conversations.length}</Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 p-0">
+          <CardContent className="flex-1 p-0 overflow-hidden">
             <ScrollArea className="h-full">
               {conversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
@@ -513,11 +513,11 @@ const LineMessages = () => {
         </Card>
 
         {/* 聊天介面 */}
-        <Card className="col-span-8 flex flex-col">
+        <Card className="col-span-8 flex flex-col overflow-hidden">
           {selectedConversation ? (
             <>
               {/* 聊天標題 */}
-              <CardHeader className="border-b">
+              <CardHeader className="border-b shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
@@ -706,10 +706,10 @@ const LineMessages = () => {
                 )}
               </CardContent>
 
-              <Separator />
+              <Separator className="shrink-0" />
 
               {/* 輸入區域 */}
-              <CardContent className="p-4 bg-gray-50">
+              <CardContent className="p-4 bg-gray-50 shrink-0">
                 <div className="flex gap-2">
                   <LineStickerPicker
                     onSelectSticker={handleSendSticker}
