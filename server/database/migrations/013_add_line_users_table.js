@@ -25,6 +25,8 @@ async function up(db, dbType) {
     primaryKey: 'TEXT PRIMARY KEY',
     varcharLong: isPostgres ? 'VARCHAR(500)' : 'TEXT',
     varchar50: isPostgres ? 'VARCHAR(50)' : 'TEXT',
+    varchar20: isPostgres ? 'VARCHAR(20)' : 'TEXT',
+    varchar10: isPostgres ? 'VARCHAR(10)' : 'TEXT',
     json: isPostgres ? 'JSONB' : 'TEXT',
     date: isPostgres ? 'DATE' : 'TEXT'
   };
