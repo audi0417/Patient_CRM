@@ -57,8 +57,8 @@ const LineMessages = () => {
   // 載入對話列表
   useEffect(() => {
     loadConversations();
-    // 每 30 秒自動重新載入
-    const interval = setInterval(loadConversations, 30000);
+    // 每 5 秒自動重新載入（檢查新對話和未讀計數）
+    const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -71,10 +71,10 @@ const LineMessages = () => {
       setHasMoreMessages(true);
       loadMessages(selectedConversation.id, 0, true);
 
-      // 每 10 秒自動重新載入新訊息
+      // 每 3 秒自動重新載入新訊息
       const interval = setInterval(() => {
         loadNewMessages(selectedConversation.id);
-      }, 10000);
+      }, 3000);
       return () => clearInterval(interval);
     }
   }, [selectedConversation]);

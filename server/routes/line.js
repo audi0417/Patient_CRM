@@ -527,7 +527,8 @@ router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
       status: 'DELIVERED'
     });
 
-    await LineMessagingService.updateConversation(conversation.id, text.substring(0, 100));
+    // 管理員發送訊息，不增加未讀計數
+    await LineMessagingService.updateConversation(conversation.id, text.substring(0, 100), false);
 
     res.json({
       success: true,
@@ -631,7 +632,8 @@ router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) =>
       }
     });
 
-    await LineMessagingService.updateConversation(conversation.id, '[貼圖]');
+    // 管理員發送貼圖，不增加未讀計數
+    await LineMessagingService.updateConversation(conversation.id, '[貼圖]', false);
 
     res.json({
       success: true,

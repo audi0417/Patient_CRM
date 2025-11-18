@@ -157,8 +157,8 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
     status: 'DELIVERED'
   });
 
-  // 更新對話
-  await LineMessagingService.updateConversation(conversation.id, text.substring(0, 100));
+  // 更新對話（患者發送訊息，增加未讀計數）
+  await LineMessagingService.updateConversation(conversation.id, text.substring(0, 100), true);
 
   // 不自動回覆文字訊息，讓管理員手動回覆
   // 訊息已儲存，管理員可以在後台看到並回覆
@@ -191,8 +191,8 @@ async function handleStickerMessage(message, lineUser, conversation, config, rep
     }
   });
 
-  // 更新對話
-  await LineMessagingService.updateConversation(conversation.id, '[貼圖]');
+  // 更新對話（患者發送訊息，增加未讀計數）
+  await LineMessagingService.updateConversation(conversation.id, '[貼圖]', true);
 
   // 不自動回覆貼圖訊息，讓管理員手動回覆
 }
@@ -239,7 +239,8 @@ async function handleFollowEvent(event, config) {
       status: 'SENT'
     });
 
-    await LineMessagingService.updateConversation(conversation.id, welcomeMessage.substring(0, 100));
+    // 歡迎訊息是系統發送，不增加未讀計數
+    await LineMessagingService.updateConversation(conversation.id, welcomeMessage.substring(0, 100), false);
   }
 }
 

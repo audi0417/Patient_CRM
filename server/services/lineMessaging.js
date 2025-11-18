@@ -546,20 +546,34 @@ class LineMessagingService {
    * 更新對話的最後訊息資訊
    * @param {string} conversationId - 對話 ID
    * @param {string} messagePreview - 訊息預覽
+   * @param {boolean} incrementUnread - 是否增加未讀計數（只有當 PATIENT 發送訊息時為 true）
    */
-  static async updateConversation(conversationId, messagePreview) {
+  static async updateConversation(conversationId, messagePreview, incrementUnread = false) {
     try {
       const now = new Date().toISOString();
 
-      await execute(
-        `UPDATE conversations
-         SET "lastMessageAt" = ?,
-             "lastMessagePreview" = ?,
-             "unreadCount" = "unreadCount" + 1,
-             "updatedAt" = ?
-         WHERE id = ?`,
-        [now, messagePreview, now, conversationId]
-      );
+      if (incrementUnread) {
+        // 患者發送訊息，增加未讀計數
+        await execute(
+          `UPDATE conversations
+           SET "lastMessageAt" = ?,
+               "lastMessagePreview" = ?,
+               "unreadCount" = "unreadCount" + 1,
+               "updatedAt" = ?
+           WHERE id = ?`,
+          [now, messagePreview, now, conversationId]
+        );
+      } else {
+        // 管理員發送訊息，不增加未讀計數
+        await execute(
+          `UPDATE conversations
+           SET "lastMessageAt" = ?,
+               "lastMessagePreview" = ?,
+               "updatedAt" = ?
+           WHERE id = ?`,
+          [now, messagePreview, now, conversationId]
+        );
+      }
     } catch (error) {
       console.error('更新對話失敗:', error);
     }

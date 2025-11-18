@@ -15,14 +15,43 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABELS } from "@/types/user";
 import NotificationBell from "@/components/NotificationBell";
+import { useState, useEffect } from "react";
+import { lineApi } from "@/lib/api/lineApi";
 
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, permissions } = useAuth();
   const { isModuleEnabled } = useModules();
+  const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // 定期檢查未讀 LINE 訊息數量
+  useEffect(() => {
+    const checkUnreadMessages = async () => {
+      if (!isModuleEnabled('lineMessaging')) return;
+
+      try {
+        const response = await lineApi.conversations.getAll({ status: 'ACTIVE' });
+        if (response.success && response.data) {
+          const total = response.data.reduce((sum, conv) => sum + conv.unreadCount, 0);
+          setTotalUnreadMessages(total);
+        }
+      } catch (error) {
+        // 靜默失敗，不影響其他功能
+        console.error('Failed to check unread messages:', error);
+      }
+    };
+
+    // 立即執行一次
+    checkUnreadMessages();
+
+    // 每 5 秒檢查一次
+    const interval = setInterval(checkUnreadMessages, 5000);
+
+    return () => clearInterval(interval);
+  }, [isModuleEnabled]);
 
   const handleLogout = () => {
     logout();
@@ -125,7 +154,7 @@ const Header = () => {
                   <Link
                     to="/line/messages"
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                      "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 relative",
                       location.pathname.startsWith("/line")
                         ? "text-foreground"
                         : "text-muted-foreground"
@@ -133,6 +162,9 @@ const Header = () => {
                   >
                     <MessageSquare className="h-4 w-4" />
                     LINE訊息
+                    {totalUnreadMessages > 0 && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-card" />
+                    )}
                   </Link>
                 )}
                 {isModuleEnabled('treatmentPackages') && (
