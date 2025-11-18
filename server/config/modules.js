@@ -22,6 +22,13 @@ const AVAILABLE_MODULES = {
     defaultEnabled: true,
     features: ['appointments']
   },
+  treatmentPackages: {
+    id: 'treatmentPackages',
+    name: '療程套裝',
+    description: '療程方案管理、使用記錄追蹤、剩餘次數查詢',
+    defaultEnabled: true,
+    features: ['treatment_packages', 'package_usage_logs', 'service_items']
+  },
   lineMessaging: {
     id: 'lineMessaging',
     name: 'Line 訊息互動',
