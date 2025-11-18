@@ -87,7 +87,7 @@ async function getOrganizationModules(req, res) {
     if (!organizationId) {
       // Super admin 返回所有模組為啟用
       if (req.user?.role === 'super_admin') {
-        const { AVAILABLE_MODULES } = require('../database/migrations/002_add_module_settings');
+        const { AVAILABLE_MODULES } = require('../config/modules');
         const allModules = {};
         for (const [key, module] of Object.entries(AVAILABLE_MODULES)) {
           allModules[key] = {

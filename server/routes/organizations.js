@@ -17,7 +17,7 @@ const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin, requireTenant } = require('../middleware/tenantContext');
 const { queryOne, queryAll, execute, transaction } = require('../database/helpers');
-const { getDefaultModuleSettings } = require('../database/migrations/002_add_module_settings');
+const { getDefaultModuleSettings } = require('../config/modules');
 
 // ========== 超級管理員端點 ==========
 
@@ -717,7 +717,7 @@ router.put('/me/settings', authenticateToken, requireTenant, async (req, res) =>
 // 獲取可用的模組列表（超級管理員）
 router.get('/modules/available', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
-    const { AVAILABLE_MODULES } = require('../database/migrations/002_add_module_settings');
+    const { AVAILABLE_MODULES } = require('../config/modules');
     res.json({ modules: AVAILABLE_MODULES });
   } catch (error) {
     console.error('Get available modules error:', error);
