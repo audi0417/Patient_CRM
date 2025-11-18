@@ -107,9 +107,10 @@ app.use('/api/seed', seedRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/superadmin', superadminRoutes);
-app.use('/api/line', lineRoutes);
+// Line Webhook 必須在 /api/line 之前註冊（避免路由衝突）
 // Line Webhook 不需要 rate limiting（Line 平台自身就有頻率控制）
 app.use('/api/line/webhook', lineWebhookRoutes);
+app.use('/api/line', lineRoutes);
 app.use('/api/service-items', serviceItemRoutes);
 app.use('/api/treatment-packages', treatmentPackageRoutes);
 
