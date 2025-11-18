@@ -231,56 +231,77 @@ function getSchemaSQL(dbType = 'sqlite') {
       UNIQUE("organizationId", name)
     );
 
-    -- 服務項目表
+    -- 服務項目庫表
     ${createTablePrefix} service_items (
-      id ${types.primaryKey},
-      "serviceTypeId" ${types.text} NOT NULL,
+      id ${types.autoIncrement},
+      "organizationId" ${types.text} NOT NULL,
+
+      code ${types.varchar50},
       name ${types.text} NOT NULL,
+      category ${types.text},
+      unit ${types.varchar20} DEFAULT '次',
+
       description ${types.text},
-      price ${types.real} NOT NULL,
-      duration ${types.integer},
       "isActive" ${types.boolean} DEFAULT ${boolTrue},
       "displayOrder" ${types.integer} DEFAULT 0,
-      "organizationId" ${types.text} NOT NULL,
+
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("serviceTypeId") REFERENCES service_types(id) ON DELETE CASCADE,
-      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
+      UNIQUE("organizationId", code)
     );
 
-    -- 療程套裝表
+    -- 療程方案表
     ${createTablePrefix} treatment_packages (
-      id ${types.primaryKey},
-      "patientId" ${types.text} NOT NULL,
-      "packageName" ${types.text} NOT NULL,
-      "totalSessions" ${types.integer} NOT NULL,
-      "usedSessions" ${types.integer} DEFAULT 0,
-      price ${types.real} NOT NULL,
-      "purchaseDate" ${types.date} NOT NULL,
-      "expiryDate" ${types.date},
-      status ${types.varchar50} DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED')),
-      notes ${types.text},
+      id ${types.autoIncrement},
       "organizationId" ${types.text} NOT NULL,
+      "patientId" ${types.text} NOT NULL,
+
+      "packageName" ${types.text} NOT NULL,
+      "packageNumber" ${types.varchar50},
+
+      items ${types.json} NOT NULL,
+
+      "startDate" ${types.date},
+      "expiryDate" ${types.date},
+      status ${types.varchar50} DEFAULT 'active' CHECK(status IN ('active', 'completed', 'expired', 'cancelled')),
+
+      notes ${types.text},
+
+      "createdBy" ${types.text} NOT NULL,
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
+
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
-      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+      FOREIGN KEY ("createdBy") REFERENCES users(id),
+      UNIQUE("organizationId", "packageNumber")
     );
 
-    -- 套裝使用記錄表
+    -- 療程方案使用記錄表
     ${createTablePrefix} package_usage_logs (
-      id ${types.primaryKey},
-      "packageId" ${types.text} NOT NULL,
-      "patientId" ${types.text} NOT NULL,
-      "usedAt" ${types.timestamp} NOT NULL,
-      "sessionsUsed" ${types.integer} DEFAULT 1,
-      notes ${types.text},
-      "performedBy" ${types.text},
+      id ${types.autoIncrement},
       "organizationId" ${types.text} NOT NULL,
+      "packageId" ${types.integer} NOT NULL,
+      "serviceItemId" ${types.integer} NOT NULL,
+
+      "usageDate" ${types.date} NOT NULL,
+      quantity ${types.real} DEFAULT 1,
+
+      "performedBy" ${types.text},
+      notes ${types.text},
+
+      "appointmentId" ${types.text},
+
+      "createdBy" ${types.text} NOT NULL,
       "createdAt" ${types.timestamp} NOT NULL,
+
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY ("packageId") REFERENCES treatment_packages(id) ON DELETE CASCADE,
-      FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
-      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
+      FOREIGN KEY ("performedBy") REFERENCES users(id),
+      FOREIGN KEY ("appointmentId") REFERENCES appointments(id),
+      FOREIGN KEY ("createdBy") REFERENCES users(id)
     );
 
     -- 諮詢記錄表
@@ -303,22 +324,47 @@ function getSchemaSQL(dbType = 'sqlite') {
     -- LINE 配置表
     ${createTablePrefix} line_configs (
       id ${types.primaryKey},
-      "organizationId" ${types.text} NOT NULL,
+      "organizationId" ${types.text} UNIQUE NOT NULL,
+
+      -- Line Channel 認證資料（加密儲存）
       "channelId" ${types.text} NOT NULL,
       "channelSecret" ${types.text} NOT NULL,
       "accessToken" ${types.text} NOT NULL,
+
+      -- Webhook 設定
       "webhookUrl" ${types.text},
+
+      -- 狀態
       "isActive" ${types.boolean} DEFAULT ${boolTrue},
-      "autoReply" ${types.boolean} DEFAULT ${boolFalse},
-      "autoReplyMessage" ${types.text},
-      "welcomeMessage" ${types.text},
-      "totalMessagesReceived" ${types.integer} DEFAULT 0,
+      "isVerified" ${types.boolean} DEFAULT ${boolFalse},
+      "lastVerifiedAt" ${types.timestamp},
+
+      -- 功能設定（JSON 格式）
+      "enabledFeatures" ${types.text},
+
+      -- 訊息統計
+      "messagesSentToday" ${types.integer} DEFAULT 0,
+      "messagesSentThisMonth" ${types.integer} DEFAULT 0,
       "totalMessagesSent" ${types.integer} DEFAULT 0,
+      "totalMessagesReceived" ${types.integer} DEFAULT 0,
+
+      -- 訊息限制
+      "dailyMessageLimit" ${types.integer} DEFAULT 1000,
+      "monthlyMessageLimit" ${types.integer} DEFAULT 30000,
+
+      -- 監控
       "lastActivityAt" ${types.timestamp},
+      "lastError" ${types.text},
+      "errorCount" ${types.integer} DEFAULT 0,
+      "lastErrorAt" ${types.timestamp},
+
+      -- 追蹤
+      "configuredById" ${types.text},
+      "configuredAt" ${types.timestamp},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
-      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
-      UNIQUE("organizationId")
+
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
 
     -- LINE 用戶表（獨立於患者）
@@ -366,21 +412,42 @@ function getSchemaSQL(dbType = 'sqlite') {
       id ${types.primaryKey},
       "conversationId" ${types.text},
       "organizationId" ${types.text} NOT NULL,
+
+      -- 訊息類型
       "messageType" ${types.text} NOT NULL CHECK("messageType" IN ('TEXT', 'STICKER', 'IMAGE', 'SYSTEM')),
       "messageContent" ${types.text} NOT NULL,
+
+      -- 發送者和接收者
       "senderId" ${types.text},
       "recipientId" ${types.text},
       "senderType" ${types.text} NOT NULL CHECK("senderType" IN ('PATIENT', 'ADMIN', 'SYSTEM')),
       "recipientType" ${types.text} CHECK("recipientType" IN ('PATIENT', 'ADMIN')),
+
+      -- Line 訊息追蹤
       "lineMessageId" ${types.text},
       "replyToken" ${types.text},
-      status ${types.text} NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'SENT', 'DELIVERED', 'FAILED')),
-      "errorMessage" ${types.text},
-      metadata ${types.json},
-      "isReply" ${types.boolean} DEFAULT ${boolFalse},
+
+      -- 狀態
+      status ${types.text} DEFAULT 'SENT' CHECK(status IN ('SENT', 'DELIVERED', 'READ', 'FAILED')),
+
+      -- 時間戳記
+      "sentAt" ${types.timestamp} NOT NULL,
+      "deliveredAt" ${types.timestamp},
       "readAt" ${types.timestamp},
-      "sentAt" ${types.timestamp},
+
+      -- 引用和回覆
+      "isReply" ${types.boolean} DEFAULT ${boolFalse},
+      "quotedMessageId" ${types.text},
+
+      -- 後設資料（JSON 格式，如貼圖資訊）
+      metadata ${types.text},
+
+      -- 錯誤處理
+      "retryCount" ${types.integer} DEFAULT 0,
+      "errorMessage" ${types.text},
+
       "createdAt" ${types.timestamp} NOT NULL,
+
       FOREIGN KEY ("conversationId") REFERENCES conversations(id) ON DELETE CASCADE,
       FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
     );
@@ -430,14 +497,10 @@ function getIndexesSQL(dbType = 'sqlite') {
     CREATE INDEX IF NOT EXISTS idx_consultations_org ON consultations("organizationId");
     CREATE INDEX IF NOT EXISTS idx_consultations_org_patient ON consultations("organizationId", "patientId", date DESC);
     CREATE INDEX IF NOT EXISTS idx_service_types_org ON service_types("organizationId", "isActive");
-    CREATE INDEX IF NOT EXISTS idx_service_items_org ON service_items("organizationId", "isActive");
-    CREATE INDEX IF NOT EXISTS idx_service_items_type ON service_items("serviceTypeId");
-    CREATE INDEX IF NOT EXISTS idx_treatment_packages_patient ON treatment_packages("patientId", status);
-    CREATE INDEX IF NOT EXISTS idx_treatment_packages_org ON treatment_packages("organizationId", status);
-    CREATE INDEX IF NOT EXISTS idx_treatment_packages_org_patient ON treatment_packages("organizationId", "patientId");
-    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_package ON package_usage_logs("packageId", "usedAt" DESC);
-    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_patient ON package_usage_logs("patientId", "usedAt" DESC);
-    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_org ON package_usage_logs("organizationId");
+    CREATE INDEX IF NOT EXISTS idx_treatment_packages_patient ON treatment_packages("patientId");
+    CREATE INDEX IF NOT EXISTS idx_treatment_packages_status ON treatment_packages(status);
+    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_package ON package_usage_logs("packageId");
+    CREATE INDEX IF NOT EXISTS idx_package_usage_logs_date ON package_usage_logs("usageDate");
     CREATE INDEX IF NOT EXISTS idx_tags_org ON tags("organizationId");
     CREATE INDEX IF NOT EXISTS idx_groups_org ON groups("organizationId");
 
