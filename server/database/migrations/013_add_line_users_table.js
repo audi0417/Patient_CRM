@@ -8,12 +8,26 @@
  * - 支援未來擴充功能（標籤、備註等）
  */
 
-const { getDbType, getColumnType } = require('../helpers');
+const { queryAll, execute } = require('../helpers');
 
-module.exports = {
-  async up() {
-    const dbType = getDbType();
-    const types = getColumnType();
+async function up(db, dbType) {
+  console.log('[Migration 013] 開始：新增 LINE 用戶獨立表');
+
+  const isPostgres = dbType === 'postgres' || dbType === 'postgresql';
+
+  // 資料類型映射
+  const types = {
+    text: 'TEXT',
+    integer: 'INTEGER',
+    real: 'REAL',
+    boolean: isPostgres ? 'BOOLEAN' : 'INTEGER',
+    timestamp: isPostgres ? 'TIMESTAMP' : 'TEXT',
+    primaryKey: 'TEXT PRIMARY KEY',
+    varcharLong: isPostgres ? 'VARCHAR(500)' : 'TEXT',
+    varchar50: isPostgres ? 'VARCHAR(50)' : 'TEXT',
+    json: isPostgres ? 'JSONB' : 'TEXT',
+    date: isPostgres ? 'DATE' : 'TEXT'
+  };
 
     // SQLite 需要特殊處理（不支援某些 ALTER TABLE 操作）
     const isSQLite = dbType === 'sqlite';
@@ -139,22 +153,46 @@ module.exports = {
       isSQLite ? `CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(name)` : '',
       isSQLite ? `CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone)` : '',
     ].filter(sql => sql); // 過濾空字串
-  },
 
-  async down() {
-    const dbType = getDbType();
-    const types = getColumnType();
-    const isSQLite = dbType === 'sqlite';
-
-    return [
-      // 回滾：恢復 patients 的 lineUserId 欄位
-      !isSQLite ? `ALTER TABLE patients ADD COLUMN IF NOT EXISTS "lineUserId" ${types.varcharLong}` : '',
-
-      // 移除 conversations 的 lineUserId 欄位
-      !isSQLite ? `ALTER TABLE conversations DROP COLUMN IF EXISTS "lineUserId"` : '',
-
-      // 刪除 line_users 表
-      `DROP TABLE IF EXISTS line_users`,
-    ].filter(sql => sql);
+  // 執行 SQL 語句
+  for (const sql of sqlStatements) {
+    if (sql.trim()) {
+      await execute(sql);
+    }
   }
-};
+
+  console.log('[Migration 013] 完成：LINE 用戶表已建立');
+}
+
+async function down(db, dbType) {
+  console.log('[Migration 013] 回滾：移除 LINE 用戶表');
+
+  const isPostgres = dbType === 'postgres' || dbType === 'postgresql';
+  const isSQLite = dbType === 'sqlite';
+
+  const types = {
+    varcharLong: isPostgres ? 'VARCHAR(500)' : 'TEXT',
+  };
+
+  const sqlStatements = [
+    // 回滾：恢復 patients 的 lineUserId 欄位
+    !isSQLite ? `ALTER TABLE patients ADD COLUMN IF NOT EXISTS "lineUserId" ${types.varcharLong}` : '',
+
+    // 移除 conversations 的 lineUserId 欄位
+    !isSQLite ? `ALTER TABLE conversations DROP COLUMN IF EXISTS "lineUserId"` : '',
+
+    // 刪除 line_users 表
+    `DROP TABLE IF EXISTS line_users`,
+  ].filter(sql => sql);
+
+  // 執行 SQL 語句
+  for (const sql of sqlStatements) {
+    if (sql.trim()) {
+      await execute(sql);
+    }
+  }
+
+  console.log('[Migration 013] 回滾完成');
+}
+
+module.exports = { up, down };
