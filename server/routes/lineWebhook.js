@@ -100,7 +100,15 @@ async function handleMessageEvent(event, config) {
   const userId = source.userId;
 
   // 取得或建立患者
-  const patient = await getOrCreatePatient(userId, config);
+  let patient = await getOrCreatePatient(userId, config);
+
+  // 如果患者不存在，嘗試取得用戶資料並建立
+  if (!patient) {
+    const accessToken = require('../utils/encryption').decrypt(config.accessToken);
+    const profile = await LineMessagingService.getUserProfile(userId, accessToken);
+    patient = await getOrCreatePatient(userId, config, profile);
+  }
+
   if (!patient) {
     console.warn(`找不到或無法建立患者 (Line User ID: ${userId})`);
     return;
