@@ -130,8 +130,11 @@ async function runMigrations() {
       }
 
       try {
-        // Execute migration (supports async)
-        await migration[direction]();
+        // Get database type for migration
+        const dbType = (process.env.DB_TYPE || process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
+
+        // Execute migration (supports async) with db and dbType parameters
+        await migration[direction](dbAdapter, dbType);
 
         // Update migration tracking
         if (direction === 'up') {
