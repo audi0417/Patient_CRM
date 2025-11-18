@@ -76,13 +76,11 @@ async function up(db, dbType) {
           "lastMessageAt" ${types.timestamp},
           "lastMessagePreview" ${types.text},
           "unreadCount" ${types.integer} DEFAULT 0,
-          "assignedToUserId" ${types.varcharLong},
           "createdAt" ${types.timestamp} NOT NULL,
           "updatedAt" ${types.timestamp} NOT NULL,
           FOREIGN KEY ("lineUserId") REFERENCES line_users(id) ON DELETE CASCADE,
           FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
-          FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE,
-          FOREIGN KEY ("assignedToUserId") REFERENCES users(id) ON DELETE SET NULL
+          FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
         )
       ` : '',
 
@@ -95,7 +93,7 @@ async function up(db, dbType) {
       isSQLite ? `
         INSERT INTO conversations_new
         SELECT id, NULL as "lineUserId", "patientId", "organizationId", status, priority,
-               "lastMessageAt", "lastMessagePreview", "unreadCount", "assignedToUserId",
+               "lastMessageAt", "lastMessagePreview", "unreadCount",
                "createdAt", "updatedAt"
         FROM conversations
       ` : '',
