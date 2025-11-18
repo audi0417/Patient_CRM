@@ -61,7 +61,8 @@ class LineMessagingService {
       .update(body)
       .digest('base64');
 
-    return signature === `sha256=${hash}`;
+    // LINE 平台發送的簽名是純 Base64，不包含 'sha256=' 前綴
+    return signature === hash;
   }
 
   /**

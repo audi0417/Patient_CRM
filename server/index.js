@@ -56,11 +56,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 為所有 API 端點添加一般限流（排除超級管理員路由）
+// 為所有 API 端點添加一般限流（排除超級管理員、組織管理和 Line Webhook 路由）
 app.use('/api/', (req, res, next) => {
   // 超級管理員和組織管理路由不受限流（需要頻繁操作多個組織）
+  // Line Webhook 不受限流（LINE 平台自身有頻率控制，且使用簽名驗證）
   if (req.path.startsWith('/superadmin') ||
-      req.path.startsWith('/organizations')) {
+      req.path.startsWith('/organizations') ||
+      req.path.startsWith('/line/webhook')) {
     return next();
   }
   return apiLimiter(req, res, next);
