@@ -12,21 +12,21 @@ const AVAILABLE_MODULES = {
     id: 'healthManagement',
     name: '健康管理',
     description: '體組成記錄、生命徵象追蹤、健康目標設定與追蹤',
-    defaultEnabled: true,
+    defaultEnabled: false,
     features: ['body_composition', 'vital_signs', 'goals', 'health_analytics']
   },
   appointments: {
     id: 'appointments',
     name: '預約管理',
     description: '預約排程與提醒',
-    defaultEnabled: true,
+    defaultEnabled: false,
     features: ['appointments']
   },
   treatmentPackages: {
     id: 'treatmentPackages',
     name: '療程套裝',
     description: '療程方案管理、使用記錄追蹤、剩餘次數查詢',
-    defaultEnabled: true,
+    defaultEnabled: false,
     features: ['treatment_packages', 'package_usage_logs', 'service_items']
   },
   lineMessaging: {
