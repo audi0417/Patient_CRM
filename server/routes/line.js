@@ -428,17 +428,17 @@ router.get('/conversations/:conversationId/messages', requireModule('lineMessagi
 
 /**
  * POST /api/line/send/text
- * 發送文字訊息給患者
+ * 發送文字訊息給 LINE 用戶
  */
 router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
   try {
     const { organizationId } = req.user;
-    const { patientId, text } = req.body;
+    const { lineUserId, text } = req.body;
 
-    if (!patientId || !text) {
+    if (!lineUserId || !text) {
       return res.status(400).json({
         success: false,
-        error: 'patientId 和 text 為必填欄位'
+        error: 'lineUserId 和 text 為必填欄位'
       });
     }
 
@@ -451,29 +451,29 @@ router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
       });
     }
 
-    // 取得患者資料
-    const patient = await queryOne(
-      'SELECT id, "lineUserId" FROM patients WHERE id = ? AND "organizationId" = ?',
-      [patientId, organizationId]
+    // 取得 LINE 用戶資料（line_users 表的 ID）
+    const lineUser = await queryOne(
+      'SELECT * FROM line_users WHERE id = ? AND "organizationId" = ?',
+      [lineUserId, organizationId]
     );
 
-    if (!patient) {
+    if (!lineUser) {
       return res.status(404).json({
         success: false,
-        error: '患者不存在'
+        error: 'LINE 用戶不存在'
       });
     }
 
-    if (!patient.lineUserId) {
+    if (!lineUser.isActive) {
       return res.status(400).json({
         success: false,
-        error: '患者尚未綁定 Line 帳號'
+        error: 'LINE 用戶已取消關注'
       });
     }
 
-    // 發送訊息
+    // 發送訊息（使用 LINE Platform User ID）
     const sent = await LineMessagingService.pushTextMessage(
-      patient.lineUserId,
+      lineUser.lineUserId,  // LINE 平台的 User ID
       text,
       config
     );
@@ -486,7 +486,11 @@ router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
     }
 
     // 儲存訊息記錄
-    const conversation = await LineMessagingService.getOrCreateConversation(patientId, organizationId);
+    const conversation = await LineMessagingService.getOrCreateConversation(
+      lineUser.id,  // line_users.id
+      organizationId,
+      lineUser.patientId  // 可選的患者綁定
+    );
     const messageId = uuidv4();
 
     await LineMessagingService.saveMessage({
@@ -495,8 +499,8 @@ router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
       organizationId,
       messageType: 'TEXT',
       messageContent: text,
-      senderId: req.user.userId,
-      recipientId: patientId,
+      senderId: null,  // 系統發送
+      recipientId: lineUser.id,  // LINE 用戶 ID
       senderType: 'ADMIN',
       recipientType: 'PATIENT',
       status: 'DELIVERED'
@@ -522,17 +526,17 @@ router.post('/send/text', requireModule('lineMessaging'), async (req, res) => {
 
 /**
  * POST /api/line/send/sticker
- * 發送貼圖給患者
+ * 發送貼圖給 LINE 用戶
  */
 router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) => {
   try {
     const { organizationId } = req.user;
-    const { patientId, packageId, stickerId } = req.body;
+    const { lineUserId, packageId, stickerId } = req.body;
 
-    if (!patientId || !packageId || !stickerId) {
+    if (!lineUserId || !packageId || !stickerId) {
       return res.status(400).json({
         success: false,
-        error: 'patientId, packageId 和 stickerId 為必填欄位'
+        error: 'lineUserId, packageId 和 stickerId 為必填欄位'
       });
     }
 
@@ -545,29 +549,29 @@ router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) =>
       });
     }
 
-    // 取得患者資料
-    const patient = await queryOne(
-      'SELECT id, "lineUserId" FROM patients WHERE id = ? AND "organizationId" = ?',
-      [patientId, organizationId]
+    // 取得 LINE 用戶資料（line_users 表的 ID）
+    const lineUser = await queryOne(
+      'SELECT * FROM line_users WHERE id = ? AND "organizationId" = ?',
+      [lineUserId, organizationId]
     );
 
-    if (!patient) {
+    if (!lineUser) {
       return res.status(404).json({
         success: false,
-        error: '患者不存在'
+        error: 'LINE 用戶不存在'
       });
     }
 
-    if (!patient.lineUserId) {
+    if (!lineUser.isActive) {
       return res.status(400).json({
         success: false,
-        error: '患者尚未綁定 Line 帳號'
+        error: 'LINE 用戶已取消關注'
       });
     }
 
-    // 發送貼圖
+    // 發送貼圖（使用 LINE Platform User ID）
     const sent = await LineMessagingService.pushStickerMessage(
-      patient.lineUserId,
+      lineUser.lineUserId,  // LINE 平台的 User ID
       packageId,
       stickerId,
       config
@@ -581,7 +585,11 @@ router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) =>
     }
 
     // 儲存訊息記錄
-    const conversation = await LineMessagingService.getOrCreateConversation(patientId, organizationId);
+    const conversation = await LineMessagingService.getOrCreateConversation(
+      lineUser.id,  // line_users.id
+      organizationId,
+      lineUser.patientId  // 可選的患者綁定
+    );
     const messageId = uuidv4();
 
     await LineMessagingService.saveMessage({
@@ -590,8 +598,8 @@ router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) =>
       organizationId,
       messageType: 'STICKER',
       messageContent: JSON.stringify({ packageId, stickerId }),
-      senderId: req.user.userId,
-      recipientId: patientId,
+      senderId: null,  // 系統發送
+      recipientId: lineUser.id,  // LINE 用戶 ID
       senderType: 'ADMIN',
       recipientType: 'PATIENT',
       status: 'DELIVERED',

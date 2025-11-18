@@ -188,11 +188,11 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
       id: uuidv4(),
       conversationId: conversation.id,
       organizationId: config.organizationId,
-      messageType: 'SYSTEM',
+      messageType: 'TEXT',
       messageContent: replyText,
       senderId: null,
       recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
-      senderType: 'SYSTEM',
+      senderType: 'ADMIN',
       recipientType: 'PATIENT',
       status: 'SENT',
       isReply: true
@@ -241,11 +241,11 @@ async function handleStickerMessage(message, lineUser, conversation, config, rep
     id: uuidv4(),
     conversationId: conversation.id,
     organizationId: config.organizationId,
-    messageType: 'SYSTEM',
+    messageType: 'TEXT',
     messageContent: replyText,
     senderId: null,
     recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
-    senderType: 'SYSTEM',
+    senderType: 'ADMIN',
     recipientType: 'PATIENT',
     status: 'SENT',
     isReply: true
@@ -285,11 +285,11 @@ async function handleFollowEvent(event, config) {
       id: uuidv4(),
       conversationId: conversation.id,
       organizationId: config.organizationId,
-      messageType: 'SYSTEM',
+      messageType: 'TEXT',
       messageContent: welcomeMessage,
       senderId: null,
       recipientId: lineUser.id, // 發送給 LINE 用戶（顯示 LINE 頭貼和名字）
-      senderType: 'SYSTEM',
+      senderType: 'ADMIN',
       recipientType: 'PATIENT',
       status: 'SENT'
     });

@@ -52,14 +52,22 @@ export interface LineConfigInput {
  */
 export interface Conversation {
   id: string;
-  patientId: string;
+  lineUserId: string; // LINE 用戶 ID（line_users.id）
+  patientId: string | null;  // 可選的患者綁定
   patientName?: string; // 從 JOIN 查詢取得
+  lineUser?: {
+    displayName: string;
+    pictureUrl?: string;
+    lineUserId: string;
+    isActive: boolean;
+  };
   organizationId: string;
   status: 'ACTIVE' | 'ARCHIVED' | 'CLOSED';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   unreadCount: number;
   lastMessageAt?: string;
   lastMessagePreview?: string;
+  displayName?: string;  // 顯示名稱（優先患者名稱，其次 LINE 顯示名稱）
   createdAt: string;
   updatedAt: string;
 }
@@ -95,7 +103,7 @@ export interface LineMessage {
  * 發送文字訊息請求
  */
 export interface SendTextMessageRequest {
-  patientId: string;
+  lineUserId: string;  // LINE 用戶 ID（line_users.id）
   text: string;
 }
 
@@ -103,7 +111,7 @@ export interface SendTextMessageRequest {
  * 發送貼圖訊息請求
  */
 export interface SendStickerMessageRequest {
-  patientId: string;
+  lineUserId: string;  // LINE 用戶 ID（line_users.id）
   packageId: string;
   stickerId: string;
 }

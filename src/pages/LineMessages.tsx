@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { LineStickerPicker } from '@/components/LineStickerPicker';
 import { useToast } from '@/hooks/use-toast';
 import { lineApi, Conversation, LineMessage } from '@/lib/api/lineApi';
 import {
@@ -258,7 +259,7 @@ const LineMessages = () => {
     try {
       setSending(true);
       const response = await lineApi.messages.sendText({
-        patientId: selectedConversation.patientId,
+        lineUserId: selectedConversation.lineUserId,
         text: messageText,
       });
 
@@ -269,6 +270,38 @@ const LineMessages = () => {
         scrollToBottom();
         toast({
           title: '訊息已送出',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: '傳送失敗',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendSticker = async (packageId: string, stickerId: string) => {
+    if (!selectedConversation) {
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      const response = await lineApi.messages.sendSticker({
+        lineUserId: selectedConversation.lineUserId,
+        packageId,
+        stickerId,
+      });
+
+      if (response.success) {
+        await loadNewMessages(selectedConversation.id);
+        scrollToBottom();
+        toast({
+          title: '貼圖已送出',
         });
       }
     } catch (error: any) {
@@ -627,13 +660,17 @@ const LineMessages = () => {
               {/* 輸入區域 */}
               <CardContent className="p-4 bg-gray-50">
                 <div className="flex gap-2">
+                  <LineStickerPicker
+                    onSelectSticker={handleSendSticker}
+                    disabled={sending}
+                  />
                   <Input
                     placeholder="輸入訊息..."
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={handleKeyPress}
                     disabled={sending}
-                    className="bg-white"
+                    className="bg-white flex-1"
                   />
                   <Button
                     onClick={handleSendMessage}
