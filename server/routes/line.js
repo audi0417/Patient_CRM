@@ -649,4 +649,45 @@ router.post('/send/sticker', requireModule('lineMessaging'), async (req, res) =>
   }
 });
 
+/**
+ * POST /api/line/conversations/:conversationId/mark-read
+ * 將對話標記為已讀（重置未讀計數）
+ */
+router.post('/conversations/:conversationId/mark-read', requireModule('lineMessaging'), async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { conversationId } = req.params;
+
+    // 驗證對話是否屬於該組織
+    const conversation = await queryOne(
+      'SELECT * FROM conversations WHERE id = ? AND "organizationId" = ?',
+      [conversationId, organizationId]
+    );
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: '對話不存在'
+      });
+    }
+
+    // 重置未讀計數
+    await execute(
+      'UPDATE conversations SET "unreadCount" = 0 WHERE id = ?',
+      [conversationId]
+    );
+
+    res.json({
+      success: true,
+      message: '已標記為已讀'
+    });
+  } catch (error) {
+    console.error('標記對話已讀失敗:', error);
+    res.status(500).json({
+      success: false,
+      error: '標記對話已讀失敗'
+    });
+  }
+});
+
 module.exports = router;

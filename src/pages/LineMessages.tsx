@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LineStickerPicker } from '@/components/LineStickerPicker';
 import { useToast } from '@/hooks/use-toast';
 import { lineApi, Conversation, LineMessage } from '@/lib/api/lineApi';
@@ -135,6 +135,27 @@ const LineMessages = () => {
           setTimeout(() => {
             scrollToUnreadOrBottom(newMessages);
           }, 100);
+
+          // 標記對話為已讀（重置未讀計數）
+          if (selectedConversation.unreadCount > 0) {
+            lineApi.conversations.markAsRead(selectedConversation.id)
+              .then(() => {
+                // 更新本地狀態
+                setConversations(prev =>
+                  prev.map(conv =>
+                    conv.id === selectedConversation.id
+                      ? { ...conv, unreadCount: 0 }
+                      : conv
+                  )
+                );
+                setSelectedConversation(prev =>
+                  prev ? { ...prev, unreadCount: 0 } : null
+                );
+              })
+              .catch(error => {
+                console.error('標記已讀失敗:', error);
+              });
+          }
         }
       }
     } catch (error: any) {
@@ -454,6 +475,9 @@ const LineMessages = () => {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-12 w-12">
+                          {conversation.lineUser?.pictureUrl && (
+                            <AvatarImage src={conversation.lineUser.pictureUrl} alt={conversation.displayName || '用戶'} />
+                          )}
                           <AvatarFallback className="bg-primary/10">
                             <User className="h-5 w-5 text-primary" />
                           </AvatarFallback>
@@ -497,6 +521,9 @@ const LineMessages = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
+                      {selectedConversation.lineUser?.pictureUrl && (
+                        <AvatarImage src={selectedConversation.lineUser.pictureUrl} alt={selectedConversation.displayName || '用戶'} />
+                      )}
                       <AvatarFallback className="bg-primary/10">
                         <User className="h-5 w-5 text-primary" />
                       </AvatarFallback>
@@ -600,12 +627,36 @@ const LineMessages = () => {
                                         : message.messageContent?.text || ''}
                                     </p>
                                   )}
-                                  {message.messageType === 'STICKER' && (
-                                    <div className="flex items-center gap-2">
-                                      <Smile className="h-5 w-5" />
-                                      <span className="text-sm">貼圖訊息</span>
-                                    </div>
-                                  )}
+                                  {message.messageType === 'STICKER' && (() => {
+                                    // 解析貼圖資料
+                                    let stickerData;
+                                    if (typeof message.messageContent === 'string') {
+                                      try {
+                                        stickerData = JSON.parse(message.messageContent);
+                                      } catch {
+                                        stickerData = message.messageContent;
+                                      }
+                                    } else {
+                                      stickerData = message.messageContent;
+                                    }
+
+                                    const stickerId = stickerData?.stickerId;
+                                    const stickerUrl = message.metadata?.stickerUrl ||
+                                      (stickerId ? `https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/android/sticker.png` : null);
+
+                                    return stickerUrl ? (
+                                      <img
+                                        src={stickerUrl}
+                                        alt="貼圖"
+                                        className="w-32 h-32 object-contain"
+                                      />
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <Smile className="h-5 w-5" />
+                                        <span className="text-sm">貼圖訊息</span>
+                                      </div>
+                                    );
+                                  })()}
                                   {message.messageType === 'SYSTEM' && (
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                       <AlertCircle className="h-4 w-4" />

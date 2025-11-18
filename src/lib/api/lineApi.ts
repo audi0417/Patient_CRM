@@ -312,6 +312,15 @@ export const lineApi = {
         method: 'GET',
       });
     },
+
+    /**
+     * 標記對話為已讀
+     */
+    markAsRead: async (conversationId: string): Promise<ApiResponse<{ message: string }>> => {
+      return apiRequest(`/line/conversations/${conversationId}/mark-read`, {
+        method: 'POST',
+      });
+    },
   },
 };
 
