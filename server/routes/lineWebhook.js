@@ -160,44 +160,8 @@ async function handleTextMessage(message, lineUser, conversation, config, replyT
   // 更新對話
   await LineMessagingService.updateConversation(conversation.id, text.substring(0, 100));
 
-  // 關鍵字回應
-  const accessToken = require('../utils/encryption').decrypt(config.accessToken);
-  let replyText = null;
-  let patient = null;
-
-  if (text.includes('預約') || text.includes('約診')) {
-    // 只有已綁定患者才能查詢預約
-    if (lineUser.patientId) {
-      patient = await queryOne('SELECT * FROM patients WHERE id = ?', [lineUser.patientId]);
-      replyText = await handleAppointmentQuery(patient, config);
-    } else {
-      replyText = '您尚未綁定患者資料，無法查詢預約記錄。\n\n請聯絡我們的服務人員進行綁定。';
-    }
-  } else if (text.includes('幫助') || text.includes('說明')) {
-    replyText = '您好！我是客服機器人。\n\n您可以:\n• 輸入「預約」查詢您的預約記錄\n• 輸入「說明」查看功能介紹\n\n如需進一步協助，請聯絡我們的服務人員。';
-  } else {
-    replyText = '感謝您的訊息！我們已收到您的留言，客服人員會盡快為您回覆。';
-  }
-
-  // 回覆訊息
-  if (replyText) {
-    await LineMessagingService.replyTextMessage(replyToken, replyText, accessToken);
-
-    // 儲存回覆訊息（接收者是 LINE 用戶）
-    await LineMessagingService.saveMessage({
-      id: uuidv4(),
-      conversationId: conversation.id,
-      organizationId: config.organizationId,
-      messageType: 'TEXT',
-      messageContent: replyText,
-      senderId: null,
-      recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
-      senderType: 'ADMIN',
-      recipientType: 'PATIENT',
-      status: 'SENT',
-      isReply: true
-    });
-  }
+  // 不自動回覆文字訊息，讓管理員手動回覆
+  // 訊息已儲存，管理員可以在後台看到並回覆
 }
 
 /**
@@ -230,26 +194,7 @@ async function handleStickerMessage(message, lineUser, conversation, config, rep
   // 更新對話
   await LineMessagingService.updateConversation(conversation.id, '[貼圖]');
 
-  // 回覆貼圖
-  const accessToken = require('../utils/encryption').decrypt(config.accessToken);
-  const replyText = '😊 收到您的貼圖了！';
-
-  await LineMessagingService.replyTextMessage(replyToken, replyText, accessToken);
-
-  // 儲存回覆訊息
-  await LineMessagingService.saveMessage({
-    id: uuidv4(),
-    conversationId: conversation.id,
-    organizationId: config.organizationId,
-    messageType: 'TEXT',
-    messageContent: replyText,
-    senderId: null,
-    recipientId: lineUser.id, // 回覆給 LINE 用戶（顯示 LINE 頭貼和名字）
-    senderType: 'ADMIN',
-    recipientType: 'PATIENT',
-    status: 'SENT',
-    isReply: true
-  });
+  // 不自動回覆貼圖訊息，讓管理員手動回覆
 }
 
 /**
