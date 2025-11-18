@@ -29,11 +29,11 @@ async function up(db, dbType) {
     date: isPostgres ? 'DATE' : 'TEXT'
   };
 
-    // SQLite 需要特殊處理（不支援某些 ALTER TABLE 操作）
-    const isSQLite = dbType === 'sqlite';
+  // SQLite 需要特殊處理（不支援某些 ALTER TABLE 操作）
+  const isSQLite = dbType === 'sqlite';
 
-    return [
-      // 1. 建立 line_users 表
+  const sqlStatements = [
+    // 1. 建立 line_users 表
       `CREATE TABLE IF NOT EXISTS line_users (
         id ${types.primaryKey},
         "lineUserId" ${types.varcharLong} NOT NULL UNIQUE,
