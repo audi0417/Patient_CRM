@@ -1,9 +1,13 @@
 /**
  * LINE 訊息管理頁面
- * 包含對話列表和聊天介面
+ * 完整復刻 LINE 風格的聊天介面
+ * - 無限捲動 + Lazy Loading
+ * - 未讀訊息紅線標記
+ * - 日期分隔線
+ * - 智能定位（未讀訊息或最底部）
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,8 +27,11 @@ import {
   CheckCircle2,
   XCircle,
   Smile,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const MESSAGES_PER_PAGE = 30;
 
 const LineMessages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -34,8 +41,17 @@ const LineMessages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unreadMarkerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
+  const isInitialLoadRef = useRef(true);
 
   // 載入對話列表
   useEffect(() => {
@@ -48,23 +64,36 @@ const LineMessages = () => {
   // 當選擇對話時載入訊息
   useEffect(() => {
     if (selectedConversation) {
-      loadMessages(selectedConversation.id);
-      // 每 10 秒自動重新載入訊息
+      isInitialLoadRef.current = true;
+      setMessages([]);
+      setOffset(0);
+      setHasMoreMessages(true);
+      loadMessages(selectedConversation.id, 0, true);
+
+      // 每 10 秒自動重新載入新訊息
       const interval = setInterval(() => {
-        loadMessages(selectedConversation.id);
+        loadNewMessages(selectedConversation.id);
       }, 10000);
       return () => clearInterval(interval);
     }
   }, [selectedConversation]);
 
-  // 自動捲動到最新訊息
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // 監聽捲動事件，顯示「捲到底部」按鈕
+  const handleScroll = useCallback((event: any) => {
+    const target = event.target;
+    if (!target) return;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    // 距離底部超過 200px 時顯示按鈕
+    setShowScrollToBottom(distanceFromBottom > 200);
+
+    // 接近頂部時載入更多訊息
+    if (scrollTop < 100 && !loadingOlderMessages && hasMoreMessages) {
+      loadOlderMessages();
+    }
+  }, [loadingOlderMessages, hasMoreMessages]);
 
   const loadConversations = async () => {
     try {
@@ -79,14 +108,33 @@ const LineMessages = () => {
     }
   };
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = async (conversationId: string, offsetValue: number = 0, isInitial: boolean = false) => {
     try {
-      setLoadingMessages(true);
+      if (isInitial) {
+        setLoadingMessages(true);
+      }
+
       const response = await lineApi.conversations.getMessages(conversationId, {
-        limit: 100,
+        limit: MESSAGES_PER_PAGE,
+        offset: offsetValue,
       });
+
       if (response.success && response.data) {
-        setMessages(response.data);
+        const newMessages = response.data.reverse(); // API 返回 DESC，需要反轉
+
+        if (isInitial) {
+          setMessages(newMessages);
+          setOffset(MESSAGES_PER_PAGE);
+        }
+
+        setHasMoreMessages(newMessages.length === MESSAGES_PER_PAGE);
+
+        // 初次載入時智能定位
+        if (isInitial) {
+          setTimeout(() => {
+            scrollToUnreadOrBottom(newMessages);
+          }, 100);
+        }
       }
     } catch (error: any) {
       toast({
@@ -96,7 +144,110 @@ const LineMessages = () => {
       });
     } finally {
       setLoadingMessages(false);
+      isInitialLoadRef.current = false;
     }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!selectedConversation || loadingOlderMessages || !hasMoreMessages) return;
+
+    try {
+      setLoadingOlderMessages(true);
+
+      // 記錄當前捲動位置
+      const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const oldScrollHeight = scrollArea?.scrollHeight || 0;
+
+      const response = await lineApi.conversations.getMessages(selectedConversation.id, {
+        limit: MESSAGES_PER_PAGE,
+        offset: offset,
+      });
+
+      if (response.success && response.data) {
+        const olderMessages = response.data.reverse();
+
+        if (olderMessages.length > 0) {
+          setMessages(prev => [...olderMessages, ...prev]);
+          setOffset(prev => prev + olderMessages.length);
+          setHasMoreMessages(olderMessages.length === MESSAGES_PER_PAGE);
+
+          // 恢復捲動位置
+          setTimeout(() => {
+            if (scrollArea) {
+              const newScrollHeight = scrollArea.scrollHeight;
+              scrollArea.scrollTop = newScrollHeight - oldScrollHeight;
+            }
+          }, 50);
+        } else {
+          setHasMoreMessages(false);
+        }
+      }
+    } catch (error: any) {
+      console.error('載入歷史訊息失敗:', error);
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  };
+
+  const loadNewMessages = async (conversationId: string) => {
+    if (loadingMessages) return;
+
+    try {
+      const response = await lineApi.conversations.getMessages(conversationId, {
+        limit: 10,
+        offset: 0,
+      });
+
+      if (response.success && response.data) {
+        const newMessages = response.data.reverse();
+
+        // 只添加真正的新訊息
+        setMessages(prev => {
+          const lastMessageId = prev[prev.length - 1]?.id;
+          const newMessagesFiltered = newMessages.filter(msg => {
+            const msgIndex = prev.findIndex(m => m.id === msg.id);
+            return msgIndex === -1;
+          });
+
+          if (newMessagesFiltered.length > 0) {
+            // 如果用戶在底部，自動捲動
+            const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+            if (scrollArea) {
+              const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+              const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+              if (isNearBottom) {
+                setTimeout(() => scrollToBottom(), 100);
+              }
+            }
+
+            return [...prev, ...newMessagesFiltered];
+          }
+
+          return prev;
+        });
+      }
+    } catch (error: any) {
+      console.error('載入新訊息失敗:', error);
+    }
+  };
+
+  const scrollToUnreadOrBottom = (msgs: LineMessage[]) => {
+    const firstUnreadIndex = msgs.findIndex(msg =>
+      msg.senderType === 'PATIENT' && !msg.readAt
+    );
+
+    if (firstUnreadIndex !== -1 && unreadMarkerRef.current) {
+      // 有未讀訊息，捲動到未讀標記
+      unreadMarkerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      // 沒有未讀訊息，捲動到底部
+      scrollToBottom();
+    }
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   const handleSendMessage = async () => {
@@ -114,7 +265,8 @@ const LineMessages = () => {
       if (response.success) {
         setMessageText('');
         // 重新載入訊息
-        await loadMessages(selectedConversation.id);
+        await loadNewMessages(selectedConversation.id);
+        scrollToBottom();
         toast({
           title: '訊息已送出',
         });
@@ -183,6 +335,48 @@ const LineMessages = () => {
     return date.toLocaleDateString('zh-TW');
   };
 
+  const formatMessageTime = (dateString?: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleTimeString('zh-TW', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatDateSeparator = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return '今天';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return '昨天';
+    } else {
+      return date.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' });
+    }
+  };
+
+  const shouldShowDateSeparator = (currentMsg: LineMessage, previousMsg?: LineMessage) => {
+    if (!previousMsg) return true;
+
+    const currentDate = new Date(currentMsg.sentAt || currentMsg.createdAt).toDateString();
+    const previousDate = new Date(previousMsg.sentAt || previousMsg.createdAt).toDateString();
+
+    return currentDate !== previousDate;
+  };
+
+  const shouldShowUnreadMarker = (currentMsg: LineMessage, previousMsg?: LineMessage) => {
+    // 顯示在第一則未讀訊息之前
+    if (!previousMsg) return false;
+
+    const isPreviousRead = previousMsg.readAt || previousMsg.senderType !== 'PATIENT';
+    const isCurrentUnread = !currentMsg.readAt && currentMsg.senderType === 'PATIENT';
+
+    return isPreviousRead && isCurrentUnread;
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6 flex items-center justify-center min-h-screen">
@@ -226,9 +420,9 @@ const LineMessages = () => {
                       onClick={() => setSelectedConversation(conversation)}
                     >
                       <div className="flex items-start gap-3">
-                        <Avatar>
-                          <AvatarFallback>
-                            <User className="h-4 w-4" />
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-primary/10">
+                            <User className="h-5 w-5 text-primary" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
@@ -246,7 +440,7 @@ const LineMessages = () => {
                               {formatTime(conversation.lastMessageAt)}
                             </span>
                             {conversation.unreadCount > 0 && (
-                              <Badge variant="destructive" className="h-5 min-w-5 px-1">
+                              <Badge variant="destructive" className="h-5 min-w-5 px-1.5">
                                 {conversation.unreadCount}
                               </Badge>
                             )}
@@ -266,12 +460,12 @@ const LineMessages = () => {
           {selectedConversation ? (
             <>
               {/* 聊天標題 */}
-              <CardHeader>
+              <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        <User className="h-5 w-5" />
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-primary/10">
+                        <User className="h-5 w-5 text-primary" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -279,7 +473,7 @@ const LineMessages = () => {
                         {selectedConversation.patientName || '未知患者'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {selectedConversation.status === 'ACTIVE' ? '線上' : '離線'}
+                        {selectedConversation.status === 'ACTIVE' ? '活躍' : '非活躍'}
                       </p>
                     </div>
                   </div>
@@ -287,84 +481,151 @@ const LineMessages = () => {
                 </div>
               </CardHeader>
 
-              <Separator />
-
               {/* 訊息列表 */}
-              <CardContent className="flex-1 p-4 overflow-hidden">
-                <ScrollArea className="h-full pr-4">
-                  {loadingMessages && messages.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {messages.map((message) => {
-                        const isOutgoing = message.senderType === 'USER';
-                        return (
-                          <div
-                            key={message.id}
-                            className={cn(
-                              'flex',
-                              isOutgoing ? 'justify-end' : 'justify-start'
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                'max-w-[70%] rounded-lg px-4 py-2',
-                                isOutgoing
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted'
-                              )}
-                            >
-                              {message.messageType === 'TEXT' && (
-                                <p className="whitespace-pre-wrap break-words">
-                                  {message.messageContent.text}
-                                </p>
-                              )}
-                              {message.messageType === 'STICKER' && (
-                                <div className="flex items-center gap-2">
-                                  <Smile className="h-5 w-5" />
-                                  <span>貼圖訊息</span>
+              <CardContent className="flex-1 p-0 overflow-hidden relative">
+                <ScrollArea
+                  className="h-full"
+                  ref={scrollAreaRef}
+                  onScroll={handleScroll}
+                >
+                  <div className="p-4 space-y-2">
+                    {/* 載入更多指示器 */}
+                    {loadingOlderMessages && (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      </div>
+                    )}
+
+                    {!hasMoreMessages && messages.length > 0 && (
+                      <div className="flex justify-center py-4">
+                        <p className="text-xs text-muted-foreground">已載入所有訊息</p>
+                      </div>
+                    )}
+
+                    {loadingMessages && messages.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <>
+                        {messages.map((message, index) => {
+                          const previousMessage = index > 0 ? messages[index - 1] : undefined;
+                          const showDateSeparator = shouldShowDateSeparator(message, previousMessage);
+                          const showUnreadMarker = shouldShowUnreadMarker(message, previousMessage);
+                          const isOutgoing = message.senderType === 'USER' || message.senderType === 'ADMIN';
+
+                          return (
+                            <div key={message.id}>
+                              {/* 日期分隔線 */}
+                              {showDateSeparator && (
+                                <div className="flex items-center justify-center my-4">
+                                  <div className="bg-muted px-3 py-1 rounded-full">
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                      {formatDateSeparator(message.sentAt || message.createdAt)}
+                                    </p>
+                                  </div>
                                 </div>
                               )}
-                              {message.messageType === 'SYSTEM' && (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {message.messageContent.text}
-                                  </span>
+
+                              {/* 未讀訊息分隔線 */}
+                              {showUnreadMarker && (
+                                <div
+                                  ref={unreadMarkerRef}
+                                  className="flex items-center gap-2 my-4"
+                                >
+                                  <div className="flex-1 h-[2px] bg-red-500"></div>
+                                  <p className="text-xs text-red-500 font-medium whitespace-nowrap">
+                                    以下為未讀訊息
+                                  </p>
+                                  <div className="flex-1 h-[2px] bg-red-500"></div>
                                 </div>
                               )}
+
+                              {/* 訊息氣泡 */}
                               <div
                                 className={cn(
-                                  'flex items-center gap-1 mt-1 text-xs',
-                                  isOutgoing
-                                    ? 'text-primary-foreground/70'
-                                    : 'text-muted-foreground'
+                                  'flex mb-2',
+                                  isOutgoing ? 'justify-end' : 'justify-start'
                                 )}
                               >
-                                <span>
-                                  {new Date(message.sentAt || message.createdAt).toLocaleTimeString('zh-TW', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                                {isOutgoing && getStatusIcon(message.status)}
+                                <div
+                                  className={cn(
+                                    'max-w-[70%] rounded-2xl px-4 py-2 shadow-sm',
+                                    isOutgoing
+                                      ? 'bg-[#06C755] text-white rounded-tr-sm'
+                                      : 'bg-white border border-gray-200 rounded-tl-sm',
+                                    message.messageType === 'SYSTEM' && 'bg-muted/50 border-muted'
+                                  )}
+                                >
+                                  {message.messageType === 'TEXT' && (
+                                    <p className={cn(
+                                      "whitespace-pre-wrap break-words text-[15px] leading-relaxed",
+                                      isOutgoing ? 'text-white' : 'text-gray-900'
+                                    )}>
+                                      {typeof message.messageContent === 'string'
+                                        ? message.messageContent
+                                        : message.messageContent?.text || ''}
+                                    </p>
+                                  )}
+                                  {message.messageType === 'STICKER' && (
+                                    <div className="flex items-center gap-2">
+                                      <Smile className="h-5 w-5" />
+                                      <span className="text-sm">貼圖訊息</span>
+                                    </div>
+                                  )}
+                                  {message.messageType === 'SYSTEM' && (
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <AlertCircle className="h-4 w-4" />
+                                      <span className="text-sm">
+                                        {typeof message.messageContent === 'string'
+                                          ? message.messageContent
+                                          : message.messageContent?.text || ''}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div
+                                    className={cn(
+                                      'flex items-center gap-1.5 mt-1 text-[11px]',
+                                      isOutgoing
+                                        ? 'text-white/80 justify-end'
+                                        : 'text-gray-500'
+                                    )}
+                                  >
+                                    <span>
+                                      {formatMessageTime(message.sentAt || message.createdAt)}
+                                    </span>
+                                    {isOutgoing && getStatusIcon(message.status)}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </>
+                    )}
+                  </div>
                 </ScrollArea>
+
+                {/* 捲到底部按鈕 */}
+                {showScrollToBottom && (
+                  <div className="absolute bottom-4 right-4">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-10 w-10 rounded-full shadow-lg"
+                      onClick={() => scrollToBottom()}
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
 
               <Separator />
 
               {/* 輸入區域 */}
-              <CardContent className="p-4">
+              <CardContent className="p-4 bg-gray-50">
                 <div className="flex gap-2">
                   <Input
                     placeholder="輸入訊息..."
@@ -372,8 +633,13 @@ const LineMessages = () => {
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={handleKeyPress}
                     disabled={sending}
+                    className="bg-white"
                   />
-                  <Button onClick={handleSendMessage} disabled={sending || !messageText.trim()}>
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={sending || !messageText.trim()}
+                    className="bg-[#06C755] hover:bg-[#05b34c]"
+                  >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
