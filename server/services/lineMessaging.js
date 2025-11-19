@@ -6,6 +6,9 @@
  */
 
 const crypto = require('crypto');
+const fs = require('fs').promises;
+const path = require('path');
+const sharp = require('sharp');
 const { decrypt } = require('../utils/encryption');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 
@@ -15,6 +18,10 @@ const LINE_API_REPLY = `${LINE_API_BASE}/message/reply`;
 const LINE_API_PUSH = `${LINE_API_BASE}/message/push`;
 const LINE_API_PROFILE = `${LINE_API_BASE}/profile`;
 const LINE_API_BOT_INFO = `${LINE_API_BASE}/info`;
+const LINE_API_CONTENT = `${LINE_API_BASE}/message`;
+
+// 圖片儲存路徑
+const IMAGE_STORAGE_BASE = path.join(process.cwd(), 'data', 'line_images');
 
 /**
  * Line 訊息服務類別
@@ -577,6 +584,165 @@ class LineMessagingService {
     } catch (error) {
       console.error('更新對話失敗:', error);
     }
+  }
+
+  /**
+   * 處理圖片訊息（下載、生成縮圖、儲存）
+   * @param {string} messageId - 訊息 ID（資料庫）
+   * @param {string} lineMessageId - LINE 訊息 ID
+   * @param {string} organizationId - 組織 ID
+   * @param {string} accessToken - LINE Access Token
+   */
+  static async processImageMessage(messageId, lineMessageId, organizationId, accessToken) {
+    try {
+      console.log(`[圖片處理] 開始處理 - Message ID: ${lineMessageId}`);
+
+      // 1. 從 LINE API 下載圖片
+      const imageBuffer = await this.downloadImageFromLine(lineMessageId, accessToken);
+      if (!imageBuffer) {
+        throw new Error('下載圖片失敗');
+      }
+
+      console.log(`[圖片處理] 下載完成，大小: ${imageBuffer.length} bytes`);
+
+      // 2. 取得圖片後設資料
+      const metadata = await sharp(imageBuffer).metadata();
+      const { width, height, format } = metadata;
+
+      console.log(`[圖片處理] 圖片資訊 - 尺寸: ${width}x${height}, 格式: ${format}`);
+
+      // 3. 儲存原圖和生成縮圖
+      const { originalPath, thumbnailPath, originalSize, thumbnailSize } =
+        await this.saveImageFiles(imageBuffer, lineMessageId, organizationId);
+
+      console.log(`[圖片處理] 檔案儲存完成 - 原圖: ${originalSize} bytes, 縮圖: ${thumbnailSize} bytes`);
+
+      // 4. 構建圖片 URL
+      const imageUrl = `/api/line/images/${organizationId}/${path.basename(originalPath)}`;
+      const thumbnailUrl = `/api/line/images/${organizationId}/${path.basename(thumbnailPath)}`;
+
+      // 5. 更新訊息記錄
+      await execute(
+        `UPDATE line_messages
+         SET metadata = ?,
+             "messageContent" = ?
+         WHERE id = ?`,
+        [
+          JSON.stringify({
+            imageUrl,
+            thumbnailUrl,
+            originalSize,
+            thumbnailSize,
+            width,
+            height,
+            format,
+            lineMessageId,
+            processing: false
+          }),
+          JSON.stringify({ text: '[圖片]' }),
+          messageId
+        ]
+      );
+
+      console.log(`[圖片處理] 完成 - Message ID: ${lineMessageId}`);
+    } catch (error) {
+      console.error(`[圖片處理] 失敗:`, error);
+
+      // 更新訊息記錄為處理失敗
+      await execute(
+        `UPDATE line_messages
+         SET metadata = ?
+         WHERE id = ?`,
+        [
+          JSON.stringify({
+            error: error.message,
+            processing: false,
+            failed: true
+          }),
+          messageId
+        ]
+      );
+    }
+  }
+
+  /**
+   * 從 LINE API 下載圖片
+   * @param {string} messageId - LINE 訊息 ID
+   * @param {string} accessToken - LINE Access Token
+   * @returns {Promise<Buffer>} 圖片 Buffer
+   */
+  static async downloadImageFromLine(messageId, accessToken) {
+    try {
+      const response = await fetch(`${LINE_API_CONTENT}/${messageId}/content`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`LINE API 回應錯誤: ${response.status} ${response.statusText}`);
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      console.error('下載圖片失敗:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 儲存原圖和生成縮圖
+   * @param {Buffer} imageBuffer - 圖片 Buffer
+   * @param {string} messageId - LINE 訊息 ID
+   * @param {string} organizationId - 組織 ID
+   * @returns {Promise<Object>} 檔案路徑和大小資訊
+   */
+  static async saveImageFiles(imageBuffer, messageId, organizationId) {
+    const timestamp = Date.now();
+    const sanitizedMessageId = messageId.replace(/[^a-zA-Z0-9]/g, '_');
+
+    // 確保目錄存在
+    const orgDir = path.join(IMAGE_STORAGE_BASE, organizationId);
+    const originalsDir = path.join(orgDir, 'originals');
+    const thumbnailsDir = path.join(orgDir, 'thumbnails');
+
+    await fs.mkdir(originalsDir, { recursive: true });
+    await fs.mkdir(thumbnailsDir, { recursive: true });
+
+    // 檔案名稱
+    const originalFilename = `msg_${sanitizedMessageId}_${timestamp}.jpg`;
+    const thumbnailFilename = `msg_${sanitizedMessageId}_${timestamp}_thumb.jpg`;
+
+    const originalPath = path.join(originalsDir, originalFilename);
+    const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+
+    // 儲存原圖（轉換為 JPEG 格式）
+    await sharp(imageBuffer)
+      .jpeg({ quality: 90 })
+      .toFile(originalPath);
+
+    // 生成縮圖（最大寬度 400px，保持比例）
+    await sharp(imageBuffer)
+      .resize(400, null, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: 80 })
+      .toFile(thumbnailPath);
+
+    // 取得檔案大小
+    const originalStats = await fs.stat(originalPath);
+    const thumbnailStats = await fs.stat(thumbnailPath);
+
+    return {
+      originalPath,
+      thumbnailPath,
+      originalSize: originalStats.size,
+      thumbnailSize: thumbnailStats.size
+    };
   }
 }
 

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken, checkRole } = require('../middleware/auth');
+const EmailService = require('../services/emailService');
 
 // 所有路由都需要認證
 router.use(authenticateToken);
@@ -91,6 +92,39 @@ router.post('/', [
     `, [id, username, hashedPassword, name, email, role, organizationId, now, now]);
 
     const newUser = await queryOne('SELECT id, username, name, email, role, isActive, createdAt, updatedAt FROM users WHERE id = ?', [id]);
+
+    // 如果郵件服務已啟用，發送帳號密碼郵件
+    if (EmailService.isEnabled() && email) {
+      try {
+        // 取得組織名稱
+        let organizationName = '診所管理系統';
+        if (organizationId) {
+          const org = await queryOne('SELECT name FROM organizations WHERE id = ?', [organizationId]);
+          if (org) {
+            organizationName = org.name;
+          }
+        }
+
+        // 發送郵件（非同步，不阻塞回應）
+        setImmediate(async () => {
+          try {
+            await EmailService.sendUserCredentials({
+              to: email,
+              userName: name,
+              username,
+              password, // 明文密碼，只在這裡使用一次
+              organizationName
+            });
+            console.log(`✅ 已發送帳號資訊郵件至: ${email}`);
+          } catch (emailError) {
+            console.error('發送帳號資訊郵件失敗:', emailError);
+          }
+        });
+      } catch (error) {
+        console.error('準備發送帳號資訊郵件時發生錯誤:', error);
+        // 不影響使用者創建結果，僅記錄錯誤
+      }
+    }
 
     res.status(201).json(newUser);
   } catch (error) {

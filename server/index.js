@@ -72,6 +72,10 @@ app.use('/api/', (req, res, next) => {
 const db = require('./database/db');
 db.initialize();
 
+// 啟動定時任務服務
+const { startCronJobs } = require('./services/cronJobs');
+startCronJobs();
+
 // ========================================
 // API 路由
 // ========================================
@@ -90,6 +94,7 @@ const lineRoutes = require('./routes/line');
 const lineWebhookRoutes = require('./routes/lineWebhook');
 const serviceItemRoutes = require('./routes/serviceItems');
 const treatmentPackageRoutes = require('./routes/treatmentPackages');
+const emailRoutes = require('./routes/email');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -113,6 +118,7 @@ app.use('/api/line/webhook', lineWebhookRoutes);
 app.use('/api/line', lineRoutes);
 app.use('/api/service-items', serviceItemRoutes);
 app.use('/api/treatment-packages', treatmentPackageRoutes);
+app.use('/api/email', emailRoutes);
 
 // ========================================
 // 模組配置端點

@@ -29,6 +29,7 @@ import {
   XCircle,
   Smile,
   ChevronDown,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ const LineMessages = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<LineMessage[]>([]);
   const [messageText, setMessageText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -46,6 +48,7 @@ const LineMessages = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [offset, setOffset] = useState(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -78,6 +81,18 @@ const LineMessages = () => {
       return () => clearInterval(interval);
     }
   }, [selectedConversation]);
+
+  // 監聽 ESC 鍵關閉圖片檢視器
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedImage) {
+        setSelectedImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage]);
 
   // 監聽捲動事件，顯示「捲到底部」按鈕
   const handleScroll = useCallback((event: any) => {
@@ -657,6 +672,71 @@ const LineMessages = () => {
                                       </div>
                                     );
                                   })()}
+                                  {message.messageType === 'IMAGE' && (() => {
+                                    const metadata = message.metadata || {};
+
+                                    // 處理中
+                                    if (metadata.processing) {
+                                      return (
+                                        <div className="flex flex-col items-center gap-2 p-4">
+                                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                                          <span className="text-xs text-gray-500">處理中...</span>
+                                        </div>
+                                      );
+                                    }
+
+                                    // 處理失敗
+                                    if (metadata.failed) {
+                                      return (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                          <AlertCircle className="h-4 w-4" />
+                                          <span className="text-sm">圖片載入失敗</span>
+                                        </div>
+                                      );
+                                    }
+
+                                    // 顯示圖片
+                                    const thumbnailUrl = metadata.thumbnailUrl || metadata.imageUrl;
+                                    const originalUrl = metadata.imageUrl;
+
+                                    if (!thumbnailUrl) {
+                                      return (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                          <AlertCircle className="h-4 w-4" />
+                                          <span className="text-sm">圖片不存在</span>
+                                        </div>
+                                      );
+                                    }
+
+                                    const formatFileSize = (bytes: number) => {
+                                      if (!bytes) return '';
+                                      if (bytes < 1024) return `${bytes} B`;
+                                      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                                      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                    };
+
+                                    return (
+                                      <div className="relative group">
+                                        <img
+                                          src={thumbnailUrl}
+                                          alt="圖片訊息"
+                                          className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition shadow-md"
+                                          loading="lazy"
+                                          onClick={() => setSelectedImage(originalUrl)}
+                                        />
+                                        {metadata.originalSize && (
+                                          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                                            {formatFileSize(metadata.originalSize)}
+                                          </div>
+                                        )}
+                                        {metadata.width && metadata.height && (
+                                          <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm opacity-0 group-hover:opacity-100 transition">
+                                            {metadata.width} × {metadata.height}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                   {message.messageType === 'SYSTEM' && (
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                       <AlertCircle className="h-4 w-4" />
@@ -747,6 +827,40 @@ const LineMessages = () => {
           )}
         </Card>
       </div>
+
+      {/* 圖片放大檢視器 (Lightbox) */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-screen">
+            {/* 關閉按鈕 */}
+            <button
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 transition backdrop-blur-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+            >
+              <XCircle className="h-6 w-6 text-white" />
+            </button>
+
+            {/* 圖片 */}
+            <img
+              src={selectedImage}
+              alt="放大圖片"
+              className="max-w-full max-h-screen object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* 提示文字 */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/80 text-sm backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full">
+              點擊背景或按 ESC 關閉
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,16 +11,18 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { lineApi, LineConfig, LineConfigInput } from '@/lib/api/lineApi';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, Save, Trash2, Copy, Check } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertCircle, Save, Trash2, Copy, Check, Bell } from 'lucide-react';
 
 const LineSettingsContent = () => {
   const { user } = useAuth();
   const [config, setConfig] = useState<LineConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState<LineConfigInput>({
     channelId: '',
@@ -29,6 +31,10 @@ const LineSettingsContent = () => {
     webhookUrl: '',
     dailyMessageLimit: 1000,
     monthlyMessageLimit: 30000,
+  });
+  const [notifications, setNotifications] = useState({
+    emailReminders: false,
+    lineReminders: false,
   });
   const { toast } = useToast();
 
@@ -39,6 +45,7 @@ const LineSettingsContent = () => {
   // 載入現有配置
   useEffect(() => {
     loadConfig();
+    loadNotifications();
   }, []);
 
   const loadConfig = async () => {
@@ -68,6 +75,64 @@ const LineSettingsContent = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const response = await fetch('/api/organizations/me/notifications', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.notifications) {
+          setNotifications(data.notifications);
+        }
+      }
+    } catch (error: any) {
+      console.error('載入通知設定失敗:', error);
+    }
+  };
+
+  const handleNotificationToggle = async (type: 'emailReminders' | 'lineReminders', value: boolean) => {
+    try {
+      setSavingNotifications(true);
+      const response = await fetch('/api/organizations/me/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          [type]: value,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.notifications) {
+          setNotifications(data.notifications);
+        }
+        toast({
+          title: '設定已更新',
+          description: `${type === 'emailReminders' ? 'Email' : 'LINE'} 提醒已${value ? '啟用' : '停用'}`,
+        });
+      } else {
+        throw new Error('更新失敗');
+      }
+    } catch (error: any) {
+      toast({
+        title: '更新失敗',
+        description: error.message,
+        variant: 'destructive',
+      });
+      // 還原狀態
+      setNotifications((prev) => ({ ...prev, [type]: !value }));
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -169,6 +234,74 @@ const LineSettingsContent = () => {
 
   return (
     <div className="space-y-4">
+      {/* 通知設定卡片 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            <CardTitle>預約提醒設定</CardTitle>
+          </div>
+          <CardDescription>
+            設定如何提醒病患預約資訊（可選擇多種方式）
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Email 提醒開關 */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="email-reminders" className="text-base font-medium">
+                Email 預約提醒
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                透過電子郵件發送預約提醒給病患
+              </p>
+            </div>
+            <Switch
+              id="email-reminders"
+              checked={notifications.emailReminders}
+              onCheckedChange={(checked) => handleNotificationToggle('emailReminders', checked)}
+              disabled={savingNotifications}
+            />
+          </div>
+
+          <Separator />
+
+          {/* LINE 提醒開關 */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="line-reminders" className="text-base font-medium">
+                LINE 預約提醒
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                透過 LINE 訊息發送預約提醒給病患（需先完成下方 LINE 整合設定）
+              </p>
+            </div>
+            <Switch
+              id="line-reminders"
+              checked={notifications.lineReminders}
+              onCheckedChange={(checked) => handleNotificationToggle('lineReminders', checked)}
+              disabled={savingNotifications || !config?.isActive}
+            />
+          </div>
+
+          {!config?.isActive && notifications.lineReminders && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                LINE 整合尚未啟用。請先在下方完成 LINE Channel 設定並啟用整合。
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>提示：</strong> 您可以同時啟用多種提醒方式，系統會自動根據病患資料選擇可用的通知管道。
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
       {/* 狀態卡片 */}
       {config && (
         <Card>

@@ -129,6 +129,9 @@ async function handleMessageEvent(event, config) {
     case 'sticker':
       await handleStickerMessage(message, lineUser, conversation, config, replyToken);
       break;
+    case 'image':
+      await handleImageMessage(message, lineUser, conversation, config, replyToken, accessToken);
+      break;
     default:
       console.log(`未處理的訊息類型: ${message.type}`);
   }
@@ -195,6 +198,58 @@ async function handleStickerMessage(message, lineUser, conversation, config, rep
   await LineMessagingService.updateConversation(conversation.id, '[貼圖]', true);
 
   // 不自動回覆貼圖訊息，讓管理員手動回覆
+}
+
+/**
+ * 處理圖片訊息
+ */
+async function handleImageMessage(message, lineUser, conversation, config, replyToken, accessToken) {
+  const { id: messageId } = message;
+
+  console.log(`[圖片訊息] 接收到圖片訊息 - Message ID: ${messageId}`);
+
+  try {
+    // 儲存初始訊息記錄（先儲存佔位，後續非同步處理圖片下載）
+    const dbMessageId = uuidv4();
+
+    await LineMessagingService.saveMessage({
+      id: dbMessageId,
+      conversationId: conversation.id,
+      organizationId: config.organizationId,
+      messageType: 'IMAGE',
+      messageContent: JSON.stringify({ lineMessageId: messageId }),
+      senderId: lineUser.id,
+      recipientId: null,
+      senderType: 'PATIENT',
+      recipientType: 'ADMIN',
+      lineMessageId: messageId,
+      replyToken,
+      status: 'DELIVERED',
+      metadata: {
+        processing: true,
+        lineMessageId: messageId
+      }
+    });
+
+    // 更新對話（患者發送訊息，增加未讀計數）
+    await LineMessagingService.updateConversation(conversation.id, '[圖片]', true);
+
+    // 非同步處理圖片下載和縮圖生成（不阻塞 Webhook 回應）
+    setImmediate(async () => {
+      try {
+        await LineMessagingService.processImageMessage(
+          dbMessageId,
+          messageId,
+          config.organizationId,
+          accessToken
+        );
+      } catch (error) {
+        console.error(`[圖片訊息] 處理失敗 - Message ID: ${messageId}`, error);
+      }
+    });
+  } catch (error) {
+    console.error(`[圖片訊息] 儲存訊息記錄失敗:`, error);
+  }
 }
 
 /**

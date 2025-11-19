@@ -712,6 +712,109 @@ router.put('/me/settings', authenticateToken, requireTenant, async (req, res) =>
   }
 });
 
+// 獲取通知設定（僅管理員）
+router.get('/me/notifications', authenticateToken, requireTenant, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
+
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 解析設定並取得通知設定
+    let notifications = {
+      emailReminders: false,
+      lineReminders: false
+    };
+
+    if (org.settings) {
+      try {
+        const settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+        if (settings.notifications) {
+          notifications = { ...notifications, ...settings.notifications };
+        }
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    res.json({ notifications });
+  } catch (error) {
+    console.error('Get notification settings error:', error);
+    res.status(500).json({ error: '獲取通知設定失敗' });
+  }
+});
+
+// 更新通知設定（僅管理員）
+router.put('/me/notifications', authenticateToken, requireTenant, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    const { emailReminders, lineReminders } = req.body;
+
+    // 驗證輸入
+    if (emailReminders !== undefined && typeof emailReminders !== 'boolean') {
+      return res.status(400).json({ error: 'emailReminders 必須是布林值' });
+    }
+    if (lineReminders !== undefined && typeof lineReminders !== 'boolean') {
+      return res.status(400).json({ error: 'lineReminders 必須是布林值' });
+    }
+
+    // 取得現有設定
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
+
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 解析現有設定
+    let settings = {};
+    if (org.settings) {
+      try {
+        settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 更新通知設定
+    if (!settings.notifications) {
+      settings.notifications = {};
+    }
+
+    if (emailReminders !== undefined) {
+      settings.notifications.emailReminders = emailReminders;
+    }
+    if (lineReminders !== undefined) {
+      settings.notifications.lineReminders = lineReminders;
+    }
+
+    // 儲存回資料庫
+    const now = new Date().toISOString();
+    const settingsJson = JSON.stringify(settings);
+    await execute('UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?', [
+      settingsJson,
+      now,
+      req.tenantContext.organizationId
+    ]);
+
+    res.json({
+      success: true,
+      message: '通知設定已更新',
+      notifications: settings.notifications
+    });
+  } catch (error) {
+    console.error('Update notification settings error:', error);
+    res.status(500).json({ error: '更新通知設定失敗' });
+  }
+});
+
 // ========== 模組管理 ==========
 
 // 獲取可用的模組列表（超級管理員）

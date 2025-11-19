@@ -692,4 +692,89 @@ router.post('/conversations/:conversationId/mark-read', requireModule('lineMessa
   }
 });
 
+/**
+ * GET /api/line/images/:organizationId/:filename
+ * 取得 LINE 圖片（原圖或縮圖）
+ * 需驗證使用者權限（必須是同組織）
+ */
+router.get('/images/:organizationId/:filename', authenticateToken, async (req, res) => {
+  try {
+    const { organizationId: requestedOrgId, filename } = req.params;
+    const { organizationId: userOrgId, role } = req.user;
+
+    // 安全檢查：防止路徑遍歷攻擊
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: '無效的檔案名稱'
+      });
+    }
+
+    // 權限檢查：只有同組織或 super_admin 可以存取
+    if (userOrgId !== requestedOrgId && role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        error: '無權存取此圖片'
+      });
+    }
+
+    // 檔案類型白名單
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = require('path').extname(filename).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      return res.status(400).json({
+        success: false,
+        error: '不支援的檔案格式'
+      });
+    }
+
+    // 判斷是原圖還是縮圖
+    const isThumb = filename.includes('_thumb');
+    const subDir = isThumb ? 'thumbnails' : 'originals';
+
+    // 構建檔案路徑
+    const path = require('path');
+    const imagePath = path.join(
+      process.cwd(),
+      'data',
+      'line_images',
+      requestedOrgId,
+      subDir,
+      filename
+    );
+
+    // 檢查檔案是否存在
+    const fs = require('fs').promises;
+    try {
+      await fs.access(imagePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: '圖片不存在'
+      });
+    }
+
+    // 設定 Content-Type
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp'
+    };
+
+    // 設定快取標頭（圖片不會變更，可以長時間快取）
+    res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 年
+
+    // 傳送檔案
+    res.sendFile(imagePath);
+  } catch (error) {
+    console.error('取得圖片失敗:', error);
+    res.status(500).json({
+      success: false,
+      error: '取得圖片失敗'
+    });
+  }
+});
+
 module.exports = router;
