@@ -369,8 +369,8 @@ export const deleteGroup = async (id: string): Promise<void> => {
   // 同時從所有病患中移除此群組ID
   const patients = await getPatients();
   for (const patient of patients) {
-    if (patient.groupIds?.includes(id)) {
-      patient.groupIds = patient.groupIds.filter((groupId) => groupId !== id);
+    if (patient.groups?.includes(id)) {
+      patient.groups = patient.groups.filter((groupId) => groupId !== id);
       await savePatient(patient);
     }
   }
@@ -387,9 +387,9 @@ export const addPatientToGroup = async (groupId: string, patientId: string): Pro
   // 更新病患的群組ID
   const patient = await getPatientById(patientId);
   if (patient) {
-    if (!patient.groupIds) patient.groupIds = [];
-    if (!patient.groupIds.includes(groupId)) {
-      patient.groupIds.push(groupId);
+    if (!patient.groups) patient.groups = [];
+    if (!patient.groups.includes(groupId)) {
+      patient.groups.push(groupId);
       await savePatient(patient);
     }
   }
@@ -405,8 +405,8 @@ export const removePatientFromGroup = async (groupId: string, patientId: string)
 
   // 更新病患的群組ID
   const patient = await getPatientById(patientId);
-  if (patient && patient.groupIds) {
-    patient.groupIds = patient.groupIds.filter((id) => id !== groupId);
+  if (patient && patient.groups) {
+    patient.groups = patient.groups.filter((id) => id !== groupId);
     await savePatient(patient);
   }
 };

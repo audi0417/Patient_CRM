@@ -31,7 +31,7 @@ const PatientForm = () => {
     bloodType: "",
     allergies: [],
     tags: [],
-    groupIds: [],
+    groups: [],
   });
 
   const [availableGroups, setAvailableGroups] = useState<PatientGroup[]>([]);
@@ -52,7 +52,7 @@ const PatientForm = () => {
           setFormData({
             ...patient,
             tags: patient.tags || [],
-            groupIds: patient.groupIds || [],
+            groups: patient.groups || [],
           });
         }
       }
@@ -89,7 +89,7 @@ const PatientForm = () => {
         bloodType: formData.bloodType,
         allergies: formData.allergies || [],
         tags: formData.tags || [],
-        groupIds: formData.groupIds || [],
+        groups: formData.groups || [],
         createdAt: isEdit && formData.createdAt ? formData.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -378,8 +378,8 @@ const PatientForm = () => {
                       >
                         <span className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-muted-foreground" />
-                          {formData.groupIds && formData.groupIds.length > 0
-                            ? `已選擇 ${formData.groupIds.length} 個群組`
+                          {formData.groups && formData.groups.length > 0
+                            ? `已選擇 ${formData.groups.length} 個群組`
                             : "選擇群組（可多選）"}
                         </span>
                         <ChevronDown className="h-4 w-4 opacity-50" />
@@ -396,30 +396,30 @@ const PatientForm = () => {
                         ) : (
                           <div className="p-2">
                             {availableGroups.map((group) => {
-                              const isChecked = formData.groupIds?.includes(group.id) || false;
+                              const isChecked = formData.groups?.includes(group.id) || false;
                               return (
                                 <div
                                   key={group.id}
                                   className="flex items-center gap-3 px-3 py-2 hover:bg-accent rounded-md cursor-pointer transition-colors"
                                   onClick={() => {
-                                    const newGroupIds = isChecked
-                                      ? formData.groupIds?.filter((g) => g !== group.id)
-                                      : [...(formData.groupIds || []), group.id];
+                                    const newGroups = isChecked
+                                      ? formData.groups?.filter((g) => g !== group.id)
+                                      : [...(formData.groups || []), group.id];
                                     setFormData({
                                       ...formData,
-                                      groupIds: newGroupIds,
+                                      groups: newGroups,
                                     });
                                   }}
                                 >
                                   <Checkbox
                                     checked={isChecked}
                                     onCheckedChange={(checked) => {
-                                      const newGroupIds = checked
-                                        ? [...(formData.groupIds || []), group.id]
-                                        : formData.groupIds?.filter((g) => g !== group.id);
+                                      const newGroups = checked
+                                        ? [...(formData.groups || []), group.id]
+                                        : formData.groups?.filter((g) => g !== group.id);
                                       setFormData({
                                         ...formData,
-                                        groupIds: newGroupIds,
+                                        groups: newGroups,
                                       });
                                     }}
                                   />
@@ -444,13 +444,13 @@ const PatientForm = () => {
                     </PopoverContent>
                   </Popover>
                   {/* 顯示已選擇的群組 */}
-                  {formData.groupIds && formData.groupIds.length > 0 && (
+                  {formData.groups && formData.groups.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-muted-foreground">
-                        已選擇的群組 ({formData.groupIds.length})
+                        已選擇的群組 ({formData.groups.length})
                       </Label>
                       <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg border border-border min-h-[60px]">
-                        {formData.groupIds.map((groupId) => {
+                        {formData.groups.map((groupId) => {
                           const group = availableGroups.find((g) => g.id === groupId);
                           if (!group) return null;
                           return (
@@ -469,7 +469,7 @@ const PatientForm = () => {
                                 onClick={() => {
                                   setFormData({
                                     ...formData,
-                                    groupIds: formData.groupIds?.filter((g) => g !== groupId),
+                                    groups: formData.groups?.filter((g) => g !== groupId),
                                   });
                                   toast.info(`已移除群組：${group.name}`);
                                 }}
@@ -480,7 +480,7 @@ const PatientForm = () => {
                       </div>
                     </div>
                   )}
-                  {(!formData.groupIds || formData.groupIds.length === 0) && (
+                  {(!formData.groups || formData.groups.length === 0) && (
                     <div className="p-3 bg-muted/30 rounded-lg border border-dashed border-border text-center">
                       <p className="text-sm text-muted-foreground">尚未選擇任何群組</p>
                     </div>

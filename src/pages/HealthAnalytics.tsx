@@ -171,7 +171,7 @@ const HealthAnalytics = () => {
     // 先處理有群組的患者
     groups.forEach((group) => {
       const groupSummaries = filteredAndSortedSummaries.filter((summary) =>
-        summary.patient.groupIds?.includes(group.id)
+        summary.patient.groups?.includes(group.id)
       );
       if (groupSummaries.length > 0) {
         grouped.push({ group, summaries: groupSummaries });
@@ -180,7 +180,7 @@ const HealthAnalytics = () => {
 
     // 再處理未分組的患者
     const ungroupedSummaries = filteredAndSortedSummaries.filter(
-      (summary) => !summary.patient.groupIds || summary.patient.groupIds.length === 0
+      (summary) => !summary.patient.groups || summary.patient.groups.length === 0
     );
     if (ungroupedSummaries.length > 0) {
       grouped.push({ group: null, summaries: ungroupedSummaries });

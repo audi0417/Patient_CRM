@@ -29,7 +29,7 @@ export interface Patient {
   bloodType?: string;
   allergies?: string[];
   tags?: string[]; // 標籤名稱陣列
-  groupIds?: string[]; // 所屬群組ID陣列
+  groups?: string[]; // 所屬群組ID陣列（後端使用 groups 欄位名稱）
   createdAt: string;
   updatedAt: string;
 }

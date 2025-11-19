@@ -103,7 +103,7 @@ const PatientList = () => {
       const matchesGroup =
         isSuperAdmin ||
         selectedGroup === "all" ||
-        (patient.groupIds && patient.groupIds.includes(selectedGroup));
+        (patient.groups && patient.groups.includes(selectedGroup));
 
       // 性別過濾
       const matchesGender =
