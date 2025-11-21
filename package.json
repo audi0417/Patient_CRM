@@ -73,6 +73,7 @@
     "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "events": "^3.3.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.0",

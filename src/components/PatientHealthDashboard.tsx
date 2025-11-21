@@ -18,11 +18,13 @@ import {
   deleteVitalSignsRecord,
   getGoals,
 } from "@/lib/storage";
+import { api } from "@/lib/api";
 import { Patient, BodyCompositionRecord, VitalSignsRecord, PatientGoal } from "@/types/patient";
 import HealthDataCharts from "./HealthDataCharts";
 import BodyCompositionForm from "./BodyCompositionForm";
 import VitalSignsForm from "./VitalSignsForm";
 import GoalForm from "./GoalForm";
+import HealthRecordImportDialog from "./HealthRecordImportDialog";
 import {
   Plus,
   TrendingUp,
@@ -36,6 +38,7 @@ import {
   Trash2,
   Edit,
   Target,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
@@ -62,6 +65,8 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
   const [showBodyCompositionForm, setShowBodyCompositionForm] = useState(false);
   const [showVitalSignsForm, setShowVitalSignsForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
+  const [showBodyCompositionImportDialog, setShowBodyCompositionImportDialog] = useState(false);
+  const [showVitalSignsImportDialog, setShowVitalSignsImportDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<{ type: 'body' | 'vital', id: string } | null>(null);
   const [editingBodyRecord, setEditingBodyRecord] = useState<BodyCompositionRecord | null>(null);
@@ -102,6 +107,50 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
     } finally {
       setDeleteDialogOpen(false);
       setRecordToDelete(null);
+    }
+  };
+
+  const handleExportBodyComposition = async () => {
+    try {
+      await api.health.bodyComposition.exportExcel(patient.id);
+      toast.success("體組成記錄已導出");
+    } catch (error) {
+      toast.error("導出失敗");
+      console.error('Export body composition error:', error);
+    }
+  };
+
+  const handleExportVitalSigns = async () => {
+    try {
+      await api.health.vitalSigns.exportExcel(patient.id);
+      toast.success("生命徵象記錄已導出");
+    } catch (error) {
+      toast.error("導出失敗");
+      console.error('Export vital signs error:', error);
+    }
+  };
+
+  const handleImportBodyComposition = async (file: File) => {
+    try {
+      toast.info("正在匯入體組成記錄...");
+      await api.health.bodyComposition.importExcel(file, patient.id);
+      toast.success("體組成記錄匯入成功");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "匯入失敗");
+      console.error('Import body composition error:', error);
+    }
+  };
+
+  const handleImportVitalSigns = async (file: File) => {
+    try {
+      toast.info("正在匯入生命徵象記錄...");
+      await api.health.vitalSigns.importExcel(file, patient.id);
+      toast.success("生命徵象記錄匯入成功");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "匯入失敗");
+      console.error('Import vital signs error:', error);
     }
   };
 
@@ -275,10 +324,20 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>體組成記錄</CardTitle>
-                <Button onClick={() => setShowBodyCompositionForm(true)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  新增記錄
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportBodyComposition}
+                    disabled={bodyCompositionRecords.length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    導出 Excel
+                  </Button>
+                  <Button onClick={() => setShowBodyCompositionImportDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    新增記錄
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -361,10 +420,20 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>生命徵象記錄</CardTitle>
-                <Button onClick={() => setShowVitalSignsForm(true)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  新增記錄
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportVitalSigns}
+                    disabled={vitalSignsRecords.length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    導出 Excel
+                  </Button>
+                  <Button onClick={() => setShowVitalSignsImportDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    新增記錄
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -483,6 +552,24 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
           onClose={() => setShowGoalForm(false)}
         />
       )}
+
+      {/* 體組成記錄選擇對話框 */}
+      <HealthRecordImportDialog
+        open={showBodyCompositionImportDialog}
+        onOpenChange={setShowBodyCompositionImportDialog}
+        onManualEntry={() => setShowBodyCompositionForm(true)}
+        onImportExcel={handleImportBodyComposition}
+        recordType="bodyComposition"
+      />
+
+      {/* 生命徵象記錄選擇對話框 */}
+      <HealthRecordImportDialog
+        open={showVitalSignsImportDialog}
+        onOpenChange={setShowVitalSignsImportDialog}
+        onManualEntry={() => setShowVitalSignsForm(true)}
+        onImportExcel={handleImportVitalSigns}
+        recordType="vitalSigns"
+      />
 
       {/* 刪除確認對話框 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

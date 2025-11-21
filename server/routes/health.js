@@ -4,6 +4,7 @@ const { db } = require('../database/db');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireModule } = require('../middleware/moduleAccess');
+const ExcelJS = require('exceljs');
 
 router.use(authenticateToken);
 
@@ -11,6 +12,102 @@ router.use(authenticateToken);
 router.use(requireModule('healthManagement'));
 
 // ===== 體組成記錄 =====
+
+// 導出體組成記錄為 Excel（需要放在其他路由之前）
+router.get('/body-composition/export/excel', async (req, res) => {
+  try {
+    const { patientId } = req.query;
+
+    // 獲取數據
+    let query = `
+      SELECT
+        bc.*,
+        p.name as patientName,
+        p.phone as patientPhone
+      FROM body_composition bc
+      LEFT JOIN patients p ON bc.patientId = p.id
+      WHERE 1=1
+    `;
+    let params = [];
+
+    if (patientId) {
+      query += ' AND bc.patientId = ?';
+      params.push(patientId);
+    }
+
+    query += ' ORDER BY bc.date DESC';
+
+    const records = await queryAll(query, params);
+
+    // 創建 Excel 工作簿
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('體組成記錄');
+
+    // 設定欄位
+    worksheet.columns = [
+      { header: '日期', key: 'date', width: 12 },
+      { header: '病患姓名', key: 'patientName', width: 15 },
+      { header: '病患電話', key: 'patientPhone', width: 15 },
+      { header: '體重(kg)', key: 'weight', width: 10 },
+      { header: '身高(cm)', key: 'height', width: 10 },
+      { header: '體脂肪(%)', key: 'bodyFat', width: 10 },
+      { header: '肌肉量(kg)', key: 'muscleMass', width: 12 },
+      { header: 'BMI', key: 'bmi', width: 8 },
+      { header: '內臟脂肪', key: 'visceralFat', width: 10 },
+      { header: '骨量(kg)', key: 'boneMass', width: 10 },
+      { header: '體水分(%)', key: 'bodyWater', width: 10 },
+      { header: '基礎代謝率(kcal)', key: 'bmr', width: 15 },
+      { header: '備註', key: 'notes', width: 30 }
+    ];
+
+    // 設定標題行樣式
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // 添加數據
+    records.forEach(record => {
+      worksheet.addRow({
+        date: record.date,
+        patientName: record.patientName || '',
+        patientPhone: record.patientPhone || '',
+        weight: record.weight,
+        height: record.height,
+        bodyFat: record.bodyFat,
+        muscleMass: record.muscleMass,
+        bmi: record.bmi,
+        visceralFat: record.visceralFat,
+        boneMass: record.boneMass,
+        bodyWater: record.bodyWater,
+        bmr: record.bmr,
+        notes: record.notes || ''
+      });
+    });
+
+    // 設定所有數據行的對齊方式
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+    });
+
+    // 設定響應頭
+    const fileName = `體組成記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+
+    // 輸出到響應
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Export body composition error:', error);
+    res.status(500).json({ error: '導出體組成記錄失敗' });
+  }
+});
 
 // 獲取體組成記錄
 router.get('/body-composition', async (req, res) => {
@@ -93,6 +190,98 @@ router.delete('/body-composition/:id', async (req, res) => {
 });
 
 // ===== 生命徵象記錄 =====
+
+// 導出生命徵象記錄為 Excel（需要放在其他路由之前）
+router.get('/vital-signs/export/excel', async (req, res) => {
+  try {
+    const { patientId } = req.query;
+
+    // 獲取數據
+    let query = `
+      SELECT
+        vs.*,
+        p.name as patientName,
+        p.phone as patientPhone
+      FROM vital_signs vs
+      LEFT JOIN patients p ON vs.patientId = p.id
+      WHERE 1=1
+    `;
+    let params = [];
+
+    if (patientId) {
+      query += ' AND vs.patientId = ?';
+      params.push(patientId);
+    }
+
+    query += ' ORDER BY vs.date DESC';
+
+    const records = await queryAll(query, params);
+
+    // 創建 Excel 工作簿
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('生命徵象記錄');
+
+    // 設定欄位
+    worksheet.columns = [
+      { header: '日期', key: 'date', width: 12 },
+      { header: '病患姓名', key: 'patientName', width: 15 },
+      { header: '病患電話', key: 'patientPhone', width: 15 },
+      { header: '收縮壓(mmHg)', key: 'bloodPressureSystolic', width: 15 },
+      { header: '舒張壓(mmHg)', key: 'bloodPressureDiastolic', width: 15 },
+      { header: '心率(bpm)', key: 'heartRate', width: 12 },
+      { header: '體溫(°C)', key: 'temperature', width: 10 },
+      { header: '呼吸率(次/分)', key: 'respiratoryRate', width: 15 },
+      { header: '血氧飽和度(%)', key: 'oxygenSaturation', width: 15 },
+      { header: '血糖(mg/dL)', key: 'bloodGlucose', width: 12 },
+      { header: '備註', key: 'notes', width: 30 }
+    ];
+
+    // 設定標題行樣式
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // 添加數據
+    records.forEach(record => {
+      worksheet.addRow({
+        date: record.date,
+        patientName: record.patientName || '',
+        patientPhone: record.patientPhone || '',
+        bloodPressureSystolic: record.bloodPressureSystolic,
+        bloodPressureDiastolic: record.bloodPressureDiastolic,
+        heartRate: record.heartRate,
+        temperature: record.temperature,
+        respiratoryRate: record.respiratoryRate,
+        oxygenSaturation: record.oxygenSaturation,
+        bloodGlucose: record.bloodGlucose,
+        notes: record.notes || ''
+      });
+    });
+
+    // 設定所有數據行的對齊方式
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+    });
+
+    // 設定響應頭
+    const fileName = `生命徵象記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+
+    // 輸出到響應
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Export vital signs error:', error);
+    res.status(500).json({ error: '導出生命徵象記錄失敗' });
+  }
+});
 
 // 獲取生命徵象記錄
 router.get('/vital-signs', async (req, res) => {

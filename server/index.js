@@ -95,6 +95,8 @@ const lineWebhookRoutes = require('./routes/lineWebhook');
 const serviceItemRoutes = require('./routes/serviceItems');
 const treatmentPackageRoutes = require('./routes/treatmentPackages');
 const emailRoutes = require('./routes/email');
+const groupRoutes = require('./routes/groups');
+const tagRoutes = require('./routes/tags');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -119,6 +121,8 @@ app.use('/api/line', lineRoutes);
 app.use('/api/service-items', serviceItemRoutes);
 app.use('/api/treatment-packages', treatmentPackageRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/tags', tagRoutes);
 
 // ========================================
 // 模組配置端點

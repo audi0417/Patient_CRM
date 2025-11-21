@@ -306,29 +306,65 @@ export const deleteVitalSignsRecord = async (id: string): Promise<void> => {
 
 // Tags Management
 export const getTags = async (): Promise<Tag[]> => {
-  const data = localStorage.getItem(TAGS_KEY);
-  return data ? JSON.parse(data) : [];
+  if (isElectron()) {
+    const data = localStorage.getItem(TAGS_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+  return api.tags.getAll();
 };
 
 export const getTagById = async (id: string): Promise<Tag | undefined> => {
-  const tags = await getTags();
-  return tags.find((t) => t.id === id);
+  if (isElectron()) {
+    const tags = await getTags();
+    return tags.find((t) => t.id === id);
+  }
+  try {
+    return await api.tags.getById(id);
+  } catch (error) {
+    return undefined;
+  }
 };
 
 export const saveTag = async (tag: Tag): Promise<void> => {
-  const tags = await getTags();
-  const index = tags.findIndex((t) => t.id === tag.id);
-  if (index >= 0) {
-    tags[index] = tag;
-  } else {
-    tags.push(tag);
+  if (isElectron()) {
+    const tags = await getTags();
+    const index = tags.findIndex((t) => t.id === tag.id);
+    if (index >= 0) {
+      tags[index] = tag;
+    } else {
+      tags.push(tag);
+    }
+    localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+    return;
   }
-  localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+
+  // 檢查是否為新標籤
+  const isNew = !tag.id || tag.id.startsWith('temp_') || tag.id.startsWith('tag_');
+
+  if (isNew && !tag.id.startsWith('tag_')) {
+    await api.tags.create(tag);
+  } else {
+    await api.tags.update(tag.id, tag);
+  }
 };
 
 export const deleteTag = async (id: string): Promise<void> => {
-  const tags = (await getTags()).filter((t) => t.id !== id);
-  localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+  if (isElectron()) {
+    const tags = (await getTags()).filter((t) => t.id !== id);
+    localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+
+    // 同時從所有病患中移除此標籤
+    const patients = await getPatients();
+    for (const patient of patients) {
+      if (patient.tags?.includes(id)) {
+        patient.tags = patient.tags.filter((tagId) => tagId !== id);
+        await savePatient(patient);
+      }
+    }
+    return;
+  }
+
+  await api.tags.delete(id);
 
   // 同時從所有病患中移除此標籤
   const patients = await getPatients();
@@ -342,29 +378,65 @@ export const deleteTag = async (id: string): Promise<void> => {
 
 // Patient Groups Management
 export const getGroups = async (): Promise<PatientGroup[]> => {
-  const data = localStorage.getItem(GROUPS_KEY);
-  return data ? JSON.parse(data) : [];
+  if (isElectron()) {
+    const data = localStorage.getItem(GROUPS_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+  return api.groups.getAll();
 };
 
 export const getGroupById = async (id: string): Promise<PatientGroup | undefined> => {
-  const groups = await getGroups();
-  return groups.find((g) => g.id === id);
+  if (isElectron()) {
+    const groups = await getGroups();
+    return groups.find((g) => g.id === id);
+  }
+  try {
+    return await api.groups.getById(id);
+  } catch (error) {
+    return undefined;
+  }
 };
 
 export const saveGroup = async (group: PatientGroup): Promise<void> => {
-  const groups = await getGroups();
-  const index = groups.findIndex((g) => g.id === group.id);
-  if (index >= 0) {
-    groups[index] = group;
-  } else {
-    groups.push(group);
+  if (isElectron()) {
+    const groups = await getGroups();
+    const index = groups.findIndex((g) => g.id === group.id);
+    if (index >= 0) {
+      groups[index] = group;
+    } else {
+      groups.push(group);
+    }
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+    return;
   }
-  localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+
+  // 檢查是否為新群組
+  const isNew = !group.id || group.id.startsWith('temp_') || group.id.startsWith('group_');
+
+  if (isNew && !group.id.startsWith('group_')) {
+    await api.groups.create(group);
+  } else {
+    await api.groups.update(group.id, group);
+  }
 };
 
 export const deleteGroup = async (id: string): Promise<void> => {
-  const groups = (await getGroups()).filter((g) => g.id !== id);
-  localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+  if (isElectron()) {
+    const groups = (await getGroups()).filter((g) => g.id !== id);
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+
+    // 同時從所有病患中移除此群組ID
+    const patients = await getPatients();
+    for (const patient of patients) {
+      if (patient.groups?.includes(id)) {
+        patient.groups = patient.groups.filter((groupId) => groupId !== id);
+        await savePatient(patient);
+      }
+    }
+    return;
+  }
+
+  await api.groups.delete(id);
 
   // 同時從所有病患中移除此群組ID
   const patients = await getPatients();

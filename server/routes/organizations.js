@@ -691,7 +691,7 @@ router.get('/me/info', authenticateToken, requireTenant, async (req, res) => {
 
 // 更新當前組織設定（僅管理員）
 router.put('/me/settings', authenticateToken, requireTenant, async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
 
@@ -714,7 +714,7 @@ router.put('/me/settings', authenticateToken, requireTenant, async (req, res) =>
 
 // 獲取通知設定（僅管理員）
 router.get('/me/notifications', authenticateToken, requireTenant, async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
 
@@ -751,7 +751,7 @@ router.get('/me/notifications', authenticateToken, requireTenant, async (req, re
 
 // 更新通知設定（僅管理員）
 router.put('/me/notifications', authenticateToken, requireTenant, async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
 

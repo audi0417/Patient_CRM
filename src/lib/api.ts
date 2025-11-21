@@ -372,6 +372,61 @@ export const api = {
           method: 'DELETE',
         });
       },
+
+      /**
+       * 導出體組成記錄為 Excel
+       */
+      exportExcel: async (patientId?: string): Promise<void> => {
+        const token = getToken();
+        const url = patientId
+          ? `${API_BASE_URL}/health/body-composition/export/excel?patientId=${patientId}`
+          : `${API_BASE_URL}/health/body-composition/export/excel`;
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new ApiError('導出失敗', response.status);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `體組成記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      },
+
+      /**
+       * 匯入體組成記錄 Excel
+       */
+      importExcel: async (file: File, patientId: string): Promise<{ success: boolean; imported: number; errors?: string[] }> => {
+        const token = getToken();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('patientId', patientId);
+
+        const response = await fetch(`${API_BASE_URL}/health/body-composition/import/excel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new ApiError(error.error || '匯入失敗', response.status, error);
+        }
+
+        return response.json();
+      },
     },
 
     vitalSigns: {
@@ -409,6 +464,61 @@ export const api = {
         return apiRequest(`/health/vital-signs/${id}`, {
           method: 'DELETE',
         });
+      },
+
+      /**
+       * 導出生命徵象記錄為 Excel
+       */
+      exportExcel: async (patientId?: string): Promise<void> => {
+        const token = getToken();
+        const url = patientId
+          ? `${API_BASE_URL}/health/vital-signs/export/excel?patientId=${patientId}`
+          : `${API_BASE_URL}/health/vital-signs/export/excel`;
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new ApiError('導出失敗', response.status);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `生命徵象記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      },
+
+      /**
+       * 匯入生命徵象記錄 Excel
+       */
+      importExcel: async (file: File, patientId: string): Promise<{ success: boolean; imported: number; errors?: string[] }> => {
+        const token = getToken();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('patientId', patientId);
+
+        const response = await fetch(`${API_BASE_URL}/health/vital-signs/import/excel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new ApiError(error.error || '匯入失敗', response.status, error);
+        }
+
+        return response.json();
       },
     },
   },
@@ -905,6 +1015,64 @@ export const treatmentApi = {
      */
     getSummary: async (id: number): Promise<PackageSummary> => {
       return apiRequest<PackageSummary>(`/treatment-packages/${id}/summary`);
+    },
+  },
+
+  /**
+   * Tags (標籤) 相關 API
+   */
+  tags: {
+    getAll: async () => {
+      return apiRequest<any[]>('/tags');
+    },
+    getById: async (id: string) => {
+      return apiRequest<any>(`/tags/${id}`);
+    },
+    create: async (data: any) => {
+      return apiRequest<any>('/tags', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    update: async (id: string, data: any) => {
+      return apiRequest<any>(`/tags/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async (id: string) => {
+      return apiRequest<{ success: boolean; message: string }>(`/tags/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  /**
+   * Groups (群組) 相關 API
+   */
+  groups: {
+    getAll: async () => {
+      return apiRequest<any[]>('/groups');
+    },
+    getById: async (id: string) => {
+      return apiRequest<any>(`/groups/${id}`);
+    },
+    create: async (data: any) => {
+      return apiRequest<any>('/groups', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    update: async (id: string, data: any) => {
+      return apiRequest<any>(`/groups/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async (id: string) => {
+      return apiRequest<{ success: boolean; message: string }>(`/groups/${id}`, {
+        method: 'DELETE',
+      });
     },
   },
 };
