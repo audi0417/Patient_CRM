@@ -11,8 +11,8 @@ const PORT = process.env.PORT || 3001;
 // 這讓 Express 能正確讀取 X-Forwarded-For header 來識別真實客戶端 IP
 app.set('trust proxy', 1);
 
-// Rate Limiting
-const { accountLoginLimiter, loginLimiter, apiLimiter } = require('./middleware/rateLimit');
+// Rate Limiting - 僅導入登入保護所需的限流器
+const { accountLoginLimiter, loginLimiter } = require('./middleware/rateLimit');
 
 // CORS 設定 - 限制允許的來源
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
@@ -56,17 +56,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 為所有 API 端點添加一般限流（排除超級管理員、組織管理和 Line Webhook 路由）
-app.use('/api/', (req, res, next) => {
-  // 超級管理員和組織管理路由不受限流（需要頻繁操作多個組織）
-  // Line Webhook 不受限流（LINE 平台自身有頻率控制，且使用簽名驗證）
-  if (req.path.startsWith('/superadmin') ||
-      req.path.startsWith('/organizations') ||
-      req.path.startsWith('/line/webhook')) {
-    return next();
-  }
-  return apiLimiter(req, res, next);
-});
+// 注意：移除全域 API 限流以避免影響正常使用
+// 僅在關鍵端點（如登入）應用特定限流保護
 
 // 初始化數據庫
 const db = require('./database/db');
