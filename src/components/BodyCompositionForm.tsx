@@ -62,6 +62,41 @@ const BodyCompositionForm = ({ patientId, onClose, existingRecord }: BodyComposi
     value: "",
   });
 
+  // 自動計算 BMI
+  const calculateBMI = (weight: string, height: string): string => {
+    const weightNum = parseFloat(weight);
+    const heightNum = parseFloat(height);
+
+    if (!weightNum || !heightNum || heightNum === 0) {
+      return "";
+    }
+
+    // BMI = 體重(kg) / (身高(m))²
+    const heightInMeters = heightNum / 100;
+    const bmi = weightNum / (heightInMeters * heightInMeters);
+
+    return bmi.toFixed(1);
+  };
+
+  // 當體重或身高改變時，自動更新 BMI
+  const handleWeightChange = (value: string) => {
+    const newFormData = { ...formData, weight: value };
+    const calculatedBMI = calculateBMI(value, formData.height);
+    if (calculatedBMI) {
+      newFormData.bmi = calculatedBMI;
+    }
+    setFormData(newFormData);
+  };
+
+  const handleHeightChange = (value: string) => {
+    const newFormData = { ...formData, height: value };
+    const calculatedBMI = calculateBMI(formData.weight, value);
+    if (calculatedBMI) {
+      newFormData.bmi = calculatedBMI;
+    }
+    setFormData(newFormData);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -157,22 +192,113 @@ const BodyCompositionForm = ({ patientId, onClose, existingRecord }: BodyComposi
           {isEditMode ? (
             // 編輯模式：顯示所有欄位
             <div className="grid grid-cols-2 gap-4">
-              {metricOptions.map((option) => (
-                <div key={option.value} className="space-y-2">
-                  <Label htmlFor={option.value}>
-                    {option.label}
-                    {option.unit && ` (${option.unit})`}
-                  </Label>
-                  <Input
-                    id={option.value}
-                    type="number"
-                    step={option.step}
-                    value={formData[option.value]}
-                    onChange={(e) => setFormData({ ...formData, [option.value]: e.target.value })}
-                    placeholder={`輸入${option.label}`}
-                  />
-                </div>
-              ))}
+              <div className="space-y-2">
+                <Label htmlFor="weight">體重 (kg)</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  value={formData.weight}
+                  onChange={(e) => handleWeightChange(e.target.value)}
+                  placeholder="輸入體重"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="height">身高 (cm)</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  step="0.1"
+                  value={formData.height}
+                  onChange={(e) => handleHeightChange(e.target.value)}
+                  placeholder="輸入身高"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bmi">BMI</Label>
+                <Input
+                  id="bmi"
+                  type="number"
+                  step="0.1"
+                  value={formData.bmi}
+                  onChange={(e) => setFormData({ ...formData, bmi: e.target.value })}
+                  placeholder="自動計算或手動輸入"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bodyFat">體脂率 (%)</Label>
+                <Input
+                  id="bodyFat"
+                  type="number"
+                  step="0.1"
+                  value={formData.bodyFat}
+                  onChange={(e) => setFormData({ ...formData, bodyFat: e.target.value })}
+                  placeholder="輸入體脂率"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="muscleMass">肌肉量 (kg)</Label>
+                <Input
+                  id="muscleMass"
+                  type="number"
+                  step="0.1"
+                  value={formData.muscleMass}
+                  onChange={(e) => setFormData({ ...formData, muscleMass: e.target.value })}
+                  placeholder="輸入肌肉量"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="visceralFat">內臟脂肪等級</Label>
+                <Input
+                  id="visceralFat"
+                  type="number"
+                  step="0.1"
+                  value={formData.visceralFat}
+                  onChange={(e) => setFormData({ ...formData, visceralFat: e.target.value })}
+                  placeholder="輸入內臟脂肪等級"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="boneMass">骨量 (kg)</Label>
+                <Input
+                  id="boneMass"
+                  type="number"
+                  step="0.1"
+                  value={formData.boneMass}
+                  onChange={(e) => setFormData({ ...formData, boneMass: e.target.value })}
+                  placeholder="輸入骨量"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bodyWater">體水分 (%)</Label>
+                <Input
+                  id="bodyWater"
+                  type="number"
+                  step="0.1"
+                  value={formData.bodyWater}
+                  onChange={(e) => setFormData({ ...formData, bodyWater: e.target.value })}
+                  placeholder="輸入體水分"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bmr">基礎代謝率 (kcal)</Label>
+                <Input
+                  id="bmr"
+                  type="number"
+                  step="1"
+                  value={formData.bmr}
+                  onChange={(e) => setFormData({ ...formData, bmr: e.target.value })}
+                  placeholder="輸入基礎代謝率"
+                />
+              </div>
             </div>
           ) : (
             // 新增模式：選擇單一指標
