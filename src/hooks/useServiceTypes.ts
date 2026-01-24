@@ -29,12 +29,13 @@ export const useServiceTypes = (activeOnly: boolean = true) => {
       const types = activeOnly
         ? await api.serviceTypes.getActive()
         : await api.serviceTypes.getAll();
-      setServiceTypes(types);
+      setServiceTypes(types || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "載入服務類別失敗";
       setError(errorMessage);
       toast.error(errorMessage);
       console.error("Failed to load service types:", err);
+      setServiceTypes([]);
     } finally {
       setLoading(false);
     }

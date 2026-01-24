@@ -12,6 +12,7 @@ import {
   DollarSign,
   Activity
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardStats {
   organizations: {
@@ -50,6 +51,7 @@ interface DashboardStats {
 }
 
 const Analytics = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,7 +63,15 @@ const Analytics = () => {
   const fetchDashboardStats = async () => {
     try {
       const token = localStorage.getItem("hospital_crm_auth_token");
-      const response = await fetch("/api/superadmin/dashboard", {
+      
+      // 依照角色選擇 API 端點
+      // Super Admin 查看全系統統計
+      // 一般 Admin 只能查看自己組織的統計
+      const endpoint = user?.role === "super_admin" 
+        ? "/api/superadmin/dashboard"
+        : "/api/organizations/me";
+      
+      const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

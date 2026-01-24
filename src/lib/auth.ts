@@ -22,7 +22,12 @@ export const validatePassword = (password: string): { valid: boolean; message?: 
 
 // 獲取所有使用者
 export const getUsers = async (): Promise<User[]> => {
-  return api.users.getAll();
+  try {
+    return await api.users.getAll();
+  } catch (error) {
+    console.error('獲取使用者列表失敗:', error);
+    return [];
+  }
 };
 
 // 根據 ID 獲取使用者

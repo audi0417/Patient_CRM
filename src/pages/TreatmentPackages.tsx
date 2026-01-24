@@ -76,13 +76,14 @@ export default function TreatmentPackages() {
     try {
       setLoading(true);
       const data = await treatmentApi.packages.getAll();
-      setPackages(data);
+      setPackages(data || []);
     } catch (error: any) {
       toast({
         title: "載入失敗",
         description: error.message,
         variant: "destructive",
       });
+      setPackages([]);
     } finally {
       setLoading(false);
     }
@@ -92,9 +93,10 @@ export default function TreatmentPackages() {
   const loadPatients = async () => {
     try {
       const data = await api.patients.getAll();
-      setPatients(data);
+      setPatients(data || []);
     } catch (error) {
       console.error("Failed to load patients:", error);
+      setPatients([]);
     }
   };
 

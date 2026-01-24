@@ -185,6 +185,36 @@ router.get('/dashboard', async (req, res) => {
 // ========== 組織使用量分析 ==========
 
 /**
+ * GET /api/superadmin/organizations
+ * 獲取所有組織列表（簡化版）
+ */
+router.get('/organizations', async (req, res) => {
+  try {
+    const { isActive, plan } = req.query;
+    let query = 'SELECT id, name, slug, plan, isActive, createdAt FROM organizations WHERE 1=1';
+    const params = [];
+
+    if (isActive !== undefined) {
+      query += ' AND isActive = ?';
+      params.push(isActive === 'true' ? 1 : 0);
+    }
+
+    if (plan) {
+      query += ' AND plan = ?';
+      params.push(plan);
+    }
+
+    query += ' ORDER BY createdAt DESC';
+
+    const organizations = await queryAll(query, params);
+    res.json(organizations);
+  } catch (error) {
+    console.error('Get organizations error:', error);
+    res.status(500).json({ error: '獲取組織列表失敗' });
+  }
+});
+
+/**
  * GET /api/superadmin/organizations/analytics
  * 所有組織的詳細使用量分析
  */
@@ -562,6 +592,8 @@ router.get('/patients', async (req, res) => {
         p.birthDate,
         p.phone,
         p.email,
+        p.bloodType,
+        p.tags,
         p.organizationId,
         o.name as organizationName,
         p.createdAt
@@ -570,7 +602,13 @@ router.get('/patients', async (req, res) => {
       ORDER BY p.createdAt DESC
     `);
 
-    res.json(patients);
+    // 解析 JSON 欄位
+    const parsedPatients = patients.map(p => ({
+      ...p,
+      tags: p.tags ? JSON.parse(p.tags) : []
+    }));
+
+    res.json(parsedPatients);
   } catch (error) {
     console.error('[SuperAdmin] Error fetching patients:', error);
     res.status(500).json({ error: '獲取患者列表失敗' });

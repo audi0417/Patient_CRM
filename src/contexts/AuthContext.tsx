@@ -8,6 +8,7 @@ import {
   isAuthenticated as checkAuthenticated,
   getUserPermissions,
 } from "@/lib/auth";
+import { api } from "@/lib/api";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<LoginResponse>;
@@ -32,6 +33,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const isAuth = await checkAuthenticated();
         if (isAuth) {
+          // 從後端 API 獲取最新的使用者資訊，而不是只依賴 localStorage
+          try {
+            const apiUser = await api.auth.me();
+            if (apiUser) {
+              // 更新 localStorage
+              localStorage.setItem('hospital_crm_current_user', JSON.stringify(apiUser));
+              const permissions = getUserPermissions(apiUser);
+              setAuthState({
+                isAuthenticated: true,
+                user: apiUser,
+                permissions,
+                token: getCurrentToken(),
+              });
+              return;
+            }
+          } catch (apiError) {
+            console.error("Failed to fetch user from API:", apiError);
+          }
+          
+          // 如果 API 失敗，回退到 localStorage
           const user = getCurrentUser();
           if (user) {
             const permissions = getUserPermissions(user);

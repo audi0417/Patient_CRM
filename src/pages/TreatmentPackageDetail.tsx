@@ -88,9 +88,10 @@ export default function TreatmentPackageDetail() {
   const loadUsers = async () => {
     try {
       const data = await api.users.getAll();
-      setUsers(data);
+      setUsers(data || []);
     } catch (error) {
       console.error("Failed to load users:", error);
+      setUsers([]);
     }
   };
 

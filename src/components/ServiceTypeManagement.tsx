@@ -82,10 +82,11 @@ const ServiceTypeManagement = () => {
   const loadData = async () => {
     try {
       const data = await api.serviceTypes.getAll();
-      setServiceTypes(data);
+      setServiceTypes(data || []);
     } catch (error) {
       toast.error("載入服務類別失敗");
       console.error("Load service types error:", error);
+      setServiceTypes([]);
     }
   };
 

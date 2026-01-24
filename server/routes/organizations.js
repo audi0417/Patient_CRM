@@ -647,8 +647,18 @@ router.delete('/:id/admins/:userId', authenticateToken, requireSuperAdmin, async
 // ========== 一般用戶端點 ==========
 
 // 獲取當前組織資訊
-router.get('/me/info', authenticateToken, requireTenant, async (req, res) => {
+router.get('/me/info', authenticateToken, async (req, res) => {
   try {
+    // Super Admin 沒有 organizationId
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.json({
+        id: 'super_admin',
+        name: 'Super Admin',
+        role: 'super_admin',
+        plan: 'enterprise'
+      });
+    }
+
     const org = await queryOne('SELECT * FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
 
     if (!org) {
@@ -690,12 +700,17 @@ router.get('/me/info', authenticateToken, requireTenant, async (req, res) => {
 });
 
 // 更新當前組織設定（僅管理員）
-router.put('/me/settings', authenticateToken, requireTenant, async (req, res) => {
+router.put('/me/settings', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
 
   try {
+    // Super Admin 沒有 organizationId，無法更新
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.status(403).json({ error: 'Super Admin 無法更新組織設定' });
+    }
+
     const { settings } = req.body;
 
     const now = new Date().toISOString();
@@ -713,12 +728,22 @@ router.put('/me/settings', authenticateToken, requireTenant, async (req, res) =>
 });
 
 // 獲取通知設定（僅管理員）
-router.get('/me/notifications', authenticateToken, requireTenant, async (req, res) => {
+router.get('/me/notifications', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '需要管理員權限' });
   }
 
   try {
+    // Super Admin 沒有 organizationId，返回預設值
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.json({
+        notifications: {
+          emailReminders: false,
+          lineReminders: false
+        }
+      });
+    }
+
     const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
 
     if (!org) {

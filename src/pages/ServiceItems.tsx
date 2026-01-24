@@ -58,13 +58,14 @@ export default function ServiceItems() {
     try {
       setLoading(true);
       const items = await treatmentApi.serviceItems.getAll();
-      setServiceItems(items);
+      setServiceItems(items || []);
     } catch (error: any) {
       toast({
         title: "載入失敗",
         description: error.message,
         variant: "destructive",
       });
+      setServiceItems([]);
     } finally {
       setLoading(false);
     }

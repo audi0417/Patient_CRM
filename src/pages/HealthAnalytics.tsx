@@ -59,43 +59,50 @@ const HealthAnalytics = () => {
   }, []);
 
   const loadData = async () => {
-    const patientsData = await getPatients();
-    setPatients(patientsData);
+    try {
+      const patientsData = await getPatients();
+      setPatients(patientsData || []);
 
-    // 載入群組資料
-    const groupsData = await getGroups();
-    setGroups(groupsData);
+      // 載入群組資料
+      const groupsData = await getGroups();
+      setGroups(groupsData || []);
 
-    // 載入每個病患的健康數據摘要
-    const summaries = await Promise.all(
-      patientsData.map(async (patient) => {
-        const bodyRecords = await getBodyCompositionRecords(patient.id);
-        const vitalRecords = await getVitalSignsRecords(patient.id);
+      // 載入每個病患的健康數據摘要
+      const summaries = await Promise.all(
+        (patientsData || []).map(async (patient) => {
+          const bodyRecords = await getBodyCompositionRecords(patient.id);
+          const vitalRecords = await getVitalSignsRecords(patient.id);
 
-        const latestBody = bodyRecords.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        )[0];
-        const latestVital = vitalRecords.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        )[0];
+          const latestBody = (bodyRecords || []).sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )[0];
+          const latestVital = (vitalRecords || []).sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )[0];
 
-        return {
-          patient,
-          bodyCompositionCount: bodyRecords.length,
-          vitalSignsCount: vitalRecords.length,
-          latestWeight: latestBody?.weight,
-          latestBMI: latestBody?.bmi,
-          latestBodyFat: latestBody?.bodyFat,
-          latestBloodPressure:
-            latestVital?.bloodPressureSystolic && latestVital?.bloodPressureDiastolic
-              ? `${latestVital.bloodPressureSystolic}/${latestVital.bloodPressureDiastolic}`
-              : undefined,
-          hasData: bodyRecords.length > 0 || vitalRecords.length > 0,
-        };
-      })
-    );
+          return {
+            patient,
+            bodyCompositionCount: (bodyRecords || []).length,
+            vitalSignsCount: (vitalRecords || []).length,
+            latestWeight: latestBody?.weight,
+            latestBMI: latestBody?.bmi,
+            latestBodyFat: latestBody?.bodyFat,
+            latestBloodPressure:
+              latestVital?.bloodPressureSystolic && latestVital?.bloodPressureDiastolic
+                ? `${latestVital.bloodPressureSystolic}/${latestVital.bloodPressureDiastolic}`
+                : undefined,
+            hasData: (bodyRecords || []).length > 0 || (vitalRecords || []).length > 0,
+          };
+        })
+      );
 
-    setPatientSummaries(summaries);
+      setPatientSummaries(summaries);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setPatients([]);
+      setGroups([]);
+      setPatientSummaries([]);
+    }
   };
 
   const calculateAge = (birthDate: string) => {

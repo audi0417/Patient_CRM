@@ -82,7 +82,7 @@ const LineSettingsContent = () => {
     try {
       const response = await fetch('/api/organizations/me/notifications', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('hospital_crm_auth_token')}`,
         },
       });
 
@@ -91,9 +91,20 @@ const LineSettingsContent = () => {
         if (data.notifications) {
           setNotifications(data.notifications);
         }
+      } else if (response.status === 403) {
+        // Super Admin 沒有組織，使用預設值
+        setNotifications({
+          emailReminders: false,
+          lineReminders: false
+        });
       }
     } catch (error: any) {
       console.error('載入通知設定失敗:', error);
+      // 失敗時使用預設值
+      setNotifications({
+        emailReminders: false,
+        lineReminders: false
+      });
     }
   };
 
@@ -104,7 +115,7 @@ const LineSettingsContent = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('hospital_crm_auth_token')}`,
         },
         body: JSON.stringify({
           [type]: value,

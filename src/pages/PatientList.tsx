@@ -59,7 +59,7 @@ const PatientList = () => {
         });
         if (patientsResponse.ok) {
           const patientsData = await patientsResponse.json();
-          setPatients(patientsData);
+          setPatients(patientsData || []);
         }
 
         // 獲取組織列表
@@ -68,17 +68,20 @@ const PatientList = () => {
         });
         if (orgsResponse.ok) {
           const orgsData = await orgsResponse.json();
-          setOrganizations(orgsData);
+          setOrganizations(orgsData || []);
         }
       } else {
         // 一般管理員：只獲取自己組織的患者和群組
         const patientsData = await getPatients();
         const groupsData = await getGroups();
-        setPatients(patientsData);
-        setGroups(groupsData);
+        setPatients(patientsData || []);
+        setGroups(groupsData || []);
       }
     } catch (error) {
       console.error("載入數據失敗:", error);
+      // 失敗時設置空陣列以避免崩潰
+      setPatients([]);
+      setGroups([]);
     }
   };
 
