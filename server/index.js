@@ -131,8 +131,59 @@ app.get('/api/modules', authToken, getOrganizationModules);
 // ========================================
 // 健康檢查端點
 // ========================================
-app.get('/api/health-check', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health-check', async (req, res) => {
+  const { getDeploymentConfig, getAppVersion } = require('./config/deployment');
+  const { dbAdapter } = require('./database/db');
+
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: getAppVersion(),
+    deployment: getDeploymentConfig().mode,
+    checks: {}
+  };
+
+  // 資料庫連線檢查
+  try {
+    await dbAdapter.queryOne('SELECT 1 as ping');
+    health.checks.database = {
+      status: 'ok',
+      type: require('./database/sqlHelpers').getDbType()
+    };
+  } catch (error) {
+    health.status = 'degraded';
+    health.checks.database = {
+      status: 'fail',
+      error: error.message
+    };
+  }
+
+  // License 檢查（僅地端部署）
+  const deploymentConfig = getDeploymentConfig();
+  if (deploymentConfig.isOnPremise) {
+    health.checks.license = {
+      status: deploymentConfig.license.keyProvided ? 'ok' : 'missing',
+      provided: deploymentConfig.license.keyProvided
+    };
+
+    if (!deploymentConfig.license.keyProvided) {
+      health.status = 'degraded';
+    }
+  }
+
+  // 系統資源
+  health.checks.system = {
+    uptime: process.uptime(),
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      unit: 'MB'
+    },
+    nodeVersion: process.version
+  };
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // ========================================
