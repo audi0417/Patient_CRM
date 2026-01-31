@@ -5,6 +5,7 @@ const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken, checkRole } = require('../middleware/auth');
 const EmailService = require('../services/emailService');
+const { hashPassword } = require('../utils/password');
 
 // 所有路由都需要認證
 router.use(authenticateToken);
@@ -76,8 +77,8 @@ router.post('/', [
       return res.status(400).json({ error: '使用者名稱或電子郵件已存在' });
     }
 
-    // 雜湊密碼 - 使用 SHA256
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    // 雜湊密碼 - 使用 bcrypt
+    const hashedPassword = await hashPassword(password);
     const now = new Date().toISOString();
     const id = `user_${Date.now()}`;
 
@@ -198,7 +199,7 @@ router.post('/:id/reset-password', [
     }
 
     const { password } = req.body;
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const hashedPassword = await hashPassword(password);
     const now = new Date().toISOString();
 
     const result = await execute('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?', [hashedPassword, now, req.params.id]);

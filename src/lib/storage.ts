@@ -14,10 +14,16 @@ const isElectron = () => {
 
 // Patients
 export const getPatients = async (): Promise<Patient[]> => {
-  if (isElectron()) {
-    return await window.electronAPI!.patient.getAll();
+  try {
+    if (isElectron()) {
+      return await window.electronAPI!.patient.getAll();
+    }
+    const result = await api.patients.getAll();
+    return result || [];
+  } catch (error) {
+    console.error('Error loading patients:', error);
+    return [];
   }
-  return api.patients.getAll();
 };
 
 export const getPatientById = async (id: string): Promise<Patient | undefined> => {
@@ -106,20 +112,46 @@ export const deleteHealthRecord = async (id: string): Promise<void> => {
 
 // Appointments
 export const getAppointments = async (patientId?: string): Promise<Appointment[]> => {
-  if (isElectron()) {
-    if (patientId) {
-      return await window.electronAPI!.appointment.getByPatientId(patientId);
+  try {
+    if (isElectron()) {
+      if (patientId) {
+        return await window.electronAPI!.appointment.getByPatientId(patientId);
+      }
+      return await window.electronAPI!.appointment.getAll();
     }
-    return await window.electronAPI!.appointment.getAll();
-  }
 
-  if (patientId) {
-    return api.appointments.getByPatientId(patientId);
+    if (patientId) {
+      const result = await api.appointments.getByPatientId(patientId);
+      return result || [];
+    }
+    const result = await api.appointments.getAll();
+    return result || [];
+  } catch (error) {
+    console.error('Error loading appointments:', error);
+    return [];
   }
-  return api.appointments.getAll();
 };
 
 export const saveAppointment = async (appointment: Appointment): Promise<void> => {
+  // Demo 模式 - 透過 API 層處理
+  if ((window as any).__isDemoMode) {
+    // 更新 Demo 資料
+    const demoData = (window as any).__demoData;
+    if (demoData?.appointments) {
+      const index = demoData.appointments.findIndex((a: Appointment) => a.id === appointment.id);
+      if (index >= 0) {
+        demoData.appointments[index] = appointment;
+      } else {
+        demoData.appointments.push(appointment);
+      }
+      // 觸發更新回調
+      if ((window as any).__demoUpdateCallback) {
+        (window as any).__demoUpdateCallback(demoData.appointments);
+      }
+    }
+    return;
+  }
+
   if (isElectron()) {
     const appointments = await getAppointments();
     const existing = appointments.find((a) => a.id === appointment.id);
@@ -258,11 +290,17 @@ export const deleteAssessment = async (patientId: string): Promise<void> => {
 
 // Body Composition Records
 export const getBodyCompositionRecords = async (patientId?: string): Promise<BodyCompositionRecord[]> => {
-  if (patientId) {
-    return api.health.bodyComposition.getByPatientId(patientId);
+  try {
+    if (patientId) {
+      const result = await api.health.bodyComposition.getByPatientId(patientId);
+      return result || [];
+    }
+    // 如果沒有 patientId，返回空陣列（避免獲取所有患者的記錄）
+    return [];
+  } catch (error) {
+    console.error('Error loading body composition records:', error);
+    return [];
   }
-  // 如果沒有 patientId，返回空陣列（避免獲取所有患者的記錄）
-  return [];
 };
 
 export const saveBodyCompositionRecord = async (record: BodyCompositionRecord): Promise<void> => {
@@ -282,11 +320,17 @@ export const deleteBodyCompositionRecord = async (id: string): Promise<void> => 
 
 // Vital Signs Records
 export const getVitalSignsRecords = async (patientId?: string): Promise<VitalSignsRecord[]> => {
-  if (patientId) {
-    return api.health.vitalSigns.getByPatientId(patientId);
+  try {
+    if (patientId) {
+      const result = await api.health.vitalSigns.getByPatientId(patientId);
+      return result || [];
+    }
+    // 如果沒有 patientId，返回空陣列（避免獲取所有患者的記錄）
+    return [];
+  } catch (error) {
+    console.error('Error loading vital signs records:', error);
+    return [];
   }
-  // 如果沒有 patientId，返回空陣列（避免獲取所有患者的記錄）
-  return [];
 };
 
 export const saveVitalSignsRecord = async (record: VitalSignsRecord): Promise<void> => {
@@ -306,11 +350,17 @@ export const deleteVitalSignsRecord = async (id: string): Promise<void> => {
 
 // Tags Management
 export const getTags = async (): Promise<Tag[]> => {
-  if (isElectron()) {
-    const data = localStorage.getItem(TAGS_KEY);
-    return data ? JSON.parse(data) : [];
+  try {
+    if (isElectron()) {
+      const data = localStorage.getItem(TAGS_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+    const result = await api.tags.getAll();
+    return result || [];
+  } catch (error) {
+    console.error('Error loading tags:', error);
+    return [];
   }
-  return api.tags.getAll();
 };
 
 export const getTagById = async (id: string): Promise<Tag | undefined> => {
@@ -378,11 +428,17 @@ export const deleteTag = async (id: string): Promise<void> => {
 
 // Patient Groups Management
 export const getGroups = async (): Promise<PatientGroup[]> => {
-  if (isElectron()) {
-    const data = localStorage.getItem(GROUPS_KEY);
-    return data ? JSON.parse(data) : [];
+  try {
+    if (isElectron()) {
+      const data = localStorage.getItem(GROUPS_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+    const result = await api.groups.getAll();
+    return result || [];
+  } catch (error) {
+    console.error('Error loading groups:', error);
+    return [];
   }
-  return api.groups.getAll();
 };
 
 export const getGroupById = async (id: string): Promise<PatientGroup | undefined> => {
@@ -485,10 +541,17 @@ export const removePatientFromGroup = async (groupId: string, patientId: string)
 
 // Consultation Records
 export const getConsultationRecords = async (patientId?: string): Promise<ConsultationRecord[]> => {
-  if (patientId) {
-    return api.consultations.getByPatientId(patientId);
+  try {
+    if (patientId) {
+      const result = await api.consultations.getByPatientId(patientId);
+      return result || [];
+    }
+    const result = await api.consultations.getAll();
+    return result || [];
+  } catch (error) {
+    console.error('Error loading consultation records:', error);
+    return [];
   }
-  return api.consultations.getAll();
 };
 
 export const getConsultationById = async (id: string): Promise<ConsultationRecord | undefined> => {

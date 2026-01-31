@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { JWT_SECRET, authenticateToken } = require('../middleware/auth');
+const { hashPassword, verifyPassword } = require('../utils/password');
 
 // 登入
 router.post('/login', [
@@ -23,21 +24,34 @@ router.post('/login', [
     const user = await queryOne('SELECT * FROM users WHERE username = ?', [username]);
 
     if (!user) {
+      // 記錄失敗的登入嘗試
+      if (req.audit) {
+        req.audit('LOGIN', 'auth', null, { username }, 'FAILURE', '使用者不存在');
+      }
       return res.status(401).json({
         success: false,
         message: '使用者名稱或密碼錯誤'
       });
     }
 
-    // 驗證密碼 - 使用 SHA256
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    const isPasswordValid = hashedPassword === user.password;
+    // 驗證密碼 - 使用新的驗證函式（支援 bcrypt 和舊版 SHA256）
+    const { isValid, needsRehash } = await verifyPassword(password, user.password);
 
-    if (!isPasswordValid) {
+    if (!isValid) {
+      // 記錄失敗的登入嘗試
+      if (req.audit) {
+        req.audit('LOGIN', 'auth', user.id, { username }, 'FAILURE', '密碼錯誤');
+      }
       return res.status(401).json({
         success: false,
         message: '使用者名稱或密碼錯誤'
       });
+    }
+
+    // 如果使用舊版 SHA256，透明地重新雜湊為 bcrypt
+    if (needsRehash) {
+      const newHash = await hashPassword(password);
+      await execute('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id]);
     }
 
     // 檢查帳號是否啟用
@@ -71,11 +85,13 @@ router.post('/login', [
     const now = new Date().toISOString();
     await execute('UPDATE users SET lastLogin = ?, updatedAt = ? WHERE id = ?', [now, now, user.id]);
 
-    // 生成 JWT Token（包含 organizationId）
+    // 生成 JWT Token（包含 organizationId 和 jti）
+    const jti = crypto.randomBytes(16).toString('hex');
     const tokenPayload = {
       id: user.id,
       username: user.username,
-      role: user.role
+      role: user.role,
+      jti
     };
 
     // 只有非 super_admin 需要 organizationId
@@ -86,16 +102,31 @@ router.post('/login', [
     const token = jwt.sign(
       tokenPayload,
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '4h' } // 從 24h 縮短至 4h
     );
+
+    // 產生 refresh token（7 天有效期）
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    await execute(`
+      INSERT INTO refresh_tokens ("userId", token, "expiresAt")
+      VALUES (?, ?, ?)
+    `, [user.id, refreshToken, refreshExpiresAt]);
 
     // 移除密碼後返回使用者資訊
     const { password: _, ...userWithoutPassword } = user;
+
+    // 記錄成功的登入
+    if (req.audit) {
+      req.audit('LOGIN', 'auth', user.id, { username: user.username, role: user.role });
+    }
 
     res.json({
       success: true,
       user: userWithoutPassword,
       token,
+      refreshToken,
       isFirstLogin: user.isFirstLogin === 1 || user.isFirstLogin === true,
       message: '登入成功'
     });
@@ -108,10 +139,109 @@ router.post('/login', [
   }
 });
 
+// 刷新 token
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      message: '缺少 refresh token'
+    });
+  }
+
+  try {
+    // 查詢 refresh token
+    const tokenRecord = await queryOne(`
+      SELECT * FROM refresh_tokens
+      WHERE token = ? AND "expiresAt" > datetime('now')
+    `, [refreshToken]);
+
+    if (!tokenRecord) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token 無效或已過期'
+      });
+    }
+
+    // 獲取使用者資訊
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [tokenRecord.userId]);
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: '使用者不存在或已停用'
+      });
+    }
+
+    // 產生新的 access token
+    const jti = crypto.randomBytes(16).toString('hex');
+    const tokenPayload = {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      jti
+    };
+
+    if (user.organizationId) {
+      tokenPayload.organizationId = user.organizationId;
+    }
+
+    const newToken = jwt.sign(
+      tokenPayload,
+      JWT_SECRET,
+      { expiresIn: '4h' }
+    );
+
+    // 記錄 token 刷新
+    if (req.audit) {
+      req.audit('REFRESH_TOKEN', 'auth', user.id);
+    }
+
+    res.json({
+      success: true,
+      token: newToken
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: '刷新 token 失敗'
+    });
+  }
+});
+
 // 登出
-router.post('/logout', authenticateToken, (req, res) => {
-  // 客戶端負責刪除 token
-  res.json({ success: true, message: '登出成功' });
+router.post('/logout', authenticateToken, async (req, res) => {
+  const { jti } = req.user;
+  const { refreshToken } = req.body;
+
+  try {
+    // 將 access token 加入黑名單（4 小時後過期）
+    const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    await execute(`
+      INSERT INTO token_blacklist (jti, "expiresAt")
+      VALUES (?, ?)
+    `, [jti, expiresAt]);
+
+    // 刪除 refresh token
+    if (refreshToken) {
+      await execute('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+    }
+
+    // 記錄登出行為
+    if (req.audit) {
+      req.audit('LOGOUT', 'auth', req.user.id);
+    }
+
+    res.json({ success: true, message: '登出成功' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: '登出失敗'
+    });
+  }
 });
 
 // 驗證 Token
@@ -186,10 +316,9 @@ router.post('/first-login-password', [
       });
     }
 
-    // 驗證目前密碼 - 使用 SHA256
-    const hashedCurrentPassword = crypto.createHash('sha256').update(currentPassword).digest('hex');
-    const isCurrentPasswordValid = hashedCurrentPassword === user.password;
-    if (!isCurrentPasswordValid) {
+    // 驗證目前密碼 - 使用新的驗證函式
+    const { isValid } = await verifyPassword(currentPassword, user.password);
+    if (!isValid) {
       return res.status(401).json({
         success: false,
         message: '目前密碼錯誤'
@@ -204,8 +333,8 @@ router.post('/first-login-password', [
       });
     }
 
-    // 更新密碼並標記非首次登入 - 使用 SHA256 加密
-    const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+    // 更新密碼並標記非首次登入 - 使用 bcrypt 加密
+    const hashedNewPassword = await hashPassword(newPassword);
     const now = new Date().toISOString();
     await execute(
       'UPDATE users SET password = ?, isFirstLogin = ?, updatedAt = ? WHERE id = ?',
@@ -257,10 +386,9 @@ router.post('/change-password', [
       });
     }
 
-    // 驗證舊密碼 - 使用 SHA256
-    const hashedOldPassword = crypto.createHash('sha256').update(oldPassword).digest('hex');
-    const isOldPasswordValid = hashedOldPassword === user.password;
-    if (!isOldPasswordValid) {
+    // 驗證舊密碼 - 使用新的驗證函式
+    const { isValid } = await verifyPassword(oldPassword, user.password);
+    if (!isValid) {
       return res.status(401).json({
         success: false,
         message: '舊密碼錯誤'
@@ -275,8 +403,8 @@ router.post('/change-password', [
       });
     }
 
-    // 更新密碼 - 使用 SHA256 加密
-    const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+    // 更新密碼 - 使用 bcrypt 加密
+    const hashedNewPassword = await hashPassword(newPassword);
     const now = new Date().toISOString();
     await execute('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?', [hashedNewPassword, now, userId]);
 

@@ -107,6 +107,7 @@ function getSchemaSQL(dbType = 'sqlite') {
       groups ${types.json},
       "healthProfile" ${types.json},
       "organizationId" ${types.varcharLong} NOT NULL,
+      _encrypted ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
       FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE CASCADE
@@ -318,6 +319,7 @@ function getSchemaSQL(dbType = 'sqlite') {
       plan ${types.text},
       notes ${types.text},
       "organizationId" ${types.text},
+      _encrypted ${types.text},
       "createdAt" ${types.timestamp} NOT NULL,
       "updatedAt" ${types.timestamp} NOT NULL,
       FOREIGN KEY ("patientId") REFERENCES patients(id) ON DELETE CASCADE,
@@ -461,6 +463,44 @@ function getSchemaSQL(dbType = 'sqlite') {
       name ${types.text} NOT NULL UNIQUE,
       executed_at ${types.timestamp} DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- 稽核日誌表
+    ${createTablePrefix} audit_logs (
+      id ${types.autoIncrement},
+      timestamp ${types.timestamp} NOT NULL DEFAULT ${isPostgres ? 'CURRENT_TIMESTAMP' : "CURRENT_TIMESTAMP"},
+      "userId" ${types.text},
+      username ${types.text},
+      "userRole" ${types.text},
+      "organizationId" ${types.text},
+      action ${types.text} NOT NULL,
+      resource ${types.text} NOT NULL,
+      "resourceId" ${types.text},
+      details ${types.text},
+      "ipAddress" ${types.text},
+      "userAgent" ${types.text},
+      status ${types.text} DEFAULT 'SUCCESS',
+      "errorMessage" ${types.text},
+
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id) ON DELETE SET NULL
+    );
+
+    -- Refresh Token 表
+    ${createTablePrefix} refresh_tokens (
+      id ${types.autoIncrement},
+      "userId" ${types.text} NOT NULL,
+      token ${types.text} NOT NULL UNIQUE,
+      "expiresAt" ${types.timestamp} NOT NULL,
+      "createdAt" ${types.timestamp} NOT NULL DEFAULT ${isPostgres ? 'CURRENT_TIMESTAMP' : "CURRENT_TIMESTAMP"},
+
+      FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Token 黑名單表
+    ${createTablePrefix} token_blacklist (
+      jti ${types.text} PRIMARY KEY,
+      "expiresAt" ${types.timestamp} NOT NULL,
+      "createdAt" ${types.timestamp} NOT NULL DEFAULT ${isPostgres ? 'CURRENT_TIMESTAMP' : "CURRENT_TIMESTAMP"}
+    );
   `;
 }
 
@@ -520,6 +560,20 @@ function getIndexesSQL(dbType = 'sqlite') {
     CREATE INDEX IF NOT EXISTS idx_line_messages_conversation ON line_messages("conversationId", "createdAt" DESC);
     CREATE INDEX IF NOT EXISTS idx_line_messages_org ON line_messages("organizationId");
     CREATE INDEX IF NOT EXISTS idx_line_messages_line_id ON line_messages("lineMessageId");
+
+    -- 稽核日誌索引
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs("userId", timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_org ON audit_logs("organizationId", timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource, "resourceId");
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action, timestamp DESC);
+
+    -- Refresh Token 索引
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens("userId");
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens("expiresAt");
+
+    -- Token 黑名單索引
+    CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist("expiresAt");
   `;
 }
 

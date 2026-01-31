@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { DemoProvider } from "@/contexts/DemoContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "./components/Header";
 import NotificationToasts from "./components/NotificationToasts";
@@ -24,6 +25,7 @@ import LineMessages from "./pages/LineMessages";
 import ServiceItems from "./pages/ServiceItems";
 import TreatmentPackages from "./pages/TreatmentPackages";
 import TreatmentPackageDetail from "./pages/TreatmentPackageDetail";
+import DemoExperience from "./pages/DemoExperience";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -206,20 +208,93 @@ const AppRoutes = () => {
   );
 };
 
+// Demo 模式下的路由 - 使用原版介面但跳過部分權限檢查
+const DemoRoutes = () => {
+  return (
+    <Routes>
+      {/* Demo 入口和問卷 */}
+      <Route path="/demo" element={<DemoExperience />} />
+
+      {/* Demo 模式下可訪問的頁面 - 使用真實介面 */}
+      <Route
+        path="/"
+        element={
+          <ProtectedLayout>
+            <PatientList />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/patient/:id"
+        element={
+          <ProtectedLayout>
+            <PatientDetail />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/appointments"
+        element={
+          <ProtectedLayout>
+            <Appointments />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedLayout>
+            <Settings />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/service-items"
+        element={
+          <ProtectedLayout>
+            <ServiceItems />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/treatment-packages"
+        element={
+          <ProtectedLayout>
+            <TreatmentPackages />
+          </ProtectedLayout>
+        }
+      />
+
+      {/* Demo 模式下限制訪問的頁面 - 重定向到首頁 */}
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/users" element={<Navigate to="/" replace />} />
+      <Route path="/superadmin/*" element={<Navigate to="/" replace />} />
+      <Route path="/analytics" element={<Navigate to="/" replace />} />
+      <Route path="/line/*" element={<Navigate to="/" replace />} />
+
+      {/* 其他路由 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <NotificationProvider>
-            <AppRoutes />
-          </NotificationProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <DemoProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              {/* 根據 Demo 模式選擇路由 */}
+              {(window as any).__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
+            </NotificationProvider>
+          </AuthProvider>
+        </DemoProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
 );
 
 export default App;

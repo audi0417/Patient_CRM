@@ -83,6 +83,63 @@ class PostgresAdapter extends DatabaseAdapter {
   }
 
   /**
+   * 設定當前請求的組織上下文（用於 RLS）
+   * @param {string} organizationId - 組織 ID
+   * @param {Object} client - PostgreSQL 客戶端（可選，用於交易）
+   */
+  async setOrgContext(organizationId, client = null) {
+    if (!organizationId) {
+      return; // 如果沒有 organizationId（如 super_admin），不設定上下文
+    }
+
+    const targetClient = client || this.pool;
+
+    try {
+      // 使用 SET LOCAL 確保上下文僅在當前交易有效
+      // 這樣即使連線池復用連線，上下文也不會洩漏到其他請求
+      await targetClient.query('SET LOCAL app.current_org_id = $1', [organizationId]);
+    } catch (error) {
+      console.error('[PostgreSQL RLS] 設定組織上下文失敗:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 在組織上下文中執行回調函式
+   * @param {string} organizationId - 組織 ID
+   * @param {Function} callback - 要執行的函式
+   * @returns {Promise<any>} 回調函式的返回值
+   */
+  async withOrgContext(organizationId, callback) {
+    const client = await this.pool.connect();
+
+    try {
+      // 開始交易
+      await client.query('BEGIN');
+
+      // 設定組織上下文
+      if (organizationId) {
+        await client.query('SET LOCAL app.current_org_id = $1', [organizationId]);
+      }
+
+      // 執行回調
+      const result = await callback(client);
+
+      // 提交交易
+      await client.query('COMMIT');
+
+      return result;
+    } catch (error) {
+      // 回滾交易
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      // 釋放客戶端
+      client.release();
+    }
+  }
+
+  /**
    * 執行查詢並返回所有結果
    */
   async query(sql, params = []) {

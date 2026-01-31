@@ -1,0 +1,13 @@
+[
+  {
+    "id": "user_1762331611627_vlkex9my6",
+    "username": "admin",
+    "password": "$2b$10$4r6i4p.hIVBT2Bop9EVbBelBjOlh2pNgbAUgLQGR5sL3ZwETTlA4q",
+    "fullName": "系統管理員",
+    "email": "admin@hospital.com",
+    "role": "super_admin",
+    "isActive": true,
+    "createdAt": "2025-11-05T08:33:31.627Z",
+    "updatedAt": "2025-11-05T08:33:31.628Z"
+  }
+]

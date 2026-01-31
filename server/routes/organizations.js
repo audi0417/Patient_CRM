@@ -18,6 +18,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin, requireTenant } = require('../middleware/tenantContext');
 const { queryOne, queryAll, execute, transaction } = require('../database/helpers');
 const { getDefaultModuleSettings } = require('../config/modules');
+const { hashPassword } = require('../utils/password');
 
 // ========== 超級管理員端點 ==========
 
@@ -224,7 +225,7 @@ router.post('/', authenticateToken, requireSuperAdmin, async (req, res) => {
       // 步驟 2: 創建管理員帳號（使用 slug 作為帳號名稱）
       const adminUsername = slug.trim().toLowerCase();
       const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12);
-      const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
+      const hashedPassword = await hashPassword(generatedPassword);
       const adminId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       await execute(`
@@ -510,7 +511,7 @@ router.post('/:id/admins', authenticateToken, requireSuperAdmin, async (req, res
     // 生成預設帳號資訊
     const defaultUsername = username || `admin_${org.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
     const generatedPassword = crypto.randomBytes(8).toString('base64').slice(0, 12); // 生成 12 位隨機密碼
-    const hashedPassword = crypto.createHash('sha256').update(generatedPassword).digest('hex');
+    const hashedPassword = await hashPassword(generatedPassword);
 
     // 檢查使用者名稱是否已存在
     const existing = await queryOne('SELECT id FROM users WHERE username = ?', [defaultUsername]);
@@ -585,7 +586,7 @@ router.post('/:id/admins/:userId/reset-password', authenticateToken, requireSupe
 
     // 生成新密碼
     const newPassword = crypto.randomBytes(8).toString('base64').slice(0, 12);
-    const hashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+    const hashedPassword = await hashPassword(newPassword);
     const now = new Date().toISOString();
 
     await execute(

@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const crypto = require('crypto');
+const { hashPassword } = require('../utils/password');
 
 // 產生隨機日期 (過去 N 天到今天)
 function randomDate(daysAgo = 180) {
@@ -50,7 +51,7 @@ router.post('/', async (req, res) => {
 
     // 1. Insert test users
     console.log('[Seed] Inserting test users...');
-    const hashedPassword = crypto.createHash('sha256').update('password123').digest('hex');
+    const hashedPassword = await hashPassword('password123');
 
     const testUsers = [
       {

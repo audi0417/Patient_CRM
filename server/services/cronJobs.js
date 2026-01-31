@@ -6,8 +6,9 @@
  */
 
 const cron = require('node-cron');
-const { queryOne, queryAll } = require('../database/helpers');
+const { queryOne, queryAll, execute } = require('../database/helpers');
 const EmailService = require('./emailService');
+const { now, quoteIdentifier } = require('../database/sqlHelpers');
 
 /**
  * 啟動所有定時任務
@@ -21,6 +22,12 @@ function startCronJobs() {
     await sendTomorrowAppointmentReminders();
   });
 
+  // 每天凌晨 2:00 清理過期的 token
+  cron.schedule('0 2 * * *', async () => {
+    console.log('🧹 開始清理過期 token...');
+    await cleanupExpiredTokens();
+  });
+
   // 開發測試：每分鐘執行一次（注釋掉以避免測試時頻繁執行）
   // cron.schedule('* * * * *', async () => {
   //   console.log('🧪 [測試] 檢查明日預約...');
@@ -29,6 +36,7 @@ function startCronJobs() {
 
   console.log('✅ 定時任務已啟動：');
   console.log('   - 每日 09:00 發送明日預約提醒');
+  console.log('   - 每日 02:00 清理過期 token');
 }
 
 /**
@@ -192,7 +200,33 @@ async function sendTomorrowAppointmentReminders() {
   }
 }
 
+/**
+ * 清理過期的 token（黑名單和 refresh token）
+ */
+async function cleanupExpiredTokens() {
+  try {
+    // 清理過期的黑名單 token
+    const blacklistResult = await execute(`
+      DELETE FROM token_blacklist WHERE ${quoteIdentifier('expiresAt')} < ${now()}
+    `);
+
+    console.log(`🗑️  已清理 ${blacklistResult.changes || 0} 個過期的黑名單 token`);
+
+    // 清理過期的 refresh token
+    const refreshResult = await execute(`
+      DELETE FROM refresh_tokens WHERE ${quoteIdentifier('expiresAt')} < ${now()}
+    `);
+
+    console.log(`🗑️  已清理 ${refreshResult.changes || 0} 個過期的 refresh token`);
+    console.log('✅ Token 清理完成');
+
+  } catch (error) {
+    console.error('❌ 清理過期 token 時發生錯誤:', error);
+  }
+}
+
 module.exports = {
   startCronJobs,
-  sendTomorrowAppointmentReminders // 導出以便測試
+  sendTomorrowAppointmentReminders, // 導出以便測試
+  cleanupExpiredTokens // 導出以便測試
 };

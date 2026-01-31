@@ -56,6 +56,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 稽核日誌中介層（在認證之後會自動記錄）
+const auditMiddleware = require('./middleware/auditLog');
+app.use(auditMiddleware);
+
 // 注意：移除全域 API 限流以避免影響正常使用
 // 僅在關鍵端點（如登入）應用特定限流保護
 
@@ -88,6 +92,7 @@ const treatmentPackageRoutes = require('./routes/treatmentPackages');
 const emailRoutes = require('./routes/email');
 const groupRoutes = require('./routes/groups');
 const tagRoutes = require('./routes/tags');
+const auditLogRoutes = require('./routes/auditLogs');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -114,6 +119,7 @@ app.use('/api/treatment-packages', treatmentPackageRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // ========================================
 // 模組配置端點

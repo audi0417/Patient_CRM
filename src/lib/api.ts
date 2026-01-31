@@ -49,6 +49,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 // 儲存 token 的 key
 const AUTH_TOKEN_KEY = "hospital_crm_auth_token";
+const REFRESH_TOKEN_KEY = "hospital_crm_refresh_token";
 
 /**
  * API 錯誤類別
@@ -86,12 +87,210 @@ const clearToken = (): void => {
 };
 
 /**
+ * 取得 refresh token
+ */
+const getRefreshToken = (): string | null => {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+};
+
+/**
+ * 設置 refresh token
+ */
+const setRefreshToken = (token: string): void => {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+};
+
+/**
+ * 清除 refresh token
+ */
+const clearRefreshToken = (): void => {
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
+
+/**
+ * Demo 模式資料存取器
+ * 用於從 DemoContext 獲取模擬資料
+ */
+const getDemoData = () => {
+  return (window as any).__demoData || {
+    patients: [],
+    appointments: [],
+    user: null,
+  };
+};
+
+/**
+ * 設置 Demo 資料（由 DemoContext 調用）
+ */
+export const setDemoData = (data: { patients: any[]; appointments: any[]; user: any }) => {
+  (window as any).__demoData = data;
+};
+
+/**
+ * Demo 模式 API 攔截處理
+ */
+function handleDemoRequest<T>(endpoint: string, options: RequestInit = {}): T | null {
+  const method = options.method || 'GET';
+  const demoData = getDemoData();
+
+  // 服務類型
+  if (endpoint.includes('/service-types')) {
+    return [
+      { id: '1', name: '一般回診', color: '#3b82f6', isActive: 1, displayOrder: 1 },
+      { id: '2', name: '初診', color: '#10b981', isActive: 1, displayOrder: 2 },
+      { id: '3', name: '諮詢', color: '#8b5cf6', isActive: 1, displayOrder: 3 },
+      { id: '4', name: '手術', color: '#ef4444', isActive: 1, displayOrder: 4 },
+      { id: '5', name: '療程', color: '#f59e0b', isActive: 1, displayOrder: 5 },
+    ] as T;
+  }
+
+  // 病患資料
+  if (endpoint === '/patients' && method === 'GET') {
+    return demoData.patients as T;
+  }
+
+  if (endpoint.match(/^\/patients\/[^/]+$/) && method === 'GET') {
+    const id = endpoint.split('/').pop();
+    return demoData.patients.find((p: any) => p.id === id) as T;
+  }
+
+  // 預約資料
+  if (endpoint === '/appointments' && method === 'GET') {
+    return demoData.appointments as T;
+  }
+
+  if (endpoint.includes('/appointments?patientId=')) {
+    const patientId = endpoint.split('patientId=')[1];
+    return demoData.appointments.filter((a: any) => a.patientId === patientId) as T;
+  }
+
+  if (endpoint.match(/^\/appointments\/[^/]+$/) && method === 'PUT') {
+    // 更新預約 - 觸發 demo 更新回調
+    const body = options.body ? JSON.parse(options.body as string) : {};
+    const id = endpoint.split('/').pop();
+    const index = demoData.appointments.findIndex((a: any) => a.id === id);
+    if (index >= 0) {
+      demoData.appointments[index] = { ...demoData.appointments[index], ...body };
+      // 觸發更新回調
+      if ((window as any).__demoUpdateCallback) {
+        (window as any).__demoUpdateCallback(demoData.appointments);
+      }
+    }
+    return demoData.appointments[index] as T;
+  }
+
+  // 認證相關
+  if (endpoint === '/auth/me' || endpoint === '/auth/verify') {
+    return {
+      valid: true,
+      user: demoData.user,
+      ...demoData.user,
+    } as T;
+  }
+
+  // 群組資料
+  if (endpoint === '/groups') {
+    return [
+      { id: 'demo-group-1', name: 'VIP 客戶', description: '高價值客戶群組', patientCount: 2 },
+      { id: 'demo-group-2', name: '定期回診', description: '需要定期追蹤的客戶', patientCount: 3 },
+    ] as T;
+  }
+
+  // 標籤資料
+  if (endpoint === '/tags') {
+    return [
+      { id: 'demo-tag-1', name: 'VIP客戶', color: '#f59e0b' },
+      { id: 'demo-tag-2', name: '初診', color: '#10b981' },
+      { id: 'demo-tag-3', name: '會員', color: '#3b82f6' },
+    ] as T;
+  }
+
+  // 健康記錄 - 返回空陣列
+  if (endpoint.includes('/health/body-composition') || endpoint.includes('/health/vital-signs')) {
+    if (method === 'GET') {
+      return [] as T;
+    }
+    return { success: true } as T;
+  }
+
+  // 目標 - 返回空陣列
+  if (endpoint.includes('/goals')) {
+    if (method === 'GET') {
+      return [] as T;
+    }
+    return { success: true } as T;
+  }
+
+  // 諮詢記錄 - 返回空陣列
+  if (endpoint.includes('/consultations')) {
+    if (method === 'GET') {
+      return [] as T;
+    }
+    return { success: true } as T;
+  }
+
+  // LINE 相關 - 返回空資料
+  if (endpoint.includes('/line/')) {
+    if (endpoint.includes('/config')) {
+      return { isConfigured: false } as T;
+    }
+    return [] as T;
+  }
+
+  // 服務項目
+  if (endpoint.includes('/service-items')) {
+    if (method === 'GET') {
+      return [
+        { id: 1, name: '皮秒雷射', category: '雷射', price: 3000, isActive: true, displayOrder: 1 },
+        { id: 2, name: '玻尿酸填充', category: '注射', price: 8000, isActive: true, displayOrder: 2 },
+        { id: 3, name: '肉毒桿菌', category: '注射', price: 5000, isActive: true, displayOrder: 3 },
+      ] as T;
+    }
+    return { success: true } as T;
+  }
+
+  // 療程方案
+  if (endpoint.includes('/treatment-packages')) {
+    if (method === 'GET') {
+      return [] as T;
+    }
+    return { success: true } as T;
+  }
+
+  // 使用者
+  if (endpoint === '/users') {
+    return [demoData.user].filter(Boolean) as T;
+  }
+
+  // 預設返回 null，表示需要執行真實請求
+  return null;
+}
+
+// 防止無限重試的標記
+let isRefreshing = false;
+
+/**
  * 統一的 API 請求方法
  */
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  _isRetry: boolean = false
 ): Promise<T> {
+  // Demo Mode Interception
+  if ((window as any).__isDemoMode) {
+    console.log(`[Demo API] Intercepted: ${options.method || 'GET'} ${endpoint}`);
+
+    const demoResult = handleDemoRequest<T>(endpoint, options);
+    if (demoResult !== null) {
+      return demoResult;
+    }
+
+    // 未處理的端點返回空物件
+    console.log(`[Demo API] Unhandled endpoint: ${endpoint}`);
+    return {} as T;
+  }
+
   const token = getToken();
 
   const headers: HeadersInit = {
@@ -125,6 +324,57 @@ async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // 處理 401 未授權錯誤 - 嘗試使用 refresh token 刷新
+      if (response.status === 401 && !_isRetry && !isRefreshing) {
+        const refreshToken = getRefreshToken();
+
+        // 如果有 refresh token，嘗試刷新
+        if (refreshToken && endpoint !== '/auth/refresh') {
+          isRefreshing = true;
+
+          try {
+            const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ refreshToken }),
+            });
+
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+
+              if (refreshData.success && refreshData.token) {
+                // 儲存新的 token
+                setToken(refreshData.token);
+                isRefreshing = false;
+
+                // 重試原始請求
+                return apiRequest<T>(endpoint, options, true);
+              }
+            }
+
+            // Refresh 失敗，清除 tokens 並導向登入頁
+            isRefreshing = false;
+            clearToken();
+            clearRefreshToken();
+            window.location.href = '/login';
+            throw new ApiError('登入已過期，請重新登入', 401);
+          } catch (error) {
+            isRefreshing = false;
+            clearToken();
+            clearRefreshToken();
+            window.location.href = '/login';
+            throw new ApiError('登入已過期，請重新登入', 401);
+          }
+        } else {
+          // 沒有 refresh token，直接導向登入頁
+          clearToken();
+          clearRefreshToken();
+          window.location.href = '/login';
+        }
+      }
+
       throw new ApiError(
         data.error || data.message || 'API request failed',
         response.status,
@@ -165,9 +415,12 @@ export const api = {
         body: JSON.stringify(credentials),
       });
 
-      // 儲存 token
+      // 儲存 token 和 refresh token
       if (response.success && response.token) {
         setToken(response.token);
+        if (response.refreshToken) {
+          setRefreshToken(response.refreshToken);
+        }
       }
 
       return response;
@@ -177,13 +430,17 @@ export const api = {
      * 登出
      */
     logout: async (): Promise<void> => {
+      const refreshToken = getRefreshToken();
+
       try {
         await apiRequest('/auth/logout', {
           method: 'POST',
+          body: JSON.stringify({ refreshToken }),
         });
       } finally {
-        // 無論 API 是否成功，都清除本地 token
+        // 無論 API 是否成功，都清除本地 token 和 refresh token
         clearToken();
+        clearRefreshToken();
       }
     },
 

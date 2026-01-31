@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { queryOne } = require('../database/helpers');
 
 // 強制要求設置 JWT_SECRET
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -12,7 +13,7 @@ if (!JWT_SECRET) {
 }
 
 // 驗證 JWT Token
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -22,6 +23,19 @@ function authenticateToken(req, res, next) {
 
   try {
     const user = jwt.verify(token, JWT_SECRET);
+
+    // 檢查 token 是否在黑名單中（僅當 token 包含 jti 時）
+    if (user.jti) {
+      const isBlacklisted = await queryOne(
+        'SELECT 1 FROM token_blacklist WHERE jti = ?',
+        [user.jti]
+      );
+
+      if (isBlacklisted) {
+        return res.status(403).json({ error: 'Token 已撤銷' });
+      }
+    }
+
     req.user = user;
 
     // 多租戶架構：注入 organizationId

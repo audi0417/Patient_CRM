@@ -17,6 +17,16 @@ const { db } = require('../database/db');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireSuperAdmin } = require('../middleware/tenantContext');
+const {
+  whereBool,
+  currentMonthStart,
+  formatMonth,
+  getTablesQuery,
+  currentDate,
+  quoteIdentifier,
+  daysAgo,
+  weeksAgo
+} = require('../database/sqlHelpers');
 
 // 所有端點都需要超級管理員權限
 router.use(authenticateToken);
@@ -32,8 +42,8 @@ router.get('/dashboard', async (req, res) => {
   try {
     // 1. 組織統計
     const orgTotal = await queryOne('SELECT COUNT(*) as count FROM organizations');
-    const orgActive = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE isActive = 1');
-    const orgInactive = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE isActive = 0');
+    const orgActive = await queryOne(`SELECT COUNT(*) as count FROM organizations WHERE ${whereBool('isActive', true)}`);
+    const orgInactive = await queryOne(`SELECT COUNT(*) as count FROM organizations WHERE ${whereBool('isActive', false)}`);
     const orgBasic = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['basic']);
     const orgProfessional = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['professional']);
     const orgEnterprise = await queryOne('SELECT COUNT(*) as count FROM organizations WHERE plan = ?', ['enterprise']);
@@ -51,7 +61,7 @@ router.get('/dashboard', async (req, res) => {
 
     // 2. 用戶統計
     const userTotal = await queryOne('SELECT COUNT(*) as count FROM users WHERE role != ?', ['super_admin']);
-    const userActive = await queryOne('SELECT COUNT(*) as count FROM users WHERE isActive = 1 AND role != ?', ['super_admin']);
+    const userActive = await queryOne(`SELECT COUNT(*) as count FROM users WHERE ${whereBool('isActive', true)} AND role != ?`, ['super_admin']);
     const userAdmins = await queryOne('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
     const userRegular = await queryOne('SELECT COUNT(*) as count FROM users WHERE role = ?', ['user']);
 
@@ -66,11 +76,11 @@ router.get('/dashboard', async (req, res) => {
     const patientTotal = await queryOne('SELECT COUNT(*) as count FROM patients');
     const patientThisMonth = await queryOne(`
       SELECT COUNT(*) as count FROM patients
-      WHERE date(createdAt) >= date('now', 'start of month')
+      WHERE DATE(${quoteIdentifier('createdAt')}) >= ${currentMonthStart()}
     `);
     const patientThisWeek = await queryOne(`
       SELECT COUNT(*) as count FROM patients
-      WHERE date(createdAt) >= date('now', 'weekday 0', '-7 days')
+      WHERE DATE(${quoteIdentifier('createdAt')}) >= ${weeksAgo(1)}
     `);
 
     const patientStats = {
@@ -86,7 +96,7 @@ router.get('/dashboard', async (req, res) => {
     const appointmentCancelled = await queryOne('SELECT COUNT(*) as count FROM appointments WHERE status = ?', ['cancelled']);
     const appointmentThisMonth = await queryOne(`
       SELECT COUNT(*) as count FROM appointments
-      WHERE date(date) >= date('now', 'start of month')
+      WHERE DATE(${quoteIdentifier('date')}) >= ${currentMonthStart()}
     `);
 
     const appointmentStats = {
@@ -98,12 +108,11 @@ router.get('/dashboard', async (req, res) => {
     };
 
     // 5. 系統健康指標
-    const dbInfo = await queryAll('PRAGMA database_list');
-    const tableCountResult = await queryOne("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'");
+    const tableCountResult = await queryOne(getTablesQuery().replace('SELECT table_name', 'SELECT COUNT(*) as count'));
 
     const systemHealth = {
       database: {
-        size: dbInfo[0] ? 'Connected' : 'Unknown',
+        type: require('../database/sqlHelpers').getDbType(),
         tables: tableCountResult.count
       },
       uptime: process.uptime(),
@@ -121,11 +130,11 @@ router.get('/dashboard', async (req, res) => {
     // 7. 配額使用率警告（接近上限的組織）
     const quotaData = await queryAll(`
       SELECT
-        o.id, o.name, o.slug, o.plan, o.maxUsers, o.maxPatients,
-        (SELECT COUNT(*) FROM users WHERE organizationId = o.id AND isActive = 1) as currentUsers,
-        (SELECT COUNT(*) FROM patients WHERE organizationId = o.id) as currentPatients
+        o.id, o.name, o.slug, o.plan, ${quoteIdentifier('o.maxUsers')}, ${quoteIdentifier('o.maxPatients')},
+        (SELECT COUNT(*) FROM users WHERE ${quoteIdentifier('organizationId')} = o.id AND ${whereBool('isActive', true)}) as currentUsers,
+        (SELECT COUNT(*) FROM patients WHERE ${quoteIdentifier('organizationId')} = o.id) as currentPatients
       FROM organizations o
-      WHERE o.isActive = 1
+      WHERE ${whereBool('o.isActive', true)}
     `);
 
     const quotaWarnings = quotaData.map(org => {
@@ -149,12 +158,12 @@ router.get('/dashboard', async (req, res) => {
 
       const newOrgs = await queryOne(`
         SELECT COUNT(*) as count FROM organizations
-        WHERE strftime('%Y-%m', createdAt) = ?
+        WHERE ${formatMonth('createdAt')} = ?
       `, [monthStr]);
 
       const newPatients = await queryOne(`
         SELECT COUNT(*) as count FROM patients
-        WHERE strftime('%Y-%m', createdAt) = ?
+        WHERE ${formatMonth('createdAt')} = ?
       `, [monthStr]);
 
       monthlyGrowth.push({
@@ -191,12 +200,12 @@ router.get('/dashboard', async (req, res) => {
 router.get('/organizations', async (req, res) => {
   try {
     const { isActive, plan } = req.query;
-    let query = 'SELECT id, name, slug, plan, isActive, createdAt FROM organizations WHERE 1=1';
+    let query = `SELECT id, name, slug, plan, ${quoteIdentifier('isActive')}, ${quoteIdentifier('createdAt')} FROM organizations WHERE 1=1`;
     const params = [];
 
     if (isActive !== undefined) {
-      query += ' AND isActive = ?';
-      params.push(isActive === 'true' ? 1 : 0);
+      const boolValue = isActive === 'true';
+      query += ` AND ${whereBool('isActive', boolValue)}`;
     }
 
     if (plan) {
@@ -204,7 +213,7 @@ router.get('/organizations', async (req, res) => {
       params.push(plan);
     }
 
-    query += ' ORDER BY createdAt DESC';
+    query += ` ORDER BY ${quoteIdentifier('createdAt')} DESC`;
 
     const organizations = await queryAll(query, params);
     res.json(organizations);
@@ -232,10 +241,10 @@ router.get('/organizations/analytics', async (req, res) => {
 
     const organizations = await queryAll(`
       SELECT
-        o.id, o.name, o.slug, o.plan, o.isActive,
-        o.maxUsers, o.maxPatients,
-        o.subscriptionStartDate, o.subscriptionEndDate,
-        o.createdAt
+        o.id, o.name, o.slug, o.plan, ${quoteIdentifier('o.isActive')},
+        ${quoteIdentifier('o.maxUsers')}, ${quoteIdentifier('o.maxPatients')},
+        ${quoteIdentifier('o.subscriptionStartDate')}, ${quoteIdentifier('o.subscriptionEndDate')},
+        ${quoteIdentifier('o.createdAt')}
       FROM organizations o
       ${whereClause}
     `, params);
@@ -245,18 +254,18 @@ router.get('/organizations/analytics', async (req, res) => {
       // 用戶統計
       const users = await queryOne(`
         SELECT COUNT(*) as total,
-               SUM(CASE WHEN isActive = 1 THEN 1 ELSE 0 END) as active,
+               SUM(CASE WHEN ${whereBool('isActive', true)} THEN 1 ELSE 0 END) as active,
                SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins
-        FROM users WHERE organizationId = ?
+        FROM users WHERE ${quoteIdentifier('organizationId')} = ?
       `, [org.id]);
 
       // 患者統計
       const patients = await queryOne(`
         SELECT
           COUNT(*) as total,
-          COUNT(CASE WHEN date(createdAt) >= date('now', 'start of month') THEN 1 END) as thisMonth,
-          COUNT(CASE WHEN date(createdAt) >= date('now', '-30 days') THEN 1 END) as last30Days
-        FROM patients WHERE organizationId = ?
+          COUNT(CASE WHEN DATE(${quoteIdentifier('createdAt')}) >= ${currentMonthStart()} THEN 1 END) as thisMonth,
+          COUNT(CASE WHEN ${quoteIdentifier('createdAt')} >= ${daysAgo(30)} THEN 1 END) as last30Days
+        FROM patients WHERE ${quoteIdentifier('organizationId')} = ?
       `, [org.id]);
 
       // 預約統計
@@ -265,14 +274,14 @@ router.get('/organizations/analytics', async (req, res) => {
           COUNT(*) as total,
           COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as scheduled,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
-          COUNT(CASE WHEN date(date) >= date('now', 'start of month') THEN 1 END) as thisMonth
-        FROM appointments WHERE organizationId = ?
+          COUNT(CASE WHEN DATE(${quoteIdentifier('date')}) >= ${currentMonthStart()} THEN 1 END) as thisMonth
+        FROM appointments WHERE ${quoteIdentifier('organizationId')} = ?
       `, [org.id]);
 
       // 最後活動時間
       const lastActivity = await queryOne(`
-        SELECT MAX(lastLogin) as lastLogin FROM users
-        WHERE organizationId = ? AND lastLogin IS NOT NULL
+        SELECT MAX(${quoteIdentifier('lastLogin')}) as lastLogin FROM users
+        WHERE ${quoteIdentifier('organizationId')} = ? AND ${quoteIdentifier('lastLogin')} IS NOT NULL
       `, [org.id]);
 
       // 計算使用率
@@ -479,31 +488,31 @@ router.get('/activity-log', async (req, res) => {
     // 最近登入的用戶
     const recentLogins = await queryAll(`
       SELECT
-        u.id, u.username, u.name, u.role, u.lastLogin,
+        u.id, u.username, u.name, u.role, ${quoteIdentifier('u.lastLogin')},
         o.name as organizationName
       FROM users u
-      LEFT JOIN organizations o ON u.organizationId = o.id
-      WHERE u.lastLogin IS NOT NULL AND u.role != 'super_admin'
-      ORDER BY u.lastLogin DESC
+      LEFT JOIN organizations o ON ${quoteIdentifier('u.organizationId')} = o.id
+      WHERE ${quoteIdentifier('u.lastLogin')} IS NOT NULL AND u.role != 'super_admin'
+      ORDER BY ${quoteIdentifier('u.lastLogin')} DESC
       LIMIT ?
     `, [parseInt(limit)]);
 
     // 最近新增的組織
     const recentOrganizations = await queryAll(`
-      SELECT id, name, slug, plan, createdAt
+      SELECT id, name, slug, plan, ${quoteIdentifier('createdAt')}
       FROM organizations
-      ORDER BY createdAt DESC
+      ORDER BY ${quoteIdentifier('createdAt')} DESC
       LIMIT ?
     `, [parseInt(limit)]);
 
     // 最近新增的患者
     const recentPatients = await queryAll(`
       SELECT
-        p.id, p.name, p.createdAt,
+        p.id, p.name, ${quoteIdentifier('p.createdAt')},
         o.name as organizationName
       FROM patients p
-      LEFT JOIN organizations o ON p.organizationId = o.id
-      ORDER BY p.createdAt DESC
+      LEFT JOIN organizations o ON ${quoteIdentifier('p.organizationId')} = o.id
+      ORDER BY ${quoteIdentifier('p.createdAt')} DESC
       LIMIT ?
     `, [parseInt(limit)]);
 
@@ -538,7 +547,7 @@ router.get('/revenue', async (req, res) => {
     const orgsByPlan = await queryAll(`
       SELECT plan, COUNT(*) as count
       FROM organizations
-      WHERE isActive = 1
+      WHERE ${whereBool('isActive', true)}
       GROUP BY plan
     `);
 
@@ -582,37 +591,66 @@ router.get('/revenue', async (req, res) => {
  * GET /api/superadmin/patients
  * 獲取所有組織的患者列表（超級管理員專用）
  */
-router.get('/patients', async (req, res) => {
+// 病患統計端點（僅匯總資料，不包含個人 PII）
+router.get('/patients/stats', async (req, res) => {
   try {
-    const patients = await queryAll(`
+    const stats = await queryAll(`
       SELECT
-        p.id,
-        p.name,
-        p.gender,
-        p.birthDate,
-        p.phone,
-        p.email,
-        p.bloodType,
-        p.tags,
-        p.organizationId,
-        o.name as organizationName,
-        p.createdAt
-      FROM patients p
-      LEFT JOIN organizations o ON p.organizationId = o.id
-      ORDER BY p.createdAt DESC
+        o.id AS organizationId,
+        o.name AS organizationName,
+        COUNT(p.id) AS patientCount,
+        COUNT(CASE WHEN ${quoteIdentifier('p.createdAt')} >= ${daysAgo(30)} THEN 1 END) AS patientsLast30Days,
+        COUNT(CASE WHEN ${quoteIdentifier('p.createdAt')} >= ${daysAgo(7)} THEN 1 END) AS patientsLast7Days
+      FROM organizations o
+      LEFT JOIN patients p ON ${quoteIdentifier('p.organizationId')} = o.id
+      GROUP BY o.id, o.name
+      ORDER BY patientCount DESC
     `);
 
-    // 解析 JSON 欄位
-    const parsedPatients = patients.map(p => ({
-      ...p,
-      tags: p.tags ? JSON.parse(p.tags) : []
-    }));
-
-    res.json(parsedPatients);
+    res.json(stats);
   } catch (error) {
-    console.error('[SuperAdmin] Error fetching patients:', error);
-    res.status(500).json({ error: '獲取患者列表失敗' });
+    console.error('[SuperAdmin] Error fetching patient stats:', error);
+    res.status(500).json({ error: '獲取病患統計失敗' });
   }
 });
+
+// Debug 端點（僅在環境變數啟用時可用，用於系統除錯）
+if (process.env.ENABLE_SUPERADMIN_PII_ACCESS === 'true') {
+  router.get('/patients/debug', async (req, res) => {
+    try {
+      const patients = await queryAll(`
+        SELECT
+          p.id,
+          p.name,
+          p.gender,
+          ${quoteIdentifier('p.birthDate')},
+          p.phone,
+          p.email,
+          ${quoteIdentifier('p.bloodType')},
+          p.tags,
+          ${quoteIdentifier('p.organizationId')},
+          o.name as organizationName,
+          ${quoteIdentifier('p.createdAt')}
+        FROM patients p
+        LEFT JOIN organizations o ON ${quoteIdentifier('p.organizationId')} = o.id
+        ORDER BY ${quoteIdentifier('p.createdAt')} DESC
+        LIMIT 100
+      `);
+
+      // 解析 JSON 欄位
+      const parsedPatients = patients.map(p => ({
+        ...p,
+        tags: p.tags ? JSON.parse(p.tags) : []
+      }));
+
+      console.warn('[SuperAdmin] DEBUG: PII access by user', req.user?.username);
+
+      res.json(parsedPatients);
+    } catch (error) {
+      console.error('[SuperAdmin] Error fetching patients (debug):', error);
+      res.status(500).json({ error: '獲取患者列表失敗' });
+    }
+  });
+}
 
 module.exports = router;

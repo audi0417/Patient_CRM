@@ -7,6 +7,7 @@
 const crypto = require('crypto');
 const { createDatabaseAdapter } = require('./adapters');
 const { getSchemaSQL, getIndexesSQL } = require('./schema');
+const { hashPassword } = require('../utils/password');
 
 // 建立資料庫適配器實例
 const dbAdapter = createDatabaseAdapter();
@@ -128,7 +129,7 @@ async function initialize() {
     if (superAdminCount && superAdminCount.count === 0) {
       console.log('[Database] Creating super admin account...');
       const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@2024';
-      const hashedPassword = crypto.createHash('sha256').update(superAdminPassword).digest('hex');
+      const hashedPassword = await hashPassword(superAdminPassword);
       const now = new Date().toISOString();
       const targetOrg = await dbAdapter.queryOne('SELECT id FROM organizations ORDER BY createdAt ASC LIMIT 1');
       await dbAdapter.execute(

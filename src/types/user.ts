@@ -45,6 +45,7 @@ export interface LoginResponse {
   success: boolean;
   user?: User;
   token?: string;
+  refreshToken?: string;
   isFirstLogin?: boolean;
   message?: string;
 }

@@ -14,21 +14,65 @@ interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  isDemoMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Demo 用戶
+const createDemoUser = (): User => ({
+  id: 'demo-user',
+  username: 'demo',
+  password: '',
+  email: 'demo@clinic.com',
+  name: 'Demo 管理員',
+  role: 'admin',
+  isActive: true,
+  organizationId: 'demo-org',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+
+// Demo 權限（使用 admin 角色的權限）
+const getDemoPermissions = (): UserPermissions => ({
+  canViewPatients: true,
+  canEditPatients: true,
+  canDeletePatients: true,
+  canViewHealthRecords: true,
+  canEditHealthRecords: true,
+  canManageAppointments: true,
+  canManageUsers: false,
+  canAccessSettings: true,
+  canExportData: true,
+  canManageHospitalSettings: false,
+});
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const isDemoMode = !!(window as any).__isDemoMode;
+
   const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-    permissions: null,
-    token: null,
+    isAuthenticated: isDemoMode,
+    user: isDemoMode ? createDemoUser() : null,
+    permissions: isDemoMode ? getDemoPermissions() : null,
+    token: isDemoMode ? 'demo-token' : null,
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isDemoMode);
 
   // 初始化認證狀態
   useEffect(() => {
+    // Demo 模式下直接跳過認證流程
+    if ((window as any).__isDemoMode) {
+      const demoUser = createDemoUser();
+      setAuthState({
+        isAuthenticated: true,
+        user: demoUser,
+        permissions: getDemoPermissions(),
+        token: 'demo-token',
+      });
+      setIsLoading(false);
+      return;
+    }
+
     const initAuth = async () => {
       try {
         const isAuth = await checkAuthenticated();
@@ -51,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } catch (apiError) {
             console.error("Failed to fetch user from API:", apiError);
           }
-          
+
           // 如果 API 失敗，回退到 localStorage
           const user = getCurrentUser();
           if (user) {
@@ -135,7 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ ...authState, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ ...authState, login, logout, refreshUser, isDemoMode: !!(window as any).__isDemoMode }}>
       {children}
     </AuthContext.Provider>
   );

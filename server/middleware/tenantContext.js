@@ -16,6 +16,7 @@
 
 const { db } = require('../database/db');
 const { queryOne, queryAll, execute } = require('../database/helpers');
+const { quoteIdentifier, whereBool, toBool } = require('../database/sqlHelpers');
 
 /**
  * 租戶上下文中介層
@@ -39,7 +40,7 @@ async function requireTenant(req, res, next) {
   try {
     // 驗證組織是否存在且啟用
     const org = await queryOne(`
-      SELECT id, name, slug, plan, isActive, maxUsers, maxPatients
+      SELECT id, name, slug, plan, ${quoteIdentifier('isActive')}, ${quoteIdentifier('maxUsers')}, ${quoteIdentifier('maxPatients')}
       FROM organizations
       WHERE id = ?
     `, [req.user.organizationId]);
@@ -69,6 +70,20 @@ async function requireTenant(req, res, next) {
         maxPatients: org.maxPatients
       }
     };
+
+    // 設定 PostgreSQL RLS 上下文（僅在 PostgreSQL 環境下）
+    // 這提供資料庫層的第二道防線
+    const dbType = process.env.DB_TYPE || 'sqlite';
+    if (dbType === 'postgres' && db.adapter && typeof db.adapter.setOrgContext === 'function') {
+      try {
+        await db.adapter.setOrgContext(org.id);
+        // console.log(`[RLS] 已設定組織上下文: ${org.id}`);
+      } catch (rlsError) {
+        console.error('[RLS] 設定組織上下文失敗:', rlsError);
+        // RLS 設定失敗不應阻止請求，應用層過濾仍有效
+        // 但應該記錄警告以便監控
+      }
+    }
 
     next();
   } catch (error) {
@@ -251,10 +266,27 @@ class TenantQuery {
    * @returns {Promise<Array|Object>}
    */
   async raw(query, params = []) {
-    // 安全檢查：確保查詢包含 organizationId 過濾
-    if (!query.toLowerCase().includes('organizationid')) {
-      throw new Error('Raw query must include organizationId filter for tenant isolation');
+    const lowerQuery = query.toLowerCase();
+
+    // 安全檢查 1：檢查是否在 WHERE 子句中使用 organizationId
+    const hasWhereClause = /where\s+.*(organizationid|"organizationid")\s*=/.test(lowerQuery);
+
+    if (!hasWhereClause) {
+      console.error('[TenantQuery] Raw query missing organizationId filter:', query);
+      throw new Error('Raw query must include organizationId in WHERE clause for tenant isolation');
     }
+
+    // 安全檢查 2：驗證 params 中是否包含當前組織的 organizationId
+    if (!params.includes(this.organizationId)) {
+      console.error('[TenantQuery] Raw query params missing organizationId:', params);
+      throw new Error('Raw query params must include current organizationId');
+    }
+
+    // 記錄警告（應盡量避免使用 raw 查詢）
+    console.warn('[TenantQuery] Raw query used:', {
+      organizationId: this.organizationId,
+      query: query.substring(0, 100) // 僅記錄前 100 字元
+    });
 
     return await queryAll(query, params);
   }
@@ -301,7 +333,12 @@ function checkTenantQuota(resourceType) {
 
       switch (resourceType) {
         case 'users':
-          currentCount = await query.count('users', { isActive: 1 });
+          // 直接查詢活躍用戶數，避免使用 count() 的布林值問題
+          const activeUsers = await queryOne(`
+            SELECT COUNT(*) as count FROM users
+            WHERE ${quoteIdentifier('organizationId')} = ? AND ${whereBool('isActive', true)}
+          `, [organizationId]);
+          currentCount = activeUsers.count;
           maxLimit = limits.maxUsers;
           break;
 
@@ -348,7 +385,7 @@ async function checkSubscriptionExpiry(req, res, next) {
   try {
     // 查詢組織的訂閱資訊
     const org = await queryOne(`
-      SELECT id, name, subscriptionEndDate, isActive
+      SELECT id, name, ${quoteIdentifier('subscriptionEndDate')}, ${quoteIdentifier('isActive')}
       FROM organizations
       WHERE id = ?
     `, [organizationId]);
@@ -369,7 +406,7 @@ async function checkSubscriptionExpiry(req, res, next) {
         // 自動禁用過期組織
         await execute(`
           UPDATE organizations
-          SET isActive = 0
+          SET ${quoteIdentifier('isActive')} = ${toBool(false)}
           WHERE id = ?
         `, [organizationId]);
 

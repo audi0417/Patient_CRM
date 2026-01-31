@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匯入模擬患者資料 - Patient CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(108, 117, 125, 0.4);
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        #status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        #status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stats h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .stats ul {
+            list-style: none;
+            color: #555;
+        }
+
+        .stats li {
+            padding: 5px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stats li:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 匯入模擬患者資料</h1>
+        <p class="subtitle">Patient CRM - 資料導入工具</p>
+
+        <div class="info-box">
+            <p><strong>📋 準備匯入的資料：</strong></p>
+            <p>• 12 位模擬患者</p>
+            <p>• 139 筆體組成記錄</p>
+            <p>• 115 筆生命徵象記錄</p>
+            <p>• 59 筆預約記錄</p>
+            <p>• 18 個健康目標</p>
+            <p>• 12 筆初始評估</p>
+        </div>
+
+        <button id="importBtn" class="btn" onclick="importData()">
+            開始匯入資料
+        </button>
+
+        <button class="btn btn-secondary" onclick="clearData()">
+            清除所有資料
+        </button>
+
+        <div id="status"></div>
+
+        <div id="stats" class="stats" style="display: none;">
+            <h3>📊 目前資料統計</h3>
+            <ul id="statsList"></ul>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEYS = {
+            patients: 'hospital_crm_patients',
+            bodyComposition: 'hospital_crm_body_composition',
+            vitalSigns: 'hospital_crm_vital_signs',
+            appointments: 'hospital_crm_appointments',
+            goals: 'hospital_crm_goals',
+            assessments: 'hospital_crm_assessments'
+        };
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = type;
+        }
+
+        function updateStats() {
+            const stats = {
+                '患者': localStorage.getItem(STORAGE_KEYS.patients),
+                '體組成記錄': localStorage.getItem(STORAGE_KEYS.bodyComposition),
+                '生命徵象記錄': localStorage.getItem(STORAGE_KEYS.vitalSigns),
+                '預約記錄': localStorage.getItem(STORAGE_KEYS.appointments),
+                '健康目標': localStorage.getItem(STORAGE_KEYS.goals),
+                '初始評估': localStorage.getItem(STORAGE_KEYS.assessments)
+            };
+
+            const statsList = document.getElementById('statsList');
+            statsList.innerHTML = '';
+
+            for (const [key, value] of Object.entries(stats)) {
+                const li = document.createElement('li');
+                const count = value ? JSON.parse(value).length : 0;
+                li.textContent = `${key}: ${count} 筆`;
+                statsList.appendChild(li);
+            }
+
+            document.getElementById('stats').style.display = 'block';
+        }
+
+        async function loadJSONFile(filename) {
+            try {
+                const response = await fetch(`/data/${filename}`);
+                if (!response.ok) {
+                    throw new Error(`無法載入 ${filename}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`載入 ${filename} 失敗:`, error);
+                throw error;
+            }
+        }
+
+        async function importData() {
+            const btn = document.getElementById('importBtn');
+            btn.disabled = true;
+            btn.innerHTML = '正在匯入資料<span class="loading"></span>';
+
+            try {
+                showStatus('正在載入資料檔案...', 'info');
+
+                // 載入所有 JSON 檔案
+                const [patients, bodyComp, vitals, appointments, goals, assessments] = await Promise.all([
+                    loadJSONFile('patients.json'),
+                    loadJSONFile('bodyComposition.json'),
+                    loadJSONFile('vitalSigns.json'),
+                    loadJSONFile('appointments.json'),
+                    loadJSONFile('goals.json'),
+                    loadJSONFile('initialAssessments.json')
+                ]);
+
+                showStatus('正在寫入 localStorage...', 'info');
+
+                // 寫入 localStorage
+                localStorage.setItem(STORAGE_KEYS.patients, JSON.stringify(patients));
+                localStorage.setItem(STORAGE_KEYS.bodyComposition, JSON.stringify(bodyComp));
+                localStorage.setItem(STORAGE_KEYS.vitalSigns, JSON.stringify(vitals));
+                localStorage.setItem(STORAGE_KEYS.appointments, JSON.stringify(appointments));
+                localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
+                localStorage.setItem(STORAGE_KEYS.assessments, JSON.stringify(assessments));
+
+                showStatus(`✅ 匯入成功！已新增 ${patients.length} 位患者及相關健康資料`, 'success');
+                updateStats();
+
+                btn.innerHTML = '✓ 匯入完成';
+
+                setTimeout(() => {
+                    const goToApp = confirm('匯入完成！是否要前往應用程式查看患者資料？');
+                    if (goToApp) {
+                        window.location.href = '/';
+                    }
+                }, 1000);
+
+            } catch (error) {
+                showStatus(`❌ 匯入失敗: ${error.message}`, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '重試匯入';
+            }
+        }
+
+        function clearData() {
+            if (!confirm('確定要清除所有患者資料嗎？此操作無法復原！')) {
+                return;
+            }
+
+            Object.values(STORAGE_KEYS).forEach(key => {
+                localStorage.removeItem(key);
+            });
+
+            showStatus('✅ 所有資料已清除', 'success');
+            updateStats();
+        }
+
+        // 頁面載入時顯示目前統計
+        window.addEventListener('load', () => {
+            updateStats();
+        });
+    </script>
+</body>
+</html>
