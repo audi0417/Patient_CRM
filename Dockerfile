@@ -1,6 +1,10 @@
 # 多階段構建 - 構建前端
 FROM node:18-alpine AS builder
 
+# 構建參數
+ARG DEPLOYMENT_MODE=saas
+ARG APP_VERSION=1.0.0
+
 WORKDIR /app
 
 # 安裝構建依賴（用於編譯原生模組，如需使用 SQLite 時的 better-sqlite3）
@@ -23,6 +27,17 @@ RUN npm run build
 # 生產階段
 FROM node:18-alpine
 
+# 版本標籤
+ARG APP_VERSION=1.0.0
+ARG BUILD_DATE
+ARG VCS_REF
+
+LABEL org.opencontainers.image.title="Patient CRM" \
+      org.opencontainers.image.description="Patient CRM - Healthcare Management System" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}"
+
 WORKDIR /app
 
 # 複製 package 文件
@@ -42,9 +57,20 @@ COPY --from=builder /app/dist ./dist
 COPY server ./server
 COPY scripts ./scripts
 
+# 複製配置和管理工具
+COPY config ./config
+COPY bin ./bin
+
+# 複製文檔（可選）
+COPY docs ./docs
+
 # 建立數據目錄（用於 SQLite 或其他存儲）
 # 注意：不複製本地 data 目錄，讓 volume 掛載管理
 RUN mkdir -p /app/data && chmod 777 /app/data
+
+# 設定環境變數
+ARG APP_VERSION
+ENV APP_VERSION=${APP_VERSION}
 
 # 暴露端口
 EXPOSE 3001

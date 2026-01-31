@@ -1,0 +1,176 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 資料庫
+  db:
+    image: postgres:15-alpine
+    container_name: patient-crm-db-onpremise
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-patient_crm}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # 初始化腳本
+      - ./server/database/schema.js:/docker-entrypoint-initdb.d/00-schema.sql:ro
+      - ./server/database/rls-policies.sql:/docker-entrypoint-initdb.d/01-rls-policies.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - patient-crm-internal
+    # 僅內部網路，不對外暴露
+    # ports:
+    #   - "5432:5432"
+
+  # Patient CRM 應用程式
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DEPLOYMENT_MODE: on-premise
+        APP_VERSION: ${APP_VERSION:-1.0.0}
+    container_name: patient-crm-app-onpremise
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 伺服器配置
+      NODE_ENV: production
+      PORT: 3001
+
+      # 部署模式（地端）
+      DEPLOYMENT_MODE: on-premise
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+
+      # 資料庫配置（PostgreSQL）
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME:-patient_crm}
+
+      # 安全配置（必須設定）
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+
+      # License 配置（地端部署必須）
+      LICENSE_KEY: ${LICENSE_KEY}
+      LICENSE_PUBLIC_KEY_PATH: config/license-public.pem
+
+      # CORS 配置
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yourdomain.com}
+      API_ENDPOINT: ${API_ENDPOINT:-https://yourdomain.com}
+
+      # 郵件服務（可選）
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM:-noreply@yourdomain.com}
+
+      # 功能開關
+      ENABLE_EMAIL_NOTIFICATIONS: ${ENABLE_EMAIL_NOTIFICATIONS:-false}
+      ENABLE_BACKUP: ${ENABLE_BACKUP:-true}
+
+      # 日誌
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+    volumes:
+      # License 公鑰（必須存在）
+      - ./config/license-public.pem:/app/config/license-public.pem:ro
+      # 日誌持久化
+      - app_logs:/app/logs
+      # 備份目錄
+      - app_backups:/app/backups
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health-check', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # 資源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    networks:
+      - patient-crm-internal
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: patient-crm-nginx
+    restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Nginx 配置
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      # SSL 憑證（客戶提供）
+      - ./certs:/etc/nginx/certs:ro
+      # 靜態檔案（可選）
+      - ./dist:/usr/share/nginx/html:ro
+      # 日誌
+      - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api/health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - patient-crm-internal
+
+  # 備份服務（可選，定期備份資料庫）
+  backup:
+    image: postgres:15-alpine
+    container_name: patient-crm-backup
+    restart: "no"
+    depends_on:
+      - db
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-patient_crm}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}  # 每天凌晨 2 點
+    volumes:
+      - app_backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: /bin/sh
+    command: -c "while true; do /backup.sh; sleep 86400; done"
+    networks:
+      - patient-crm-internal
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+  app_backups:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  patient-crm-internal:
+    driver: bridge
+    internal: false  # 設為 true 則完全隔離外部網路
