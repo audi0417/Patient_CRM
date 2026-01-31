@@ -43,3 +43,6 @@ coverage/
 .cache/
 temp/
 tmp/
+
+# License private key (never commit)
+config/license-private.pem

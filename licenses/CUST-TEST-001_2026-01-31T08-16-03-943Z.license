@@ -1,0 +1,16 @@
+{
+  "customer_id": "CUST-TEST-001",
+  "customer_name": "測試診所",
+  "license_type": "professional",
+  "max_users": 50,
+  "max_patients": 10000,
+  "features": [
+    "consultation_management",
+    "body_composition",
+    "audit_logs"
+  ],
+  "issued_at": "2026-01-31T08:16:03.938Z",
+  "expires_at": "2027-01-31T08:16:03.939Z",
+  "license_key": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJjdXN0b21lcl9pZCI6IkNVU1QtVEVTVC0wMDEiLCJjdXN0b21lcl9uYW1lIjoi5ris6Kmm6Ki65omAIiwibGljZW5zZV90eXBlIjoicHJvZmVzc2lvbmFsIiwibWF4X3VzZXJzIjo1MCwibWF4X3BhdGllbnRzIjoxMDAwMCwiZmVhdHVyZXMiOlsiY29uc3VsdGF0aW9uX21hbmFnZW1lbnQiLCJib2R5X2NvbXBvc2l0aW9uIiwiYXVkaXRfbG9ncyJdLCJpc3N1ZWRfYXQiOiIyMDI2LTAxLTMxVDA4OjE2OjAzLjkzOFoiLCJleHBpcmVzX2F0IjoiMjAyNy0wMS0zMVQwODoxNjowMy45MzlaIiwiaWF0IjoxNzY5ODQ3MzYzLCJleHAiOjE4MDE0MDQ5NjN9.Pco5-mfAZCGjHl9JuivaROkVjvcC7xB4zRYA8wwNfuDlzDdS3uz0N-nvOEtIdilpvMdEONB5NzPtQaFshJQb7LDQioMa3Pv_yw6YaMHTbnl-hnXdTof1UjfMEgQ_OOWDPllN-0Nj-jsfaNK9I2_ENy9CGPo-ocvtHcPsigjPucY4bphTcDJQALksMfsc4XwxwgqyFkXHiwTbvzTl4Fym1M-qx66kbPooiHSXTHmUiyNMdMassayF-AUj_xD5pHo4ou9CHBAPaPZ3-ekvAdaXBXfwMtZH5lNHgHEWiTJ-N_ZizFZdT06FxmP0nDs-bwXaWPh0GQ1SnNCEz-Vd4crujg",
+  "generated_at": "2026-01-31T08:16:03.943Z"
+}

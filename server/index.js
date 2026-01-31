@@ -63,13 +63,7 @@ app.use(auditMiddleware);
 // 注意：移除全域 API 限流以避免影響正常使用
 // 僅在關鍵端點（如登入）應用特定限流保護
 
-// 初始化數據庫
-const db = require('./database/db');
-db.initialize();
-
-// 啟動定時任務服務
-const { startCronJobs } = require('./services/cronJobs');
-startCronJobs();
+// 資料庫和定時任務將在 startServer() 函數中初始化
 
 // ========================================
 // API 路由
@@ -161,12 +155,50 @@ app.get('/api/health-check', async (req, res) => {
   // License 檢查（僅地端部署）
   const deploymentConfig = getDeploymentConfig();
   if (deploymentConfig.isOnPremise) {
-    health.checks.license = {
-      status: deploymentConfig.license.keyProvided ? 'ok' : 'missing',
-      provided: deploymentConfig.license.keyProvided
-    };
+    try {
+      const licenseService = require('./services/licenseService');
+      const licenseInfo = licenseService.getLicenseInfo();
 
-    if (!deploymentConfig.license.keyProvided) {
+      if (licenseInfo) {
+        const daysUntilExpiry = licenseService.getDaysUntilExpiry();
+        const isExpiringSoon = licenseService.isExpiringSoon();
+
+        health.checks.license = {
+          status: 'ok',
+          type: licenseInfo.license_type,
+          customer: {
+            id: licenseInfo.customer_id,
+            name: licenseInfo.customer_name
+          },
+          limits: {
+            users: licenseInfo.max_users,
+            patients: licenseInfo.max_patients
+          },
+          features: licenseInfo.features,
+          expiry: {
+            date: licenseInfo.expires_at,
+            days_remaining: daysUntilExpiry,
+            expiring_soon: isExpiringSoon
+          },
+          hardware_bound: licenseInfo.hardware_bound
+        };
+
+        if (isExpiringSoon) {
+          health.status = 'degraded';
+          health.checks.license.warning = `License expires in ${daysUntilExpiry} days`;
+        }
+      } else {
+        health.checks.license = {
+          status: 'missing',
+          error: 'License not loaded'
+        };
+        health.status = 'degraded';
+      }
+    } catch (error) {
+      health.checks.license = {
+        status: 'error',
+        error: error.message
+      };
       health.status = 'degraded';
     }
   }
@@ -222,31 +254,66 @@ app.use((err, req, res, next) => {
 // ========================================
 // Start server
 // ========================================
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`
+async function startServer() {
+  try {
+    // 顯示部署資訊
+    const { logDeploymentInfo, isOnPremise } = require('./config/deployment');
+    logDeploymentInfo();
+
+    // 初始化資料庫
+    const { initialize: initializeDatabase } = require('./database/db');
+    await initializeDatabase();
+
+    // 地端模式：初始化 License
+    if (isOnPremise()) {
+      const { initializeLicense } = require('./middleware/licenseCheck');
+      await initializeLicense();
+    }
+
+    // 啟動 Cron Jobs
+    const { startCronJobs } = require('./services/cronJobs');
+    startCronJobs();
+
+    // 啟動伺服器
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`
 [Server] Patient CRM Backend & Frontend
 [Server] Status: Running
 [Server] Port: ${PORT}
 [Server] Frontend: http://0.0.0.0:${PORT}
 [Server] API: /api
 [Server] Database: SQLite/PostgreSQL
-  `);
-  console.log('[Server] Backend started');
-  console.log('[Server] Frontend ready');
-});
+      `);
+      console.log('[Server] Backend started');
+      console.log('[Server] Frontend ready');
+    });
+
+    return server;
+  } catch (error) {
+    console.error('[Server] ❌ Failed to start server:', error.message);
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+// 啟動伺服器
+const serverPromise = startServer();
+let server;
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('[Server] Received SIGTERM signal, gracefully shutting down');
-  server.close(() => {
+  const srv = await serverPromise;
+  srv.close(() => {
     console.log('[Server] Server closed');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('[Server] Received SIGINT signal, gracefully shutting down');
-  server.close(() => {
+  const srv = await serverPromise;
+  srv.close(() => {
     console.log('[Server] Server closed');
     process.exit(0);
   });
