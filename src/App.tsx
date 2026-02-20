@@ -28,6 +28,7 @@ import TreatmentPackages from "./pages/TreatmentPackages";
 import TreatmentPackageDetail from "./pages/TreatmentPackageDetail";
 import DemoExperience from "./pages/DemoExperience";
 import NotFound from "./pages/NotFound";
+import ClinicDashboard from "./pages/ClinicDashboard";
 
 const queryClient = new QueryClient();
 
@@ -150,6 +151,16 @@ const AppRoutes = () => {
           <ProtectedRoute requiredRoles={["super_admin"]}>
             <ProtectedLayout>
               <Analytics />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <ClinicDashboard />
             </ProtectedLayout>
           </ProtectedRoute>
         }

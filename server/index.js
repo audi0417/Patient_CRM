@@ -87,6 +87,7 @@ const emailRoutes = require('./routes/email');
 const groupRoutes = require('./routes/groups');
 const tagRoutes = require('./routes/tags');
 const auditLogRoutes = require('./routes/auditLogs');
+const clinicAnalyticsRoutes = require('./routes/clinicAnalytics');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -114,6 +115,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/analytics', clinicAnalyticsRoutes);
 
 // ========================================
 // 模組配置端點

@@ -1,4 +1,4 @@
-import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3, MessageSquare, UsersRound, Heart, Calendar, Package } from "lucide-react";
+import { Activity, Settings, LogOut, Users, User as UserIcon, Shield, BarChart3, MessageSquare, UsersRound, Heart, Calendar, Package, TrendingUp } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,6 +110,18 @@ const Header = () => {
               </>
             ) : (
               <>
+                <Link
+                  to="/dashboard"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
+                    isActive("/dashboard")
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  營運儀表板
+                </Link>
                 <Link
                   to="/"
                   className={cn(
