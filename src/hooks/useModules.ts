@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { tokenManager } from '../lib/api';
 
 export interface ModuleConfig {
@@ -26,14 +26,21 @@ export function useModules() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchModules();
-  }, []);
-
-  const fetchModules = async () => {
+  const fetchModules = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+
+      // Demo 模式：直接返回預設配置
+      if ((window as unknown as Record<string, unknown>).__isDemoMode) {
+        setModules({
+          healthManagement: { enabled: true, name: '健康管理' },
+          appointments: { enabled: true, name: '預約管理' },
+          lineMessaging: { enabled: false, name: 'LINE 訊息' }
+        });
+        setLoading(false);
+        return;
+      }
 
       const token = tokenManager.get();
       if (!token) {
@@ -51,11 +58,12 @@ export function useModules() {
         throw new Error('無法獲取模組配置');
       }
 
-      const data = await response.json();
+      const data: ModulesResponse = await response.json();
       setModules(data.modules || {});
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('獲取模組配置失敗:', err);
-      setError(err.message || '獲取模組配置失敗');
+      const message = err instanceof Error ? err.message : '獲取模組配置失敗';
+      setError(message);
       // 預設所有模組都啟用（降級處理）
       setModules({
         healthManagement: { enabled: true, name: '健康管理' },
@@ -64,7 +72,11 @@ export function useModules() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchModules();
+  }, [fetchModules]);
 
   /**
    * 檢查指定模組是否啟用

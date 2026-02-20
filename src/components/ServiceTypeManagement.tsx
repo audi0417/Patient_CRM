@@ -116,8 +116,8 @@ const ServiceTypeManagement = () => {
       setShowDialog(false);
       resetForm();
       loadData();
-    } catch (error: any) {
-      toast.error(error.message || "儲存失敗");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "儲存失敗");
       console.error("Save service type error:", error);
     }
   };
@@ -129,8 +129,8 @@ const ServiceTypeManagement = () => {
       await api.serviceTypes.delete(itemToDelete.id);
       toast.success("服務類別已刪除");
       loadData();
-    } catch (error: any) {
-      toast.error(error.message || "刪除失敗");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "刪除失敗");
       console.error("Delete service type error:", error);
     } finally {
       setDeleteDialogOpen(false);

@@ -292,7 +292,7 @@ const RecurringAppointmentForm = ({
             <Label htmlFor="status">狀態</Label>
             <Select
               value={formData.status}
-              onValueChange={(value: any) =>
+              onValueChange={(value: string) =>
                 setFormData({ ...formData, status: value })
               }
             >
@@ -348,7 +348,7 @@ const RecurringAppointmentForm = ({
                 <Label htmlFor="recurringPattern">回診頻率</Label>
                 <Select
                   value={formData.recurringPattern}
-                  onValueChange={(value: any) =>
+                  onValueChange={(value: string) =>
                     setFormData({ ...formData, recurringPattern: value })
                   }
                 >

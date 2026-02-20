@@ -25,6 +25,67 @@ import type {
   CreatePackageData,
   ExecutePackageData
 } from "@/types/treatment";
+import type {
+  Tag,
+  PatientGroup,
+  ConsultationRecord,
+  Appointment as AppointmentType,
+} from "@/types/patient";
+
+/** Extends the global Window for demo-mode properties */
+interface DemoWindow extends Window {
+  __isDemoMode?: boolean;
+  __demoData?: DemoData;
+  __demoUpdateCallback?: (appointments: AppointmentType[]) => void;
+}
+
+interface DemoData {
+  patients: Patient[];
+  appointments: AppointmentType[];
+  user: User | null;
+}
+
+/** Service type record returned from API */
+interface ServiceType {
+  id: string;
+  name: string;
+  color: string;
+  isActive: number;
+  displayOrder: number;
+  description?: string;
+}
+
+/** LINE configuration status */
+interface LineConfigStatus {
+  isConfigured: boolean;
+}
+
+/** LINE conversation query parameters */
+interface LineConversationParams {
+  status?: string;
+  limit?: string;
+  offset?: string;
+}
+
+/** LINE message query parameters */
+interface LineMessageParams {
+  limit?: string;
+  offset?: string;
+}
+
+/** LINE configuration input */
+interface LineConfigInput {
+  channelId: string;
+  channelSecret: string;
+  accessToken: string;
+  webhookUrl?: string;
+}
+
+/** LINE send message response */
+interface LineSendResponse {
+  success: boolean;
+  messageId?: string;
+}
 
 /**
  * 動態取得 API Base URL
@@ -58,7 +119,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -111,8 +172,8 @@ const clearRefreshToken = (): void => {
  * Demo 模式資料存取器
  * 用於從 DemoContext 獲取模擬資料
  */
-const getDemoData = () => {
-  return (window as any).__demoData || {
+const getDemoData = (): DemoData => {
+  return (window as unknown as DemoWindow).__demoData || {
     patients: [],
     appointments: [],
     user: null,
@@ -122,8 +183,8 @@ const getDemoData = () => {
 /**
  * 設置 Demo 資料（由 DemoContext 調用）
  */
-export const setDemoData = (data: { patients: any[]; appointments: any[]; user: any }) => {
-  (window as any).__demoData = data;
+export const setDemoData = (data: DemoData) => {
+  (window as unknown as DemoWindow).__demoData = data;
 };
 
 /**
@@ -151,7 +212,7 @@ function handleDemoRequest<T>(endpoint: string, options: RequestInit = {}): T | 
 
   if (endpoint.match(/^\/patients\/[^/]+$/) && method === 'GET') {
     const id = endpoint.split('/').pop();
-    return demoData.patients.find((p: any) => p.id === id) as T;
+    return demoData.patients.find((p: Patient) => p.id === id) as T;
   }
 
   // 預約資料
@@ -161,19 +222,19 @@ function handleDemoRequest<T>(endpoint: string, options: RequestInit = {}): T | 
 
   if (endpoint.includes('/appointments?patientId=')) {
     const patientId = endpoint.split('patientId=')[1];
-    return demoData.appointments.filter((a: any) => a.patientId === patientId) as T;
+    return demoData.appointments.filter((a: AppointmentType) => a.patientId === patientId) as T;
   }
 
   if (endpoint.match(/^\/appointments\/[^/]+$/) && method === 'PUT') {
     // 更新預約 - 觸發 demo 更新回調
     const body = options.body ? JSON.parse(options.body as string) : {};
     const id = endpoint.split('/').pop();
-    const index = demoData.appointments.findIndex((a: any) => a.id === id);
+    const index = demoData.appointments.findIndex((a: AppointmentType) => a.id === id);
     if (index >= 0) {
       demoData.appointments[index] = { ...demoData.appointments[index], ...body };
       // 觸發更新回調
-      if ((window as any).__demoUpdateCallback) {
-        (window as any).__demoUpdateCallback(demoData.appointments);
+      if ((window as unknown as DemoWindow).__demoUpdateCallback) {
+        (window as unknown as DemoWindow).__demoUpdateCallback!(demoData.appointments);
       }
     }
     return demoData.appointments[index] as T;
@@ -278,7 +339,7 @@ async function apiRequest<T>(
   _isRetry: boolean = false
 ): Promise<T> {
   // Demo Mode Interception
-  if ((window as any).__isDemoMode) {
+  if ((window as unknown as DemoWindow).__isDemoMode) {
     console.log(`[Demo API] Intercepted: ${options.method || 'GET'} ${endpoint}`);
 
     const demoResult = handleDemoRequest<T>(endpoint, options);
@@ -893,28 +954,28 @@ export const api = {
     /**
      * 獲取諮詢記錄列表
      */
-    getByPatientId: async (patientId: string): Promise<any[]> => {
+    getByPatientId: async (patientId: string): Promise<ConsultationRecord[]> => {
       return apiRequest(`/consultations?patientId=${patientId}`);
     },
 
     /**
      * 獲取所有諮詢記錄
      */
-    getAll: async (): Promise<any[]> => {
+    getAll: async (): Promise<ConsultationRecord[]> => {
       return apiRequest('/consultations');
     },
 
     /**
      * 根據 ID 獲取諮詢記錄
      */
-    getById: async (id: string): Promise<any> => {
+    getById: async (id: string): Promise<ConsultationRecord> => {
       return apiRequest(`/consultations/${id}`);
     },
 
     /**
      * 創建諮詢記錄
      */
-    create: async (consultation: any): Promise<any> => {
+    create: async (consultation: Omit<ConsultationRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<ConsultationRecord> => {
       return apiRequest('/consultations', {
         method: 'POST',
         body: JSON.stringify(consultation),
@@ -924,7 +985,7 @@ export const api = {
     /**
      * 更新諮詢記錄
      */
-    update: async (id: string, consultation: any): Promise<any> => {
+    update: async (id: string, consultation: Partial<ConsultationRecord>): Promise<ConsultationRecord> => {
       return apiRequest(`/consultations/${id}`, {
         method: 'PUT',
         body: JSON.stringify(consultation),
@@ -948,14 +1009,14 @@ export const api = {
     /**
      * 取得 LINE 配置
      */
-    getConfig: async (): Promise<any> => {
+    getConfig: async (): Promise<LineConfigStatus> => {
       return apiRequest('/line/config');
     },
 
     /**
      * 儲存 LINE 配置
      */
-    saveConfig: async (config: any): Promise<any> => {
+    saveConfig: async (config: LineConfigInput): Promise<Record<string, unknown>> => {
       return apiRequest('/line/config', {
         method: 'POST',
         body: JSON.stringify(config),
@@ -965,7 +1026,7 @@ export const api = {
     /**
      * 停用 LINE 配置
      */
-    disableConfig: async (): Promise<any> => {
+    disableConfig: async (): Promise<Record<string, unknown>> => {
       return apiRequest('/line/config', {
         method: 'DELETE',
       });
@@ -974,7 +1035,7 @@ export const api = {
     /**
      * 取得對話列表
      */
-    getConversations: async (params?: any): Promise<any> => {
+    getConversations: async (params?: LineConversationParams): Promise<Record<string, unknown>> => {
       const query = new URLSearchParams(params).toString();
       const url = query ? `/line/conversations?${query}` : '/line/conversations';
       return apiRequest(url);
@@ -983,7 +1044,7 @@ export const api = {
     /**
      * 取得對話訊息
      */
-    getMessages: async (conversationId: string, params?: any): Promise<any> => {
+    getMessages: async (conversationId: string, params?: LineMessageParams): Promise<Record<string, unknown>> => {
       const query = new URLSearchParams(params).toString();
       const url = query
         ? `/line/conversations/${conversationId}/messages?${query}`
@@ -994,7 +1055,7 @@ export const api = {
     /**
      * 發送文字訊息
      */
-    sendText: async (patientId: string, text: string): Promise<any> => {
+    sendText: async (patientId: string, text: string): Promise<LineSendResponse> => {
       return apiRequest('/line/send/text', {
         method: 'POST',
         body: JSON.stringify({ patientId, text }),
@@ -1004,7 +1065,7 @@ export const api = {
     /**
      * 發送貼圖
      */
-    sendSticker: async (patientId: string, packageId: string, stickerId: string): Promise<any> => {
+    sendSticker: async (patientId: string, packageId: string, stickerId: string): Promise<LineSendResponse> => {
       return apiRequest('/line/send/sticker', {
         method: 'POST',
         body: JSON.stringify({ patientId, packageId, stickerId }),
@@ -1019,28 +1080,28 @@ export const api = {
     /**
      * 獲取所有服務類別
      */
-    getAll: async (): Promise<any[]> => {
+    getAll: async (): Promise<Record<string, unknown>[]> => {
       return apiRequest('/service-types');
     },
 
     /**
      * 獲取啟用的服務類別
      */
-    getActive: async (): Promise<any[]> => {
+    getActive: async (): Promise<Record<string, unknown>[]> => {
       return apiRequest('/service-types/active');
     },
 
     /**
      * 根據 ID 獲取服務類別
      */
-    getById: async (id: string): Promise<any> => {
+    getById: async (id: string): Promise<Record<string, unknown>> => {
       return apiRequest(`/service-types/${id}`);
     },
 
     /**
      * 創建服務類別
      */
-    create: async (serviceType: any): Promise<any> => {
+    create: async (serviceType: Record<string, unknown>): Promise<Record<string, unknown>> => {
       return apiRequest('/service-types', {
         method: 'POST',
         body: JSON.stringify(serviceType),
@@ -1050,7 +1111,7 @@ export const api = {
     /**
      * 更新服務類別
      */
-    update: async (id: string, serviceType: any): Promise<any> => {
+    update: async (id: string, serviceType: Record<string, unknown>): Promise<Record<string, unknown>> => {
       return apiRequest(`/service-types/${id}`, {
         method: 'PUT',
         body: JSON.stringify(serviceType),
@@ -1069,7 +1130,7 @@ export const api = {
     /**
      * 批次更新排序順序
      */
-    reorder: async (items: Array<{ id: string; displayOrder: number }>): Promise<any[]> => {
+    reorder: async (items: Array<{ id: string; displayOrder: number }>): Promise<Record<string, unknown>[]> => {
       return apiRequest('/service-types/batch/reorder', {
         method: 'PUT',
         body: JSON.stringify({ items }),
@@ -1280,19 +1341,19 @@ export const treatmentApi = {
    */
   tags: {
     getAll: async () => {
-      return apiRequest<any[]>('/tags');
+      return apiRequest<Record<string, unknown>[]>('/tags');
     },
     getById: async (id: string) => {
-      return apiRequest<any>(`/tags/${id}`);
+      return apiRequest<Record<string, unknown>>(`/tags/${id}`);
     },
-    create: async (data: any) => {
-      return apiRequest<any>('/tags', {
+    create: async (data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>('/tags', {
         method: 'POST',
         body: JSON.stringify(data),
       });
     },
-    update: async (id: string, data: any) => {
-      return apiRequest<any>(`/tags/${id}`, {
+    update: async (id: string, data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>(`/tags/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -1309,19 +1370,19 @@ export const treatmentApi = {
    */
   groups: {
     getAll: async () => {
-      return apiRequest<any[]>('/groups');
+      return apiRequest<Record<string, unknown>[]>('/groups');
     },
     getById: async (id: string) => {
-      return apiRequest<any>(`/groups/${id}`);
+      return apiRequest<Record<string, unknown>>(`/groups/${id}`);
     },
-    create: async (data: any) => {
-      return apiRequest<any>('/groups', {
+    create: async (data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>('/groups', {
         method: 'POST',
         body: JSON.stringify(data),
       });
     },
-    update: async (id: string, data: any) => {
-      return apiRequest<any>(`/groups/${id}`, {
+    update: async (id: string, data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>(`/groups/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });

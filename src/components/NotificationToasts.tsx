@@ -35,6 +35,7 @@ const NotificationToasts = () => {
         });
       }, 1000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications]);
 
   const handleDismiss = (notificationId: string) => {

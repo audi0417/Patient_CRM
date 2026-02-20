@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Patient, Appointment } from '@/types/patient';
 import { User } from '@/types/user';
+import { DemoScenario, DemoStep, getCustomizedScenarios, getProgressPercentage } from '@/config/demoScenarios';
 
 // Demo 配置類型
 interface DemoConfig {
@@ -9,21 +10,16 @@ interface DemoConfig {
   painPoint?: 'booking-chaos' | 'record-tracking' | 'order-missing';
 }
 
-// Demo 場景類型
-interface DemoScenario {
-  id: string;
-  title: string;
-  description: string;
-  completed: boolean;
-}
-
 // Demo 狀態類型
 interface DemoState {
   isActive: boolean;
   phase: 'survey' | 'simulation' | 'conversion';
-  currentStep: number;
+  currentScenarioIndex: number;
+  currentStepIndex: number;
+  currentStep: number; // 問卷階段使用的步驟索引
   config: DemoConfig;
   scenarios: DemoScenario[];
+  completedScenarios: string[];
 }
 
 // Demo Context 類型
@@ -34,8 +30,17 @@ interface DemoContextType extends DemoState {
   goToPhase: (phase: 'survey' | 'simulation' | 'conversion') => void;
   nextStep: () => void;
   prevStep: () => void;
+  nextScenario: () => void;
   setConfig: (key: keyof DemoConfig, value: string) => void;
-  completeScenario: (scenarioId: string) => void;
+  completeCurrentStep: () => void;
+  completeCurrentScenario: () => void;
+
+  // 當前狀態
+  getCurrentScenario: () => DemoScenario | null;
+  getCurrentStep: () => DemoStep | null;
+  getProgress: () => number;
+  isLastScenario: () => boolean;
+  isLastStep: () => boolean;
 
   // 模擬資料
   demoUser: User;
@@ -208,12 +213,12 @@ export const DemoProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<DemoState>({
     isActive: false,
     phase: 'survey',
-    currentStep: 0,
+    currentScenarioIndex: 0,
+    currentStepIndex: 0,
+    currentStep: 0, // 問卷階段的步驟
     config: {},
-    scenarios: [
-      { id: 'view-patients', title: '瀏覽病患列表', description: '查看系統中的病患資料', completed: false },
-      { id: 'view-appointments', title: '查看預約管理', description: '探索預約行事曆功能', completed: false },
-    ],
+    scenarios: [],
+    completedScenarios: [],
   });
 
   const [demoPatients, setDemoPatients] = useState<Patient[]>([]);
@@ -221,21 +226,27 @@ export const DemoProvider = ({ children }: { children: ReactNode }) => {
   const demoUser = createDemoUser();
 
   const startDemo = useCallback(() => {
-    (window as any).__isDemoMode = true;
-    setState(prev => ({ ...prev, isActive: true, phase: 'survey', currentStep: 0 }));
+    window.__isDemoMode = true;
+    setState(prev => ({
+      ...prev,
+      isActive: true,
+      phase: 'survey',
+      currentScenarioIndex: 0,
+      currentStepIndex: 0,
+    }));
   }, []);
 
   const exitDemo = useCallback(() => {
-    (window as any).__isDemoMode = false;
+    window.__isDemoMode = false;
     setState({
       isActive: false,
       phase: 'survey',
+      currentScenarioIndex: 0,
+      currentStepIndex: 0,
       currentStep: 0,
       config: {},
-      scenarios: [
-        { id: 'view-patients', title: '瀏覽病患列表', description: '查看系統中的病患資料', completed: false },
-        { id: 'view-appointments', title: '查看預約管理', description: '探索預約行事曆功能', completed: false },
-      ],
+      scenarios: [],
+      completedScenarios: [],
     });
     setDemoPatients([]);
     setDemoAppointments([]);
@@ -243,22 +254,114 @@ export const DemoProvider = ({ children }: { children: ReactNode }) => {
 
   const goToPhase = useCallback((phase: 'survey' | 'simulation' | 'conversion') => {
     if (phase === 'simulation') {
-      // 進入模擬階段時，根據配置生成資料
+      // 進入模擬階段時，根據配置生成資料和場景
       const clinicType = state.config.clinicType || 'aesthetic';
       const patients = createMockPatients(clinicType);
       const appointments = createMockAppointments(clinicType, patients);
+      const scenarios = getCustomizedScenarios(clinicType);
+
       setDemoPatients(patients);
       setDemoAppointments(appointments);
+      setState(prev => ({
+        ...prev,
+        phase,
+        scenarios,
+        currentScenarioIndex: 0,
+        currentStepIndex: 0,
+        currentStep: 0, // 重置問卷步驟
+      }));
+    } else {
+      setState(prev => ({ ...prev, phase, currentStep: 0 }));
     }
-    setState(prev => ({ ...prev, phase, currentStep: 0 }));
   }, [state.config.clinicType]);
 
   const nextStep = useCallback(() => {
-    setState(prev => ({ ...prev, currentStep: prev.currentStep + 1 }));
+    setState(prev => {
+      // 問卷階段：只增加 currentStep
+      if (prev.phase === 'survey') {
+        return { ...prev, currentStep: prev.currentStep + 1 };
+      }
+
+      // 模擬階段：處理場景步驟
+      const currentScenario = prev.scenarios[prev.currentScenarioIndex];
+      if (!currentScenario) return prev;
+
+      // 如果當前場景還有下一步
+      if (prev.currentStepIndex < currentScenario.steps.length - 1) {
+        return { ...prev, currentStepIndex: prev.currentStepIndex + 1 };
+      }
+
+      // 如果是場景的最後一步，進入下一個場景
+      if (prev.currentScenarioIndex < prev.scenarios.length - 1) {
+        return {
+          ...prev,
+          currentScenarioIndex: prev.currentScenarioIndex + 1,
+          currentStepIndex: 0,
+          completedScenarios: [...prev.completedScenarios, currentScenario.id],
+        };
+      }
+
+      // 所有場景完成，進入 conversion 階段
+      return {
+        ...prev,
+        phase: 'conversion',
+        completedScenarios: [...prev.completedScenarios, currentScenario.id],
+      };
+    });
   }, []);
 
   const prevStep = useCallback(() => {
-    setState(prev => ({ ...prev, currentStep: Math.max(0, prev.currentStep - 1) }));
+    setState(prev => {
+      // 問卷階段：減少 currentStep
+      if (prev.phase === 'survey') {
+        return { ...prev, currentStep: Math.max(0, prev.currentStep - 1) };
+      }
+
+      // 模擬階段：處理場景步驟
+      // 如果不是第一步，返回上一步
+      if (prev.currentStepIndex > 0) {
+        return { ...prev, currentStepIndex: prev.currentStepIndex - 1 };
+      }
+
+      // 如果是當前場景的第一步，返回上一個場景的最後一步
+      if (prev.currentScenarioIndex > 0) {
+        const prevScenarioIndex = prev.currentScenarioIndex - 1;
+        const prevScenario = prev.scenarios[prevScenarioIndex];
+        return {
+          ...prev,
+          currentScenarioIndex: prevScenarioIndex,
+          currentStepIndex: prevScenario.steps.length - 1,
+        };
+      }
+
+      return prev;
+    });
+  }, []);
+
+  const nextScenario = useCallback(() => {
+    setState(prev => {
+      const currentScenario = prev.scenarios[prev.currentScenarioIndex];
+
+      if (prev.currentScenarioIndex < prev.scenarios.length - 1) {
+        return {
+          ...prev,
+          currentScenarioIndex: prev.currentScenarioIndex + 1,
+          currentStepIndex: 0,
+          completedScenarios: currentScenario
+            ? [...prev.completedScenarios, currentScenario.id]
+            : prev.completedScenarios,
+        };
+      }
+
+      // 所有場景完成
+      return {
+        ...prev,
+        phase: 'conversion',
+        completedScenarios: currentScenario
+          ? [...prev.completedScenarios, currentScenario.id]
+          : prev.completedScenarios,
+      };
+    });
   }, []);
 
   const setConfig = useCallback((key: keyof DemoConfig, value: string) => {
@@ -268,14 +371,39 @@ export const DemoProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, []);
 
-  const completeScenario = useCallback((scenarioId: string) => {
-    setState(prev => ({
-      ...prev,
-      scenarios: prev.scenarios.map(s =>
-        s.id === scenarioId ? { ...s, completed: true } : s
-      ),
-    }));
-  }, []);
+  const completeCurrentStep = useCallback(() => {
+    nextStep();
+  }, [nextStep]);
+
+  const completeCurrentScenario = useCallback(() => {
+    nextScenario();
+  }, [nextScenario]);
+
+  const getCurrentScenario = useCallback(() => {
+    return state.scenarios[state.currentScenarioIndex] || null;
+  }, [state.scenarios, state.currentScenarioIndex]);
+
+  const getCurrentStep = useCallback(() => {
+    const scenario = getCurrentScenario();
+    return scenario?.steps[state.currentStepIndex] || null;
+  }, [getCurrentScenario, state.currentStepIndex]);
+
+  const getProgress = useCallback(() => {
+    return getProgressPercentage(
+      state.scenarios,
+      state.currentScenarioIndex,
+      state.currentStepIndex
+    );
+  }, [state.scenarios, state.currentScenarioIndex, state.currentStepIndex]);
+
+  const isLastScenario = useCallback(() => {
+    return state.currentScenarioIndex >= state.scenarios.length - 1;
+  }, [state.currentScenarioIndex, state.scenarios.length]);
+
+  const isLastStep = useCallback(() => {
+    const scenario = getCurrentScenario();
+    return scenario ? state.currentStepIndex >= scenario.steps.length - 1 : false;
+  }, [getCurrentScenario, state.currentStepIndex]);
 
   const updateDemoAppointment = useCallback((appointment: Appointment) => {
     setDemoAppointments(prev => {
@@ -305,8 +433,15 @@ export const DemoProvider = ({ children }: { children: ReactNode }) => {
     goToPhase,
     nextStep,
     prevStep,
+    nextScenario,
     setConfig,
-    completeScenario,
+    completeCurrentStep,
+    completeCurrentScenario,
+    getCurrentScenario,
+    getCurrentStep,
+    getProgress,
+    isLastScenario,
+    isLastStep,
     demoUser,
     demoPatients,
     demoAppointments,

@@ -10,6 +10,12 @@ import {
 } from "@/lib/auth";
 import { api } from "@/lib/api";
 
+declare global {
+  interface Window {
+    __isDemoMode?: boolean;
+  }
+}
+
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<LoginResponse>;
   logout: () => Promise<void>;
@@ -48,7 +54,7 @@ const getDemoPermissions = (): UserPermissions => ({
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const isDemoMode = !!(window as any).__isDemoMode;
+  const isDemoMode = !!window.__isDemoMode;
 
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: isDemoMode,
@@ -61,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 初始化認證狀態
   useEffect(() => {
     // Demo 模式下直接跳過認證流程
-    if ((window as any).__isDemoMode) {
+    if (window.__isDemoMode) {
       const demoUser = createDemoUser();
       setAuthState({
         isAuthenticated: true,
@@ -179,7 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ ...authState, login, logout, refreshUser, isDemoMode: !!(window as any).__isDemoMode }}>
+    <AuthContext.Provider value={{ ...authState, login, logout, refreshUser, isDemoMode: !!window.__isDemoMode }}>
       {children}
     </AuthContext.Provider>
   );

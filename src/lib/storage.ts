@@ -55,7 +55,7 @@ export const savePatient = async (patient: Patient): Promise<void> => {
   if (isNew) {
     // 創建新患者
     const { id, createdAt, updatedAt, ...patientData } = patient;
-    await api.patients.create(patientData as any);
+    await api.patients.create(patientData as Record<string, unknown>);
   } else {
     // 更新現有患者
     const { createdAt, updatedAt, ...patientData } = patient;
@@ -134,9 +134,9 @@ export const getAppointments = async (patientId?: string): Promise<Appointment[]
 
 export const saveAppointment = async (appointment: Appointment): Promise<void> => {
   // Demo 模式 - 透過 API 層處理
-  if ((window as any).__isDemoMode) {
+  if ((window as unknown as Record<string, unknown>).__isDemoMode) {
     // 更新 Demo 資料
-    const demoData = (window as any).__demoData;
+    const demoData = (window as unknown as Record<string, unknown>).__demoData;
     if (demoData?.appointments) {
       const index = demoData.appointments.findIndex((a: Appointment) => a.id === appointment.id);
       if (index >= 0) {
@@ -145,8 +145,8 @@ export const saveAppointment = async (appointment: Appointment): Promise<void> =
         demoData.appointments.push(appointment);
       }
       // 觸發更新回調
-      if ((window as any).__demoUpdateCallback) {
-        (window as any).__demoUpdateCallback(demoData.appointments);
+      if ((window as unknown as Record<string, unknown>).__demoUpdateCallback) {
+        (window as unknown as Record<string, unknown>).__demoUpdateCallback(demoData.appointments);
       }
     }
     return;
@@ -168,7 +168,7 @@ export const saveAppointment = async (appointment: Appointment): Promise<void> =
 
   if (isNew) {
     const { id, ...appointmentData } = appointment;
-    await api.appointments.create(appointmentData as any);
+    await api.appointments.create(appointmentData as Record<string, unknown>);
   } else {
     await api.appointments.update(appointment.id, appointment);
   }
@@ -247,7 +247,7 @@ export const saveGoal = async (goal: PatientGoal): Promise<void> => {
 
   if (isNew) {
     const { id, createdAt, updatedAt, ...goalData } = goal;
-    await api.goals.create(goalData as any);
+    await api.goals.create(goalData as Record<string, unknown>);
   } else {
     const { createdAt, updatedAt, ...goalData } = goal;
     await api.goals.update(goal.id, goalData);
@@ -308,7 +308,7 @@ export const saveBodyCompositionRecord = async (record: BodyCompositionRecord): 
 
   if (isNew) {
     const { id, ...recordData } = record;
-    await api.health.bodyComposition.create(recordData as any);
+    await api.health.bodyComposition.create(recordData as Record<string, unknown>);
   } else {
     await api.health.bodyComposition.update(record.id, record);
   }
@@ -338,7 +338,7 @@ export const saveVitalSignsRecord = async (record: VitalSignsRecord): Promise<vo
 
   if (isNew) {
     const { id, ...recordData } = record;
-    await api.health.vitalSigns.create(recordData as any);
+    await api.health.vitalSigns.create(recordData as Record<string, unknown>);
   } else {
     await api.health.vitalSigns.update(record.id, record);
   }

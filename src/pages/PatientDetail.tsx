@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/storage";
 import { Patient, ConsultationRecord } from "@/types/patient";
 import { toast } from "sonner";
+import { useDemo } from "@/contexts/DemoContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,15 +54,24 @@ const PatientDetail = () => {
   const [editingRecord, setEditingRecord] = useState<ConsultationRecord | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const demo = useDemo();
+  const isDemo = demo.isActive && demo.phase === 'simulation';
 
-  useEffect(() => {
-    if (id) {
-      loadPatientData();
-    }
-  }, [id]);
-
-  const loadPatientData = async () => {
+  const loadPatientData = useCallback(async () => {
     if (!id) return;
+
+    // Demo 模式：使用模擬資料
+    if (isDemo) {
+      const foundPatient = demo.demoPatients.find((p) => p.id === id);
+      if (foundPatient) {
+        setPatient(foundPatient);
+        setConsultationRecords([]);
+      } else {
+        toast.error("找不到患者資料");
+        navigate("/patients");
+      }
+      return;
+    }
 
     const patients = await getPatients();
     const foundPatient = patients.find((p) => p.id === id);
@@ -73,7 +83,13 @@ const PatientDetail = () => {
       toast.error("找不到患者資料");
       navigate("/");
     }
-  };
+  }, [id, isDemo, demo.demoPatients, navigate]);
+
+  useEffect(() => {
+    if (id) {
+      loadPatientData();
+    }
+  }, [id, loadPatientData]);
 
   const handleDelete = async () => {
     if (id) {

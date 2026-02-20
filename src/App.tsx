@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DemoProvider } from "@/contexts/DemoContext";
+import DemoScenarioManager from "@/components/demo/DemoScenarioManager";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "./components/Header";
 import NotificationToasts from "./components/NotificationToasts";
@@ -42,6 +43,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/demo" element={<DemoExperience />} />
       <Route
         path="/"
         element={
@@ -287,8 +289,10 @@ const App = () => (
         <DemoProvider>
           <AuthProvider>
             <NotificationProvider>
+              {/* Demo 場景管理器 - 監控並引導 Demo 流程 */}
+              <DemoScenarioManager />
               {/* 根據 Demo 模式選擇路由 */}
-              {(window as any).__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
+              {window.__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
             </NotificationProvider>
           </AuthProvider>
         </DemoProvider>

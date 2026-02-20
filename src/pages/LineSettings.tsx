@@ -36,6 +36,7 @@ const LineSettings = () => {
   // 載入現有配置
   useEffect(() => {
     loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadConfig = async () => {
@@ -54,12 +55,13 @@ const LineSettings = () => {
           monthlyMessageLimit: response.data.monthlyMessageLimit,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 沒有配置是正常的，不需要顯示錯誤
-      if (!error.message.includes('404')) {
+      const message = error instanceof Error ? error.message : '未知錯誤';
+      if (!message.includes('404')) {
         toast({
           title: '載入失敗',
-          description: error.message,
+          description: message,
           variant: 'destructive',
         });
       }
@@ -90,10 +92,10 @@ const LineSettings = () => {
         });
         await loadConfig();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '儲存失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : '未知錯誤',
         variant: 'destructive',
       });
     } finally {
@@ -125,10 +127,10 @@ const LineSettings = () => {
           monthlyMessageLimit: 30000,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '操作失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : '未知錯誤',
         variant: 'destructive',
       });
     } finally {
@@ -200,8 +202,9 @@ const LineSettings = () => {
           variant: 'destructive',
         });
       }
-    } catch (error: any) {
-      if (error.message.includes('Failed to fetch')) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : '未知錯誤';
+      if (errMsg.includes('Failed to fetch')) {
         toast({
           title: '❌ 無法連線到伺服器',
           description: `無法連接到 ${config.webhookUrl.split('/api')[0]}。請確認：1) 伺服器正在運行 2) API_ENDPOINT 環境變數正確 3) 沒有防火牆阻擋`,
@@ -210,7 +213,7 @@ const LineSettings = () => {
       } else {
         toast({
           title: '❌ 測試失敗',
-          description: `錯誤訊息：${error.message}`,
+          description: `錯誤訊息：${errMsg}`,
           variant: 'destructive',
         });
       }

@@ -1,0 +1,333 @@
+name: Build On-Premise Package
+
+on:
+  release:
+    types: [created, published]
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    name: Build On-Premise Installation Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" == "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Create distribution directory
+        run: |
+          mkdir -p dist-onpremise
+          echo "Distribution directory created"
+
+      - name: Package application
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_NAME="patient-crm-v${VERSION}-onpremise"
+          PACKAGE_DIR="dist-onpremise/${PACKAGE_NAME}"
+
+          echo "Creating package: ${PACKAGE_NAME}"
+          mkdir -p "${PACKAGE_DIR}"
+
+          # Copy built frontend
+          cp -r dist "${PACKAGE_DIR}/public"
+
+          # Copy server code
+          cp -r server "${PACKAGE_DIR}/"
+
+          # Copy dependencies (production only)
+          cp package.json package-lock.json "${PACKAGE_DIR}/"
+
+          # Copy configuration files
+          mkdir -p "${PACKAGE_DIR}/config"
+          cp config/license-public.pem "${PACKAGE_DIR}/config/" || echo "Warning: license-public.pem not found"
+          cp config/nginx.conf.example "${PACKAGE_DIR}/config/"
+
+          # Copy admin tools
+          cp -r bin "${PACKAGE_DIR}/"
+
+          # Copy database files
+          mkdir -p "${PACKAGE_DIR}/database"
+          if [ -f "server/database/schema.sql" ]; then
+            cp server/database/schema.sql "${PACKAGE_DIR}/database/"
+          fi
+          if [ -f "server/database/rls-policies.sql" ]; then
+            cp server/database/rls-policies.sql "${PACKAGE_DIR}/database/"
+          fi
+
+          # Copy Docker files
+          cp Dockerfile "${PACKAGE_DIR}/"
+          cp docker-compose.onpremise.yml "${PACKAGE_DIR}/docker-compose.yml"
+
+          # Copy documentation
+          mkdir -p "${PACKAGE_DIR}/docs"
+          cp README.md "${PACKAGE_DIR}/" || touch "${PACKAGE_DIR}/README.md"
+          cp DOCKER.md "${PACKAGE_DIR}/docs/" || true
+          cp docs/plans/*.md "${PACKAGE_DIR}/docs/" 2>/dev/null || true
+
+          # Create .env.example
+          cat > "${PACKAGE_DIR}/.env.example" << 'EOF'
+          # Patient CRM On-Premise Configuration
+
+          # Deployment Mode
+          DEPLOYMENT_MODE=on-premise
+          APP_VERSION=${{ steps.version.outputs.version }}
+
+          # Server Configuration
+          NODE_ENV=production
+          PORT=3001
+
+          # Database Configuration (PostgreSQL)
+          DATABASE_TYPE=postgres
+          DATABASE_HOST=db
+          DATABASE_PORT=5432
+          DATABASE_USER=postgres
+          DATABASE_PASSWORD=CHANGE_THIS_PASSWORD
+          DATABASE_NAME=patient_crm
+
+          # Security (REQUIRED)
+          JWT_SECRET=CHANGE_THIS_TO_SECURE_RANDOM_STRING_MIN_32_CHARS
+          ENCRYPTION_KEY=CHANGE_THIS_TO_SECURE_RANDOM_STRING_MIN_32_CHARS
+          SUPER_ADMIN_PASSWORD=CHANGE_THIS_PASSWORD
+
+          # License (REQUIRED for on-premise)
+          LICENSE_KEY=YOUR_LICENSE_KEY_HERE
+          LICENSE_PUBLIC_KEY_PATH=config/license-public.pem
+
+          # CORS Configuration
+          ALLOWED_ORIGINS=https://yourdomain.com
+          API_ENDPOINT=https://yourdomain.com
+
+          # Email Configuration (Optional)
+          SMTP_HOST=
+          SMTP_PORT=587
+          SMTP_USER=
+          SMTP_PASSWORD=
+          SMTP_FROM=noreply@yourdomain.com
+
+          # Features
+          ENABLE_EMAIL_NOTIFICATIONS=false
+          ENABLE_BACKUP=true
+
+          # Logging
+          LOG_LEVEL=info
+          EOF
+
+          # Create installation script
+          cat > "${PACKAGE_DIR}/install.sh" << 'INSTALL_EOF'
+          #!/bin/bash
+          set -e
+
+          echo "========================================="
+          echo "Patient CRM On-Premise Installation"
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "========================================="
+
+          # Check requirements
+          command -v docker >/dev/null 2>&1 || { echo "Error: Docker is required but not installed."; exit 1; }
+          command -v docker compose >/dev/null 2>&1 || { echo "Error: Docker Compose is required but not installed."; exit 1; }
+
+          echo ""
+          echo "Prerequisites check passed ✓"
+          echo ""
+
+          # Check if .env exists
+          if [ ! -f .env ]; then
+            echo "Creating .env file from example..."
+            cp .env.example .env
+            echo ""
+            echo "⚠️  IMPORTANT: Please edit .env file and configure:"
+            echo "   - DATABASE_PASSWORD"
+            echo "   - JWT_SECRET"
+            echo "   - ENCRYPTION_KEY"
+            echo "   - SUPER_ADMIN_PASSWORD"
+            echo "   - LICENSE_KEY"
+            echo ""
+            read -p "Press Enter after you have configured .env file..."
+          fi
+
+          # Validate required environment variables
+          source .env
+          if [ -z "$LICENSE_KEY" ] || [ "$LICENSE_KEY" = "YOUR_LICENSE_KEY_HERE" ]; then
+            echo "Error: LICENSE_KEY must be configured in .env"
+            exit 1
+          fi
+
+          if [ -z "$JWT_SECRET" ] || [[ "$JWT_SECRET" == *"CHANGE_THIS"* ]]; then
+            echo "Error: JWT_SECRET must be configured in .env"
+            exit 1
+          fi
+
+          echo "Starting Patient CRM..."
+          docker compose up -d
+
+          echo ""
+          echo "========================================="
+          echo "Installation Complete!"
+          echo "========================================="
+          echo ""
+          echo "Application is starting. Please wait 30-60 seconds."
+          echo ""
+          echo "Access the application at: http://localhost:3001"
+          echo "Or configure nginx for HTTPS access."
+          echo ""
+          echo "Default super admin credentials:"
+          echo "  Username: superadmin"
+          echo "  Password: (as configured in SUPER_ADMIN_PASSWORD)"
+          echo ""
+          echo "⚠️  Please change the password after first login!"
+          echo ""
+          INSTALL_EOF
+
+          chmod +x "${PACKAGE_DIR}/install.sh"
+
+          # Create README for the package
+          cat > "${PACKAGE_DIR}/README.md" << 'README_EOF'
+          # Patient CRM On-Premise Installation
+
+          ## Quick Start
+
+          1. Extract this package
+          2. Configure `.env` file
+          3. Run `./install.sh`
+
+          ## Prerequisites
+
+          - Docker Engine 20.10+
+          - Docker Compose v2.0+
+          - 2GB RAM minimum
+          - 10GB disk space
+
+          ## Installation Steps
+
+          ### 1. Configure Environment
+
+          ```bash
+          cp .env.example .env
+          nano .env
+          ```
+
+          Configure the following required variables:
+          - `LICENSE_KEY` - Your license key
+          - `JWT_SECRET` - Random string (min 32 chars)
+          - `ENCRYPTION_KEY` - Random string (min 32 chars)
+          - `DATABASE_PASSWORD` - PostgreSQL password
+          - `SUPER_ADMIN_PASSWORD` - Initial admin password
+
+          ### 2. Run Installation
+
+          ```bash
+          chmod +x install.sh
+          ./install.sh
+          ```
+
+          ### 3. Access Application
+
+          Open http://localhost:3001 in your browser.
+
+          Login with:
+          - Username: `superadmin`
+          - Password: (your configured password)
+
+          ## Documentation
+
+          See `docs/` directory for detailed documentation.
+
+          ## Support
+
+          For technical support, contact your vendor.
+          README_EOF
+
+          echo "Package created: ${PACKAGE_DIR}"
+
+      - name: Generate checksums
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_NAME="patient-crm-v${VERSION}-onpremise"
+          PACKAGE_DIR="dist-onpremise/${PACKAGE_NAME}"
+
+          cd "${PACKAGE_DIR}"
+          find . -type f ! -name "checksums.txt" -exec sha256sum {} \; > checksums.txt
+          echo "Checksums generated"
+
+      - name: Create tarball
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_NAME="patient-crm-v${VERSION}-onpremise"
+
+          cd dist-onpremise
+          tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+
+          echo "Tarball created: ${PACKAGE_NAME}.tar.gz"
+          ls -lh "${PACKAGE_NAME}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patient-crm-onpremise-${{ steps.version.outputs.version }}
+          path: dist-onpremise/*.tar.gz
+          retention-days: 90
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist-onpremise/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create build summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PACKAGE_NAME="patient-crm-v${VERSION}-onpremise"
+
+          echo "## 📦 On-Premise Package Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** ${PACKAGE_NAME}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Contents:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend (built)" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend server code" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration templates" >> $GITHUB_STEP_SUMMARY
+          echo "- Database initialization scripts" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker Compose configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Installation script" >> $GITHUB_STEP_SUMMARY
+          echo "- Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA256 Checksums:** Included in package" >> $GITHUB_STEP_SUMMARY

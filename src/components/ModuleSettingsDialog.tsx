@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Settings, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -58,13 +58,7 @@ export function ModuleSettingsDialog({
   const [availableModules, setAvailableModules] = useState<Record<string, AvailableModule>>({});
   const [modules, setModules] = useState<OrganizationModules>({});
 
-  useEffect(() => {
-    if (open) {
-      fetchData();
-    }
-  }, [open, organizationId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const token = tokenManager.get();
@@ -101,17 +95,23 @@ export function ModuleSettingsDialog({
 
       const modulesData = await modulesRes.json();
       setModules(modulesData.modules || {});
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('獲取模組資料失敗:', error);
       toast({
         variant: "destructive",
         title: "載入失敗",
-        description: error.message || "無法載入模組設定"
+        description: error instanceof Error ? error.message : "無法載入模組設定"
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId, toast]);
+
+  useEffect(() => {
+    if (open) {
+      fetchData();
+    }
+  }, [open, fetchData]);
 
   const handleToggleModule = (moduleId: keyof OrganizationModules) => {
     setModules(prev => ({
@@ -155,12 +155,12 @@ export function ModuleSettingsDialog({
 
       onSuccess?.();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('儲存模組設定失敗:', error);
       toast({
         variant: "destructive",
         title: "儲存失敗",
-        description: error.message || "無法儲存模組設定"
+        description: error instanceof Error ? error.message : "無法儲存模組設定"
       });
     } finally {
       setSaving(false);

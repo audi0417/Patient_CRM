@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAppointments, getPatients } from "@/lib/storage";
@@ -7,21 +7,31 @@ import CustomCalendar from "@/components/CustomCalendar";
 import RecurringAppointmentForm from "@/components/RecurringAppointmentForm";
 import { CalendarDays, List } from "lucide-react";
 import { format } from "date-fns";
+import { useDemo } from "@/contexts/DemoContext";
 
 const Appointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [defaultDate, setDefaultDate] = useState<string>("");
+  const demo = useDemo();
+  const isDemo = demo.isActive && demo.phase === 'simulation';
+
+  const loadData = useCallback(async () => {
+    // Demo 模式：使用模擬資料
+    if (isDemo) {
+      setAppointments(demo.demoAppointments);
+      setPatients(demo.demoPatients);
+      return;
+    }
+
+    setAppointments(await getAppointments());
+    setPatients(await getPatients());
+  }, [isDemo, demo.demoAppointments, demo.demoPatients]);
 
   useEffect(() => {
     loadData();
-  }, [showAddForm]); // 當表單關閉時重新載入資料
-
-  const loadData = async () => {
-    setAppointments(await getAppointments());
-    setPatients(await getPatients());
-  };
+  }, [showAddForm, loadData]); // 當表單關閉時重新載入資料
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,6 +102,7 @@ const Appointments = () => {
                         return (
                           <Card
                             key={appointment.id}
+                            data-appointment-id={appointment.id}
                             className="hover:shadow-md transition-all"
                           >
                             <CardContent className="p-4">

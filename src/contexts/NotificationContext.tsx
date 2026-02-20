@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { getAppointments, getPatients } from "@/lib/storage";
 import { Appointment, Patient } from "@/types/patient";
 import { differenceInDays, parseISO } from "date-fns";
@@ -32,41 +32,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [readStatus, setReadStatus] = useState<Record<string, boolean>>(() => {
     // 初始化時就從 localStorage 載入
     const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {};
+    return saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
   });
 
-  useEffect(() => {
-    // 如果用戶未登入，不載入通知
-    if (!user) {
-      return;
-    }
-
-    // 超級管理員不需要載入預約通知
-    if (user.role === 'super_admin') {
-      return;
-    }
-
-    // 初始載入通知
-    refreshNotifications();
-
-    // 每分鐘檢查一次
-    const interval = setInterval(refreshNotifications, 60000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  // 當 readStatus 改變時，重新整理通知以更新已讀狀態
-  useEffect(() => {
-    if (notifications.length > 0) {
-      setNotifications((prev) =>
-        prev.map((n) => ({
-          ...n,
-          read: readStatus[n.id] || false,
-        }))
-      );
-    }
-  }, [readStatus]);
-
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
     const appointments = await getAppointments();
     const patients = await getPatients();
     const today = new Date();
@@ -102,7 +71,39 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       .sort((a, b) => a.daysUntil - b.daysUntil);
 
     setNotifications(upcomingNotifications);
-  };
+  }, [readStatus]);
+
+  useEffect(() => {
+    // 如果用戶未登入，不載入通知
+    if (!user) {
+      return;
+    }
+
+    // 超級管理員不需要載入預約通知
+    if (user.role === 'super_admin') {
+      return;
+    }
+
+    // 初始載入通知
+    refreshNotifications();
+
+    // 每分鐘檢查一次
+    const interval = setInterval(refreshNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [user, refreshNotifications]);
+
+  // 當 readStatus 改變時，重新整理通知以更新已讀狀態
+  useEffect(() => {
+    if (notifications.length > 0) {
+      setNotifications((prev) =>
+        prev.map((n) => ({
+          ...n,
+          read: readStatus[n.id] || false,
+        }))
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readStatus]);
 
   const markAsRead = (notificationId: string) => {
     const newReadStatus = { ...readStatus, [notificationId]: true };

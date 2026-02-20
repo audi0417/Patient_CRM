@@ -3,6 +3,7 @@ import { Buffer } from "buffer";
 import process from "process";
 import App from "./App.tsx";
 import "./index.css";
+import "./styles/demo-guide.css";
 
 // Polyfills for browser compatibility
 window.Buffer = Buffer;

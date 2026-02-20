@@ -10,7 +10,8 @@ import {
   TrendingUp,
   AlertTriangle,
   DollarSign,
-  Activity
+  Activity,
+  LucideIcon
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -58,6 +59,7 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchDashboardStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -126,7 +128,7 @@ const Analytics = () => {
     title: string;
     value: number | string;
     description: string;
-    icon: any;
+    icon: LucideIcon;
     trend?: number;
   }) => (
     <Card>

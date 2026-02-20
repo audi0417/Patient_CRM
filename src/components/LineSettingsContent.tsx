@@ -3,7 +3,7 @@
  * 用於在設定頁面中顯示 LINE 整合配置
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,12 +43,7 @@ const LineSettingsContent = () => {
     `${window.location.origin}/api/line/webhook/${user?.organizationId || 'your-org-id'}`;
 
   // 載入現有配置
-  useEffect(() => {
-    loadConfig();
-    loadNotifications();
-  }, []);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       const response = await lineApi.config.get();
@@ -64,21 +59,22 @@ const LineSettingsContent = () => {
           monthlyMessageLimit: response.data.monthlyMessageLimit,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 沒有配置是正常的，不需要顯示錯誤
-      if (!error.message.includes('404')) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (!message.includes('404')) {
         toast({
           title: '載入失敗',
-          description: error.message,
+          description: message,
           variant: 'destructive',
         });
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       const response = await fetch('/api/organizations/me/notifications', {
         headers: {
@@ -98,7 +94,7 @@ const LineSettingsContent = () => {
           lineReminders: false
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('載入通知設定失敗:', error);
       // 失敗時使用預設值
       setNotifications({
@@ -106,7 +102,12 @@ const LineSettingsContent = () => {
         lineReminders: false
       });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadConfig();
+    loadNotifications();
+  }, [loadConfig, loadNotifications]);
 
   const handleNotificationToggle = async (type: 'emailReminders' | 'lineReminders', value: boolean) => {
     try {
@@ -134,10 +135,10 @@ const LineSettingsContent = () => {
       } else {
         throw new Error('更新失敗');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '更新失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
       // 還原狀態
@@ -169,10 +170,10 @@ const LineSettingsContent = () => {
         });
         await loadConfig();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '儲存失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
     } finally {
@@ -204,10 +205,10 @@ const LineSettingsContent = () => {
           monthlyMessageLimit: 30000,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '操作失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
     } finally {

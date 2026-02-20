@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,37 +54,37 @@ export default function ServiceItems() {
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   // 載入服務項目
-  const loadServiceItems = async () => {
+  const loadServiceItems = useCallback(async () => {
     try {
       setLoading(true);
       const items = await treatmentApi.serviceItems.getAll();
       setServiceItems(items || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "載入失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
       setServiceItems([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   // 載入分類
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const cats = await treatmentApi.serviceItems.getCategories();
       setCategories(cats);
     } catch (error) {
       console.error("Failed to load categories:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadServiceItems();
     loadCategories();
-  }, []);
+  }, [loadServiceItems, loadCategories]);
 
   // 篩選後的項目
   const filteredItems = serviceItems.filter((item) => {
@@ -150,10 +150,10 @@ export default function ServiceItems() {
       setShowDialog(false);
       loadServiceItems();
       loadCategories();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: editingItem ? "更新失敗" : "新增失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }
@@ -173,10 +173,10 @@ export default function ServiceItems() {
       });
       loadServiceItems();
       loadCategories();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "刪除失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }
@@ -193,10 +193,10 @@ export default function ServiceItems() {
         description: `已${!item.isActive ? "啟用" : "停用"}服務項目`,
       });
       loadServiceItems();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "更新失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }

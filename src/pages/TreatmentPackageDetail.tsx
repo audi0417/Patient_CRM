@@ -72,10 +72,10 @@ export default function TreatmentPackageDetail() {
       setLoading(true);
       const data = await treatmentApi.packages.getById(parseInt(id));
       setPackageDetail(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "載入失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
       navigate("/treatment-packages");
@@ -98,6 +98,7 @@ export default function TreatmentPackageDetail() {
   useEffect(() => {
     loadPackageDetail();
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // 開啟執行對話框
@@ -136,11 +137,11 @@ export default function TreatmentPackageDetail() {
       });
       setShowExecuteDialog(false);
       loadPackageDetail();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Execute] 失敗:', error);
       toast({
         title: "執行失敗",
-        description: error.message || "無法執行療程，請檢查輸入資料",
+        description: error instanceof Error ? error.message : "無法執行療程，請檢查輸入資料",
         variant: "destructive",
       });
     }
@@ -160,10 +161,10 @@ export default function TreatmentPackageDetail() {
         description: "執行記錄已刪除，使用次數已還原",
       });
       loadPackageDetail();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "刪除失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }

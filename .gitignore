@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-# package-lock.json 需要包含在部署中（用於 npm ci）
 
 # Build outputs
 dist/
@@ -9,7 +8,6 @@ out/
 
 # Electron
 *.log
-electron.log
 
 # Database
 *.db
@@ -44,5 +42,8 @@ coverage/
 temp/
 tmp/
 
-# License private key (never commit)
+# License private key
 config/license-private.pem
+
+# Archive (local only)
+archive/

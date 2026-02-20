@@ -49,6 +49,14 @@
 - **表單處理**：React Hook Form + Zod 驗證
 - **圖表**：Recharts 2.15.4
 
+### 後端技術
+- **框架**：Express.js 4.21.2
+- **資料庫**：PostgreSQL 15+ / SQLite 3
+- **認證**：JWT (jsonwebtoken 9.0.2)
+- **加密**：AES-256-GCM 欄位加密
+- **API**：RESTful API
+- **部署**：Docker + Docker Compose
+
 ### 桌面應用
 - **框架**：Electron 39.0.0
 - **打包工具**：Electron Builder 26.0.12
@@ -121,6 +129,71 @@ npm run electron:build:linux
 - **macOS**：`患者管理系統-1.0.0-mac.dmg`
 - **Linux**：`患者管理系統-1.0.0-linux.AppImage` / `.deb`
 
+## 🌐 部署選項
+
+Patient CRM 支援多種部署模式，滿足不同場景需求：
+
+### 桌面應用程式 (Electron)
+適合個人診所或小型醫療機構的單機使用：
+- ✅ 無需網路即可運行
+- ✅ 資料完全本地存儲
+- ✅ 支援 Windows、macOS、Linux
+- 📦 參見上方「打包發布」章節
+
+### 雲端 SaaS 部署
+適合需要多人協作、遠端存取的雲端多租戶環境：
+- ☁️ 部署到 AWS、GCP、Azure 等雲端平台
+- 🏢 支援多組織架構
+- 🔐 Row-Level Security (RLS) 資料隔離
+- 🚀 自動擴展與高可用性
+- 📚 詳見 [DEPLOYMENT.md](DEPLOYMENT.md#saas-deployment)
+
+### On-Premise 地端部署
+適合醫療機構私有伺服器部署：
+- 🏥 完整資料控制權
+- 🔒 符合資料本地化要求
+- 🐳 Docker 容器化部署
+- 📜 授權金鑰管理
+- 📚 詳見 [DEPLOYMENT.md](DEPLOYMENT.md#on-premise-deployment)
+
+### 快速開始 - Docker 部署
+
+**SaaS 模式**：
+```bash
+cp .env.saas.example .env
+# 編輯 .env 設定資料庫和密鑰
+docker-compose up -d
+```
+
+**On-Premise 模式**：
+
+Linux/Mac:
+```bash
+# 下載釋出套件
+wget https://github.com/<repo>/releases/latest/patient-crm-onpremise.tar.gz
+tar -xzf patient-crm-onpremise.tar.gz
+cd patient-crm-onpremise
+
+# 執行安裝腳本
+./install.sh
+```
+
+Windows (PowerShell):
+```powershell
+# 解壓縮套件
+Expand-Archive patient-crm-onpremise.zip -DestinationPath .\patient-crm
+
+# 執行安裝腳本
+cd patient-crm
+.\bin\install.ps1
+```
+
+**部署指南**：
+- 完整部署指南：**[DEPLOYMENT.md](DEPLOYMENT.md)**
+- Windows 專用指南：**[WINDOWS_DEPLOYMENT.md](WINDOWS_DEPLOYMENT.md)**
+
+---
+
 ## 🖥️ 使用說明
 
 ### 首次啟動
@@ -173,31 +246,76 @@ npm run electron:build:linux
 ### 專案結構
 ```
 Patient_CRM/
-├── electron/              # Electron 主程序
-│   ├── main.js           # Electron 入口點
-│   └── preload.js        # 預載腳本 (IPC 通訊)
-├── src/
-│   ├── components/       # React 組件
-│   │   ├── ui/          # shadcn-ui 基礎組件
-│   │   ├── Header.tsx   # 頁面導航
+├── server/                    # 後端伺服器 (Node.js + Express)
+│   ├── database/             # 資料庫層
+│   │   ├── adapters/        # 資料庫適配器 (SQLite/PostgreSQL)
+│   │   ├── migrations/      # 資料庫遷移檔案
+│   │   ├── db.js           # 資料庫連線管理
+│   │   ├── schema.js       # 資料表結構定義
+│   │   ├── sqlHelpers.js   # 跨資料庫 SQL 輔助函式
+│   │   └── migrate.js      # 遷移執行工具
+│   ├── routes/              # API 路由
+│   │   ├── auth.js         # 認證相關
+│   │   ├── patients.js     # 患者管理
+│   │   ├── consultations.js # 諮詢記錄
+│   │   └── ...
+│   ├── middleware/          # 中介層
+│   │   ├── auth.js         # JWT 驗證
+│   │   ├── licenseCheck.js # 授權檢查 (On-Premise)
+│   │   └── accessControl.js # 存取控制
+│   ├── services/            # 業務邏輯
+│   │   ├── licenseService.js # 授權管理
+│   │   └── ...
+│   ├── config/              # 配置檔案
+│   │   ├── deployment.js   # 部署模式配置
+│   │   └── ...
+│   └── index.js            # 伺服器入口點
+├── bin/                      # 管理工具腳本
+│   ├── install.sh          # On-Premise 安裝腳本
+│   ├── update.sh           # 升級腳本
+│   ├── rollback.sh         # 回滾腳本
+│   ├── backup.sh           # 備份工具
+│   ├── validate-config.sh  # 配置驗證
+│   ├── generate-keypair.js # 授權金鑰對生成
+│   └── generate-license.js # 授權金鑰產生
+├── electron/                 # Electron 主程序
+│   ├── main.js              # Electron 入口點
+│   └── preload.js           # 預載腳本 (IPC 通訊)
+├── src/                      # 前端 React 應用
+│   ├── components/          # React 組件
+│   │   ├── ui/             # shadcn-ui 基礎組件
+│   │   ├── Header.tsx      # 頁面導航
 │   │   ├── DatabaseManagement.tsx
 │   │   └── ...
-│   ├── pages/           # 頁面組件
+│   ├── pages/              # 頁面組件
 │   │   ├── PatientList.tsx
 │   │   ├── PatientDetail.tsx
 │   │   ├── Settings.tsx
 │   │   └── ...
-│   ├── lib/             # 工具函式
-│   │   ├── storage.ts   # 資料持久化層
+│   ├── lib/                # 工具函式
+│   │   ├── storage.ts      # 資料持久化層
+│   │   ├── api.ts          # API 客戶端
 │   │   └── utils.ts
-│   ├── types/           # TypeScript 型別定義
+│   ├── types/              # TypeScript 型別定義
 │   │   ├── patient.ts
 │   │   └── electron.d.ts
-│   ├── App.tsx          # 應用程式根組件
-│   └── main.tsx         # React 入口點
-├── public/              # 靜態資源
-├── build/               # 打包資源 (icon 等)
-├── electron-builder.json # Electron Builder 配置
+│   ├── App.tsx             # 應用程式根組件
+│   └── main.tsx            # React 入口點
+├── .github/                  # GitHub Actions CI/CD
+│   └── workflows/
+│       ├── test.yml        # 自動化測試
+│       ├── deploy-saas.yml # SaaS 部署流程
+│       └── build-onpremise.yml # On-Premise 套件建置
+├── config/                   # 配置檔案
+│   ├── nginx.conf          # Nginx 反向代理配置
+│   └── license-public.pem  # 授權公鑰 (On-Premise)
+├── public/                   # 靜態資源
+├── build/                    # 打包資源 (icon 等)
+├── Dockerfile                # Docker 映像檔定義
+├── docker-compose.yml        # SaaS 部署配置
+├── docker-compose.onpremise.yml # On-Premise 部署配置
+├── DEPLOYMENT.md             # 部署指南
+├── electron-builder.json     # Electron Builder 配置
 ├── package.json
 ├── vite.config.ts
 └── tailwind.config.ts
@@ -284,6 +402,18 @@ A: 檢查資料庫檔案權限，或刪除資料庫檔案讓系統重新建立
 **Q: 打包後無法執行**
 A: 確認 electron-builder.json 配置正確，特別是 files 和 extraResources 設定
 
+## � 文件導覽
+
+完整的文件索引請查看 **[DOCS_INDEX.md](DOCS_INDEX.md)**
+
+### 快速連結
+- 🚀 [快速開始](QUICK_START.md)
+- 📖 [部署指南](DEPLOYMENT_GUIDE.md)
+- 🔒 [安全狀態](SECURITY_STATUS.md)
+- 📱 [LINE 整合](LINE_INTEGRATION.md)
+
+---
+
 ## 📝 授權
 
 本專案採用 MIT 授權條款
@@ -292,13 +422,26 @@ A: 確認 electron-builder.json 配置正確，特別是 files 和 extraResource
 
 歡迎提交 Issue 或 Pull Request！
 
-## 📧 聯絡方式
-
-如有任何問題或建議，請透過以下方式聯絡：
-- Email: support@patient-crm.com
-- GitHub Issues: [提交問題](https://github.com/your-repo/Patient_CRM/issues)
-
 ## 🔄 更新日誌
+
+### Version 1.1.0 (2026-01-31)
+- 🚀 新增 SaaS 雲端多租戶部署支援
+- 🏢 新增 On-Premise 地端部署模式
+- 🐳 Docker 容器化部署
+- 🔐 PostgreSQL Row-Level Security (RLS)
+- 📜 授權金鑰管理系統 (On-Premise)
+- 🔧 資料庫遷移框架
+- 📦 自動化 CI/CD 流程 (GitHub Actions)
+- 🛠️ On-Premise 管理工具腳本
+  - install.sh - 一鍵安裝
+  - update.sh - 零停機升級
+  - backup.sh - 自動備份
+  - rollback.sh - 快速回滾
+  - validate-config.sh - 配置驗證
+- 🔄 跨資料庫支援 (SQLite + PostgreSQL)
+- 📚 完整部署文件 (DEPLOYMENT.md)
+- 🌐 Nginx 反向代理配置
+- ✅ 健康檢查端點
 
 ### Version 1.0.0 (2025-11-04)
 - ✨ 初版發布

@@ -80,6 +80,7 @@ const LineMessages = () => {
       }, 3000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversation]);
 
   // 監聽 ESC 鍵關閉圖片檢視器
@@ -95,7 +96,7 @@ const LineMessages = () => {
   }, [selectedImage]);
 
   // 監聽捲動事件，顯示「捲到底部」按鈕
-  const handleScroll = useCallback((event: any) => {
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.target;
     if (!target) return;
 
@@ -109,6 +110,7 @@ const LineMessages = () => {
     if (scrollTop < 100 && !loadingOlderMessages && hasMoreMessages) {
       loadOlderMessages();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingOlderMessages, hasMoreMessages]);
 
   const loadConversations = async () => {
@@ -117,7 +119,7 @@ const LineMessages = () => {
       if (response.success && response.data) {
         setConversations(response.data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('載入對話失敗:', error);
     } finally {
       setLoading(false);
@@ -173,10 +175,10 @@ const LineMessages = () => {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '載入訊息失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : '未知錯誤',
         variant: 'destructive',
       });
     } finally {
@@ -219,7 +221,7 @@ const LineMessages = () => {
           setHasMoreMessages(false);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('載入歷史訊息失敗:', error);
     } finally {
       setLoadingOlderMessages(false);
@@ -264,7 +266,7 @@ const LineMessages = () => {
           return prev;
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('載入新訊息失敗:', error);
     }
   };
@@ -308,10 +310,10 @@ const LineMessages = () => {
           title: '訊息已送出',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '傳送失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : '未知錯誤',
         variant: 'destructive',
       });
     } finally {
@@ -340,10 +342,10 @@ const LineMessages = () => {
           title: '貼圖已送出',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '傳送失敗',
-        description: error.message,
+        description: error instanceof Error ? error.message : '未知錯誤',
         variant: 'destructive',
       });
     } finally {

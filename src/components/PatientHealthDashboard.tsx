@@ -74,6 +74,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient.id, showBodyCompositionForm, showVitalSignsForm, showGoalForm]);
 
   const loadData = async () => {
@@ -136,8 +137,8 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
       await api.health.bodyComposition.importExcel(file, patient.id);
       toast.success("體組成記錄匯入成功");
       await loadData();
-    } catch (error: any) {
-      toast.error(error.message || "匯入失敗");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "匯入失敗");
       console.error('Import body composition error:', error);
     }
   };
@@ -148,8 +149,8 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
       await api.health.vitalSigns.importExcel(file, patient.id);
       toast.success("生命徵象記錄匯入成功");
       await loadData();
-    } catch (error: any) {
-      toast.error(error.message || "匯入失敗");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "匯入失敗");
       console.error('Import vital signs error:', error);
     }
   };

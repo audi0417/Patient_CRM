@@ -80,7 +80,7 @@ export interface LineMessage {
   conversationId: string;
   organizationId: string;
   messageType: 'TEXT' | 'STICKER' | 'IMAGE' | 'SYSTEM';
-  messageContent: any; // JSON 物件
+  messageContent: Record<string, unknown>; // JSON 物件
   senderId: string;
   recipientId: string;
   senderType: 'USER' | 'PATIENT' | 'SYSTEM';
@@ -93,7 +93,7 @@ export interface LineMessage {
   readAt?: string;
   isReply: boolean;
   quotedMessageId?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   retryCount: number;
   errorMessage?: string;
   createdAt: string;

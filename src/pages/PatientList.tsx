@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Plus, Search, Filter, Users, X, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { getPatients, getGroups } from "@/lib/storage";
 import { Patient, PatientGroup } from "@/types/patient";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo } from "@/contexts/DemoContext";
 
 interface PatientWithOrg extends Patient {
   organizationName?: string;
@@ -42,13 +43,17 @@ const PatientList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
+  const demo = useDemo();
+  const isDemo = demo.isActive && demo.phase === 'simulation';
 
-  useEffect(() => {
-    loadData();
-  }, [isSuperAdmin]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
+      // Demo 模式：使用模擬資料
+      if (isDemo) {
+        setPatients(demo.demoPatients);
+        return;
+      }
+
       if (isSuperAdmin) {
         // 超級管理員：獲取所有組織的患者
         const token = localStorage.getItem("hospital_crm_auth_token");
@@ -83,7 +88,11 @@ const PatientList = () => {
       setPatients([]);
       setGroups([]);
     }
-  };
+  }, [isSuperAdmin, isDemo, demo.demoPatients]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // 篩選患者
   const filteredPatients = useMemo(() => {
@@ -330,6 +339,7 @@ const PatientList = () => {
                     return (
                       <TableRow
                         key={patient.id}
+                        data-patient-id={patient.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => navigate(`/patient/${patient.id}`)}
                       >

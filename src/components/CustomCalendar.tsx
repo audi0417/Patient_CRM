@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+
+declare global {
+  interface Window {
+    __isDemoMode?: boolean;
+  }
+}
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -247,14 +253,13 @@ const CustomCalendar = ({
 
   // 當 appointments 更新時，同步更新 selectedAppointment
   useEffect(() => {
-    if (selectedAppointment) {
+    setSelectedAppointment((prev) => {
+      if (!prev) return prev;
       const updatedAppointment = appointments.find(
-        (apt) => apt.id === selectedAppointment.id
+        (apt) => apt.id === prev.id
       );
-      if (updatedAppointment) {
-        setSelectedAppointment(updatedAppointment);
-      }
-    }
+      return updatedAppointment ?? prev;
+    });
   }, [appointments]);
 
   // 監控拖曳狀態，防止卡住
@@ -444,7 +449,7 @@ const CustomCalendar = ({
             onDrop={async (e) => {
               e.preventDefault();
               e.currentTarget.classList.remove("bg-accent/70", "border-primary", "border-2");
-              
+
               const appointmentId = e.dataTransfer?.getData("appointmentId");
               if (appointmentId && appointmentId !== dateId) {
                 const appointment = appointments.find((apt) => apt.id === appointmentId);
@@ -457,6 +462,13 @@ const CustomCalendar = ({
                     };
                     await saveAppointment(updatedAppointment);
                     onDataUpdate?.();
+
+                    // Demo 模式：發送拖曳完成事件
+                    if ((window as unknown as Record<string, unknown>).__isDemoMode) {
+                      window.dispatchEvent(new CustomEvent('demo:event', {
+                        detail: { eventType: 'appointment-dragged', appointmentId, newDate: dateId }
+                      }));
+                    }
                   } catch (error) {
                     console.error("更新預約日期失敗:", error);
                   } finally {
@@ -490,6 +502,7 @@ const CustomCalendar = ({
                   <div
                     key={apt.id}
                     draggable
+                    data-appointment-id={apt.id}
                     onDragStart={(e) => {
                       e.dataTransfer!.effectAllowed = "move";
                       e.dataTransfer!.setData("appointmentId", apt.id);
@@ -504,7 +517,7 @@ const CustomCalendar = ({
                     }}
                     onDragOver={(e) => {
                       e.preventDefault();
-                      handleDragOverEdge(e as any);
+                      handleDragOverEdge(e);
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -566,7 +579,7 @@ const CustomCalendar = ({
             onDragOver={(e) => {
               if (!isDragging) return;
               e.preventDefault();
-              handleDragOverEdge(e as any);
+              handleDragOverEdge(e);
             }}
           >
             {isDragging && <ChevronLeft className="h-8 w-8 text-blue-600 pointer-events-none" />}
@@ -582,7 +595,7 @@ const CustomCalendar = ({
             onDragOver={(e) => {
               if (!isDragging) return;
               e.preventDefault();
-              handleDragOverEdge(e as any);
+              handleDragOverEdge(e);
             }}
           >
             {isDragging && <ChevronRight className="h-8 w-8 text-blue-600 pointer-events-none" />}
@@ -593,7 +606,7 @@ const CustomCalendar = ({
             {renderDaysOfWeek()}
 
             {/* 雙月份容器，用 overflow-hidden 限制範圍 */}
-            <div className="overflow-hidden" onDragLeave={(e) => handleDragLeave(e as any)}>
+            <div className="overflow-hidden" onDragLeave={(e) => handleDragLeave(e)}>
               <div
                 data-calendar-container
                 className={cn(
@@ -605,7 +618,7 @@ const CustomCalendar = ({
                   // 向右滑動（切換到上個月）：從中間移到右邊
                   transitionDirection === "right" && "translate-x-0"
                 )}
-                onDragOver={(e) => { e.preventDefault(); handleDragOverEdge(e as any); }}
+                onDragOver={(e) => { e.preventDefault(); handleDragOverEdge(e); }}
               >
                 {/* 前一個月份（向右滑時會看到） */}
                 <div className="w-full flex-shrink-0">
@@ -646,7 +659,20 @@ const CustomCalendar = ({
                 <CalendarDays className="h-16 w-16 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">此日期沒有預約</p>
                 {onAddAppointment && selectedDate && (
-                  <Button variant="outline" size="sm" onClick={() => onAddAppointment(selectedDate)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onAddAppointment(selectedDate);
+                      // Demo 模式：發送新增預約按鈕點擊事件
+                      if ((window as unknown as Record<string, unknown>).__isDemoMode) {
+                        window.dispatchEvent(new CustomEvent('demo:event', {
+                          detail: { eventType: 'add-appointment-clicked' }
+                        }));
+                      }
+                    }}
+                    data-add-appointment-btn
+                  >
                     <Plus className="h-4 w-4 mr-1" />
                     新增預約
                   </Button>

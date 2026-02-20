@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,14 +20,7 @@ const AppointmentReminders = () => {
   );
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadReminders();
-    // 每分鐘檢查一次（或可調整為更長間隔）
-    const interval = setInterval(loadReminders, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadReminders = async () => {
+  const loadReminders = useCallback(async () => {
     const appointments = await getAppointments();
     const patients = await getPatients();
     const today = new Date();
@@ -65,7 +58,14 @@ const AppointmentReminders = () => {
       .sort((a, b) => a.daysUntil - b.daysUntil);
 
     setReminders(upcomingReminders);
-  };
+  }, [dismissedReminders]);
+
+  useEffect(() => {
+    loadReminders();
+    // 每分鐘檢查一次（或可調整為更長間隔）
+    const interval = setInterval(loadReminders, 60000);
+    return () => clearInterval(interval);
+  }, [loadReminders]);
 
   const handleDismiss = (appointmentId: string) => {
     setDismissedReminders((prev) => new Set(prev).add(appointmentId));

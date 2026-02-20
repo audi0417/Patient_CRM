@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -18,11 +18,7 @@ export const useServiceTypes = (activeOnly: boolean = true) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadServiceTypes();
-  }, [activeOnly]);
-
-  const loadServiceTypes = async () => {
+  const loadServiceTypes = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -30,7 +26,7 @@ export const useServiceTypes = (activeOnly: boolean = true) => {
         ? await api.serviceTypes.getActive()
         : await api.serviceTypes.getAll();
       setServiceTypes(types || []);
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "載入服務類別失敗";
       setError(errorMessage);
       toast.error(errorMessage);
@@ -39,7 +35,11 @@ export const useServiceTypes = (activeOnly: boolean = true) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeOnly]);
+
+  useEffect(() => {
+    loadServiceTypes();
+  }, [loadServiceTypes]);
 
   const refresh = () => {
     loadServiceTypes();

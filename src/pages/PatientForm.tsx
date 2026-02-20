@@ -97,11 +97,13 @@ const PatientForm = () => {
       await savePatient(patient);
       toast.success(isEdit ? "患者資料已更新" : "患者已新增");
       navigate("/");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("保存患者資料失敗:", error);
 
       // 檢查是否為配額或訂閱錯誤
-      const errorMessage = error?.message || error?.error || (isEdit ? "更新患者資料失敗" : "新增患者失敗");
+      const err = error instanceof Error ? error : null;
+      const errObj = error as Record<string, unknown>;
+      const errorMessage = err?.message || (typeof errObj?.error === 'string' ? errObj.error : '') || (isEdit ? "更新患者資料失敗" : "新增患者失敗");
 
       if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED")) {
         toast.error("已達到患者數量上限，請聯繫管理員升級方案");

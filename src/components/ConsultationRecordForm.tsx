@@ -38,7 +38,7 @@ const ConsultationRecordForm = ({ patientId, onClose, existingRecord }: Consulta
 
     const now = new Date().toISOString();
     const record: ConsultationRecord = {
-      id: existingRecord?.id || `consultation_${Date.now()}`,
+      id: existingRecord?.id || '',
       patientId,
       date: formData.date,
       notes: formData.notes,

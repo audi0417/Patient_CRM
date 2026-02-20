@@ -77,10 +77,10 @@ export default function TreatmentPackages() {
       setLoading(true);
       const data = await treatmentApi.packages.getAll();
       setPackages(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "載入失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
       setPackages([]);
@@ -103,6 +103,7 @@ export default function TreatmentPackages() {
   useEffect(() => {
     loadPackages();
     loadPatients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 取得病患名稱
@@ -212,10 +213,10 @@ export default function TreatmentPackages() {
       });
       setShowDialog(false);
       loadPackages();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "建立失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }
@@ -234,10 +235,10 @@ export default function TreatmentPackages() {
         description: "療程方案已刪除",
       });
       loadPackages();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "刪除失敗",
-        description: error.message,
+        description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
     }

@@ -168,8 +168,8 @@ const AppointmentForm = ({ patientId, onClose }: AppointmentFormProps) => {
             <Label htmlFor="status">狀態</Label>
             <Select
               value={formData.status}
-              onValueChange={(value: any) =>
-                setFormData({ ...formData, status: value })
+              onValueChange={(value: string) =>
+                setFormData({ ...formData, status: value as "scheduled" | "completed" | "cancelled" })
               }
             >
               <SelectTrigger>

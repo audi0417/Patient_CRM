@@ -75,12 +75,12 @@ const HealthDataCharts = ({
       glucose: record.bloodGlucose,
     }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+  const CustomTooltip = ({ active, payload, label }: Record<string, unknown>) => {
+    if (active && payload && (payload as unknown[]).length) {
       return (
         <div className="bg-background border rounded-lg shadow-lg p-3">
-          <p className="font-semibold mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          <p className="font-semibold mb-2">{label as string}</p>
+          {(payload as Record<string, unknown>[]).map((entry: Record<string, unknown>, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.name}: {entry.value?.toFixed(1)} {entry.unit || ""}
             </p>

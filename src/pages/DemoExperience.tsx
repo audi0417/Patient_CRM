@@ -34,7 +34,7 @@ const DemoExperience = () => {
       });
 
       // 導航到病患列表頁面（使用真實介面）
-      navigate('/');
+      navigate('/patients');
     }
   }, [phase, demoPatients, demoAppointments, demoUser, navigate]);
 

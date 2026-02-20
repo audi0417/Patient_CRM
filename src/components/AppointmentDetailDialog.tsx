@@ -316,8 +316,8 @@ const AppointmentDetailDialog = ({
                 <Label htmlFor="status">狀態</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, status: value })
+                  onValueChange={(value: string) =>
+                    setFormData({ ...formData, status: value as "scheduled" | "completed" | "cancelled" })
                   }
                 >
                   <SelectTrigger>
@@ -343,7 +343,7 @@ const AppointmentDetailDialog = ({
                     const value = e.target.value;
                     // 允許空值，讓用戶可以刪除後重新輸入
                     if (value === "") {
-                      setFormData({ ...formData, reminderDays: "" as any });
+                      setFormData({ ...formData, reminderDays: "" });
                     } else {
                       const numValue = parseInt(value);
                       if (!isNaN(numValue) && numValue >= 1 && numValue <= 30) {
