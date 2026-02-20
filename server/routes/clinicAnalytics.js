@@ -22,6 +22,12 @@ router.get('/clinic-dashboard', async (req, res) => {
     const { organizationId } = req.tenantContext;
     const { period = '30d' } = req.query; // 7d, 30d, 90d, 1y
     
+    // 參數驗證
+    const validPeriods = ['7d', '30d', '90d', '1y'];
+    if (!validPeriods.includes(period)) {
+      return res.status(400).json({ error: '無效的時間範圍參數' });
+    }
+    
     // 計算日期範圍
     const dateRanges = calculateDateRanges(period);
     
@@ -280,7 +286,7 @@ async function getPatientsAnalytics(organizationId, dateRanges) {
  * 預約分析數據
  */
 async function getAppointmentsAnalytics(organizationId, dateRanges) {
-  const { periodStart } = dateRanges;
+  const { periodStart, startOfMonth, startOfLastMonth } = dateRanges;
 
   // 預約狀態統計
   const statusStats = await queryAll(`
@@ -299,6 +305,23 @@ async function getAppointmentsAnalytics(organizationId, dateRanges) {
   const total = Object.values(statusCounts).reduce((sum, count) => sum + Number(count), 0);
   const completed = statusCounts.completed || 0;
   const cancelled = statusCounts.cancelled || 0;
+
+  // 上期統計（用於對比）
+  const lastPeriodStats = await queryAll(`
+    SELECT 
+      status,
+      COUNT(*) as count
+    FROM appointments
+    WHERE organizationId = ? 
+      AND DATE(date) >= ? 
+      AND DATE(date) < ?
+    GROUP BY status
+  `, [organizationId, startOfLastMonth, startOfMonth]);
+
+  const lastPeriodCounts = Object.fromEntries(
+    lastPeriodStats.map(row => [row.status, row.count])
+  );
+  const lastPeriodTotal = Object.values(lastPeriodCounts).reduce((sum, count) => sum + Number(count), 0);
 
   // 預約趨勢（按日期）
   const trend = await queryAll(`
@@ -334,8 +357,32 @@ async function getAppointmentsAnalytics(organizationId, dateRanges) {
     ORDER BY count DESC
   `, [organizationId, periodStart]);
 
+  // 預約來源分析（線上 vs 線下）
+  // 註：這裡假設 appointments 表有 source 欄位，如果沒有則返回模擬數據
+  const sourceAnalysis = await queryAll(`
+    SELECT 
+      CASE 
+        WHEN notes LIKE '%LINE%' THEN 'line'
+        WHEN notes LIKE '%電話%' OR notes LIKE '%phone%' THEN 'phone'
+        ELSE 'walkIn'
+      END as source,
+      COUNT(*) as count
+    FROM appointments
+    WHERE organizationId = ? AND DATE(date) >= ?
+    GROUP BY source
+  `, [organizationId, periodStart]);
+
+  const sourceMap = Object.fromEntries(
+    sourceAnalysis.map(row => [row.source, row.count])
+  );
+
+  const lineBooking = sourceMap.line || 0;
+  const phoneCall = sourceMap.phone || 0;
+  const walkIn = sourceMap.walkIn || total - lineBooking - phoneCall;
+
   return {
     total,
+    lastPeriodTotal,
     completionRate: total > 0 ? Math.round((completed / total) * 100) / 100 : 0,
     cancellationRate: total > 0 ? Math.round((cancelled / total) * 100) / 100 : 0,
     trend: trend.map(row => ({
@@ -349,7 +396,14 @@ async function getAppointmentsAnalytics(organizationId, dateRanges) {
     byServiceType: byServiceType.map(row => ({
       type: row.type || '未分類',
       count: row.count
-    }))
+    })),
+    sourceAnalysis: {
+      online: lineBooking + phoneCall,
+      offline: walkIn,
+      lineBooking,
+      phoneCall,
+      walkIn
+    }
   };
 }
 
@@ -414,7 +468,7 @@ async function getPackagesAnalytics(organizationId, dateRanges) {
  * LINE 通訊分析數據
  */
 async function getLineAnalytics(organizationId, dateRanges) {
-  const { periodStart } = dateRanges;
+  const { periodStart, startOfMonth, startOfLastMonth } = dateRanges;
 
   // 未讀對話數
   const unreadConversations = await queryOne(`
@@ -434,6 +488,47 @@ async function getLineAnalytics(organizationId, dateRanges) {
       AND DATE(sentAt) >= ?
   `, [organizationId, sevenDaysAgo.toISOString().split('T')[0]]);
 
+  // 總好友數（所有對話數）
+  const totalFriends = await queryOne(`
+    SELECT COUNT(*) as count
+    FROM conversations
+    WHERE organizationId = ?
+  `, [organizationId]);
+
+  // 上期好友數
+  const lastMonthFriends = await queryOne(`
+    SELECT COUNT(*) as count
+    FROM conversations
+    WHERE organizationId = ? AND DATE(createdAt) < ?
+  `, [organizationId, startOfMonth]);
+
+  // 綁定率（有 patientId 的對話比例）
+  const boundConversations = await queryOne(`
+    SELECT COUNT(*) as count
+    FROM conversations
+    WHERE organizationId = ? AND patientId IS NOT NULL
+  `, [organizationId]);
+
+  const bindingRate = totalFriends?.count > 0 
+    ? boundConversations.count / totalFriends.count 
+    : 0;
+
+  // 平均回覆時間（簡化計算）
+  const avgReplyTime = await queryOne(`
+    SELECT AVG(
+      CAST((julianday(
+        (SELECT MIN(sentAt) FROM line_messages m2 
+         WHERE m2.conversationId = m1.conversationId 
+         AND m2.senderType = 'ADMIN' 
+         AND m2.sentAt > m1.sentAt)
+      ) - julianday(m1.sentAt)) * 24 * 60 AS INTEGER)
+    ) as avgMinutes
+    FROM line_messages m1
+    WHERE m1.organizationId = ? 
+      AND m1.senderType = 'PATIENT'
+      AND DATE(m1.sentAt) >= ?
+  `, [organizationId, periodStart]);
+
   // 每日訊息量趨勢
   const dailyMessageTrend = await queryAll(`
     SELECT 
@@ -446,9 +541,21 @@ async function getLineAnalytics(organizationId, dateRanges) {
     ORDER BY date ASC
   `, [organizationId, periodStart]);
 
+  // 本期總訊息數
+  const periodMessages = dailyMessageTrend.reduce((sum, day) => ({
+    sent: sum.sent + day.sent,
+    received: sum.received + day.received
+  }), { sent: 0, received: 0 });
+
   return {
     unreadConversations: unreadConversations?.count || 0,
     activeConversations: activeConversations?.count || 0,
+    totalFriends: totalFriends?.count || 0,
+    friendsGrowth: (totalFriends?.count || 0) - (lastMonthFriends?.count || 0),
+    bindingRate: bindingRate,
+    averageReplyTime: avgReplyTime?.avgMinutes || 0,
+    messagesSent: periodMessages.sent,
+    messagesReceived: periodMessages.received,
     dailyMessageTrend: dailyMessageTrend.map(row => ({
       date: row.date,
       sent: row.sent,

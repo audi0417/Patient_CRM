@@ -70,7 +70,7 @@ export default function ServiceDistribution({ data }: ServiceDistributionProps) 
                     <span>{item.name}</span>
                   </div>
                   <span className="font-medium">
-                    {item.value} ({((item.value / total) * 100).toFixed(1)}%)
+                    {item.value} ({total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0'}%)
                   </span>
                 </div>
               ))}

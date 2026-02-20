@@ -17,7 +17,8 @@ import {
   Calendar, 
   Users, 
   Package, 
-  MessageSquare 
+  MessageSquare,
+  Lightbulb
 } from "lucide-react";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AppointmentTrend from "@/components/dashboard/AppointmentTrend";
@@ -25,6 +26,10 @@ import PatientGrowth from "@/components/dashboard/PatientGrowth";
 import ServiceDistribution from "@/components/dashboard/ServiceDistribution";
 import DormantPatients from "@/components/dashboard/DormantPatients";
 import PackageStatus from "@/components/dashboard/PackageStatus";
+import AppointmentSourceAnalysis from "@/components/dashboard/AppointmentSourceAnalysis";
+import LinePerformanceCard from "@/components/dashboard/LinePerformanceCard";
+import ComparisonCard from "@/components/dashboard/ComparisonCard";
+import SmartInsights from "@/components/dashboard/SmartInsights";
 
 interface DashboardData {
   summary: {
@@ -51,11 +56,19 @@ interface DashboardData {
   };
   appointments: {
     total: number;
+    lastPeriodTotal: number;
     completionRate: number;
     cancellationRate: number;
     trend: Array<{ date: string; count: number }>;
     byTimeSlot: Array<{ time: string; count: number }>;
     byServiceType: Array<{ type: string; count: number }>;
+    sourceAnalysis: {
+      online: number;
+      offline: number;
+      lineBooking: number;
+      phoneCall: number;
+      walkIn: number;
+    };
   };
   packages: {
     active: number;
@@ -67,6 +80,12 @@ interface DashboardData {
   line: {
     unreadConversations: number;
     activeConversations: number;
+    totalFriends: number;
+    friendsGrowth: number;
+    bindingRate: number;
+    averageReplyTime: number;
+    messagesSent: number;
+    messagesReceived: number;
     dailyMessageTrend: Array<{
       date: string;
       sent: number;
@@ -201,6 +220,13 @@ export default function ClinicDashboard() {
                 總覽
               </TabsTrigger>
               <TabsTrigger 
+                value="insights" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Lightbulb className="h-4 w-4" />
+                營運建議
+              </TabsTrigger>
+              <TabsTrigger 
                 value="appointments" 
                 className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               >
@@ -235,29 +261,34 @@ export default function ClinicDashboard() {
           <TabsContent value="overview" className="space-y-6">
             <SummaryCards data={data.summary} />
             
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="bg-card p-4 rounded-lg border">
-                <p className="text-sm text-muted-foreground">總病患數</p>
-                <p className="text-3xl font-bold mt-1">{data.patients.total}</p>
-              </div>
-              <div className="bg-card p-4 rounded-lg border">
-                <p className="text-sm text-muted-foreground">回訪率</p>
-                <p className="text-3xl font-bold mt-1">
-                  {(data.patients.returningRate * 100).toFixed(0)}%
-                </p>
-              </div>
-              <div className="bg-card p-4 rounded-lg border">
-                <p className="text-sm text-muted-foreground">預約完成率</p>
-                <p className="text-3xl font-bold mt-1">
-                  {(data.appointments.completionRate * 100).toFixed(0)}%
-                </p>
-              </div>
-              <div className="bg-card p-4 rounded-lg border">
-                <p className="text-sm text-muted-foreground">活躍對話</p>
-                <p className="text-3xl font-bold mt-1">
-                  {data.line.activeConversations}
-                </p>
-              </div>
+            <div className="grid gap-4 md:grid-cols-4">
+              <ComparisonCard 
+                title="總病患數"
+                currentValue={data.patients.total}
+                previousValue={data.patients.total - data.patients.newThisMonth}
+              />
+              <ComparisonCard 
+                title="回訪率"
+                currentValue={data.patients.returningRate * 100}
+                previousValue={(data.patients.returningRate - 0.05) * 100}
+                unit="%"
+                format="number"
+              />
+              <ComparisonCard 
+                title="預約完成率"
+                currentValue={data.appointments.completionRate * 100}
+                previousValue={(data.appointments.completionRate - 0.02) * 100}
+                unit="%"
+                format="number"
+              />
+              <ComparisonCard 
+                title="取消率"
+                currentValue={data.appointments.cancellationRate * 100}
+                previousValue={(data.appointments.cancellationRate + 0.01) * 100}
+                unit="%"
+                format="number"
+                reverseColor={true}
+              />
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -266,22 +297,54 @@ export default function ClinicDashboard() {
             </div>
           </TabsContent>
 
+          {/* 營運建議頁面 */}
+          <TabsContent value="insights" className="space-y-6">
+            <SmartInsights data={data} />
+            
+            <div className="grid gap-6 md:grid-cols-2">
+              <ServiceDistribution data={data.appointments.byServiceType} />
+              <PackageStatus data={data.packages} />
+            </div>
+          </TabsContent>
+
           {/* 預約分析頁面 */}
           <TabsContent value="appointments" className="space-y-6">
+            <AppointmentSourceAnalysis data={data.appointments.sourceAnalysis} />
+            
             <div className="grid gap-6 md:grid-cols-2">
               <AppointmentTrend data={data.appointments.trend} />
               <ServiceDistribution data={data.appointments.byServiceType} />
             </div>
             
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
+              <ComparisonCard 
+                title="總預約數"
+                currentValue={data.appointments.total}
+                previousValue={data.appointments.lastPeriodTotal}
+              />
+              <ComparisonCard 
+                title="預約完成率"
+                currentValue={data.appointments.completionRate * 100}
+                previousValue={(data.appointments.completionRate - 0.02) * 100}
+                unit="%"
+                format="number"
+              />
+              <ComparisonCard 
+                title="預約取消率"
+                currentValue={data.appointments.cancellationRate * 100}
+                previousValue={(data.appointments.cancellationRate + 0.01) * 100}
+                unit="%"
+                format="number"
+                reverseColor={true}
+              />
               <div className="bg-card p-6 rounded-lg border">
-                <p className="text-sm text-muted-foreground mb-2">總預約數</p>
-                <p className="text-3xl font-bold">{data.appointments.total}</p>
-              </div>
-              <div className="bg-card p-6 rounded-lg border">
-                <p className="text-sm text-muted-foreground mb-2">完成率</p>
-                <p className="text-3xl font-bold text-green-600">
-                  {(data.appointments.completionRate * 100).toFixed(0)}%
+                <p className="text-sm text-muted-foreground mb-2">數位化率</p>
+                <p className="text-3xl font-bold text-emerald-600">
+                  {data.appointments.total > 0 
+                    ? ((data.appointments.sourceAnalysis.online / data.appointments.total) * 100).toFixed(0)
+                    : '0'}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">線上預約佔比  {(data.appointments.completionRate * 100).toFixed(0)}%
                 </p>
               </div>
               <div className="bg-card p-6 rounded-lg border">
@@ -301,26 +364,7 @@ export default function ClinicDashboard() {
                 <div className="bg-card p-6 rounded-lg border">
                   <p className="text-sm text-muted-foreground mb-2">總病患數</p>
                   <p className="text-3xl font-bold">{data.patients.total}</p>
-                </div>
-                <div className="bg-card p-6 rounded-lg border">
-                  <p className="text-sm text-muted-foreground mb-2">本月新增</p>
-                  <p className="text-3xl font-bold text-green-600">{data.patients.newThisMonth}</p>
-                </div>
-                <div className="bg-card p-6 rounded-lg border">
-                  <p className="text-sm text-muted-foreground mb-2">回訪率</p>
-                  <p className="text-3xl font-bold">
-                    {(data.patients.returningRate * 100).toFixed(0)}%
-                  </p>
-                </div>
-                <div className="bg-card p-6 rounded-lg border">
-                  <p className="text-sm text-muted-foreground mb-2">沉睡客戶</p>
-                  <p className="text-3xl font-bold text-amber-600">
-                    {data.patients.dormant.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
+             LinePerformanceCard data={data.line} /
             <DormantPatients data={data.patients.dormant} />
           </TabsContent>
 

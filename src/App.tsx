@@ -8,6 +8,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import DemoScenarioManager from "@/components/demo/DemoScenarioManager";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Header from "./components/Header";
 import NotificationToasts from "./components/NotificationToasts";
 import PatientList from "./pages/PatientList";
@@ -160,7 +161,9 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ProtectedLayout>
-              <ClinicDashboard />
+              <ErrorBoundary>
+                <ClinicDashboard />
+              </ErrorBoundary>
             </ProtectedLayout>
           </ProtectedRoute>
         }
