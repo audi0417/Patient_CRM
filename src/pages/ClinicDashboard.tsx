@@ -9,7 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  RefreshCw, 
+  TrendingUp, 
+  LayoutDashboard, 
+  Calendar, 
+  Users, 
+  Package, 
+  MessageSquare 
+} from "lucide-react";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AppointmentTrend from "@/components/dashboard/AppointmentTrend";
 import PatientGrowth from "@/components/dashboard/PatientGrowth";
@@ -145,7 +154,7 @@ export default function ClinicDashboard() {
     <div className="min-h-screen bg-background">
       <div className="container max-w-[95vw] py-8">
         {/* 標題與篩選器 */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <TrendingUp className="h-8 w-8" />
@@ -180,58 +189,193 @@ export default function ClinicDashboard() {
           </div>
         </div>
 
-        <div className="space-y-8">
-          {/* 今日摘要卡片 */}
-          <SummaryCards data={data.summary} />
-
-          {/* 預約與服務分析 */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <AppointmentTrend data={data.appointments.trend} />
-            <ServiceDistribution data={data.appointments.byServiceType} />
+        {/* 分頁籤導航 */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <div className="border-b">
+            <TabsList className="inline-flex h-auto p-0 bg-transparent">
+              <TabsTrigger 
+                value="overview" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                總覽
+              </TabsTrigger>
+              <TabsTrigger 
+                value="appointments" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Calendar className="h-4 w-4" />
+                預約分析
+              </TabsTrigger>
+              <TabsTrigger 
+                value="patients" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Users className="h-4 w-4" />
+                病患分析
+              </TabsTrigger>
+              <TabsTrigger 
+                value="packages" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Package className="h-4 w-4" />
+                療程管理
+              </TabsTrigger>
+              <TabsTrigger 
+                value="line" 
+                className="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              >
+                <MessageSquare className="h-4 w-4" />
+                LINE 通訊
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          {/* 病患成長與沉睡客戶 */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <PatientGrowth data={data.patients.growthTrend} />
-            <div className="space-y-4">
+          {/* 總覽頁面 */}
+          <TabsContent value="overview" className="space-y-6">
+            <SummaryCards data={data.summary} />
+            
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="bg-card p-4 rounded-lg border">
+                <p className="text-sm text-muted-foreground">總病患數</p>
+                <p className="text-3xl font-bold mt-1">{data.patients.total}</p>
+              </div>
+              <div className="bg-card p-4 rounded-lg border">
+                <p className="text-sm text-muted-foreground">回訪率</p>
+                <p className="text-3xl font-bold mt-1">
+                  {(data.patients.returningRate * 100).toFixed(0)}%
+                </p>
+              </div>
+              <div className="bg-card p-4 rounded-lg border">
+                <p className="text-sm text-muted-foreground">預約完成率</p>
+                <p className="text-3xl font-bold mt-1">
+                  {(data.appointments.completionRate * 100).toFixed(0)}%
+                </p>
+              </div>
+              <div className="bg-card p-4 rounded-lg border">
+                <p className="text-sm text-muted-foreground">活躍對話</p>
+                <p className="text-3xl font-bold mt-1">
+                  {data.line.activeConversations}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <AppointmentTrend data={data.appointments.trend} />
+              <PatientGrowth data={data.patients.growthTrend} />
+            </div>
+          </TabsContent>
+
+          {/* 預約分析頁面 */}
+          <TabsContent value="appointments" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <AppointmentTrend data={data.appointments.trend} />
+              <ServiceDistribution data={data.appointments.byServiceType} />
+            </div>
+            
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">總預約數</p>
+                <p className="text-3xl font-bold">{data.appointments.total}</p>
+              </div>
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">完成率</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {(data.appointments.completionRate * 100).toFixed(0)}%
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">取消率</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {(data.appointments.cancellationRate * 100).toFixed(0)}%
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* 病患分析頁面 */}
+          <TabsContent value="patients" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <PatientGrowth data={data.patients.growthTrend} />
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card p-4 rounded-lg border">
-                  <p className="text-sm text-muted-foreground">總病患數</p>
-                  <p className="text-3xl font-bold mt-1">{data.patients.total}</p>
+                <div className="bg-card p-6 rounded-lg border">
+                  <p className="text-sm text-muted-foreground mb-2">總病患數</p>
+                  <p className="text-3xl font-bold">{data.patients.total}</p>
                 </div>
-                <div className="bg-card p-4 rounded-lg border">
-                  <p className="text-sm text-muted-foreground">回訪率</p>
-                  <p className="text-3xl font-bold mt-1">
+                <div className="bg-card p-6 rounded-lg border">
+                  <p className="text-sm text-muted-foreground mb-2">本月新增</p>
+                  <p className="text-3xl font-bold text-green-600">{data.patients.newThisMonth}</p>
+                </div>
+                <div className="bg-card p-6 rounded-lg border">
+                  <p className="text-sm text-muted-foreground mb-2">回訪率</p>
+                  <p className="text-3xl font-bold">
                     {(data.patients.returningRate * 100).toFixed(0)}%
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card p-4 rounded-lg border">
-                  <p className="text-sm text-muted-foreground">預約完成率</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {(data.appointments.completionRate * 100).toFixed(0)}%
-                  </p>
-                </div>
-                <div className="bg-card p-4 rounded-lg border">
-                  <p className="text-sm text-muted-foreground">活躍對話</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {data.line.activeConversations}
+                <div className="bg-card p-6 rounded-lg border">
+                  <p className="text-sm text-muted-foreground mb-2">沉睡客戶</p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    {data.patients.dormant.length}
                   </p>
                 </div>
               </div>
             </div>
-          </div>
+            
+            <DormantPatients data={data.patients.dormant} />
+          </TabsContent>
 
-          {/* 沉睡客戶清單 */}
-          <DormantPatients data={data.patients.dormant} />
+          {/* 療程管理頁面 */}
+          <TabsContent value="packages" className="space-y-6">
+            <PackageStatus data={data.packages} />
+          </TabsContent>
 
-          {/* 療程方案狀態 */}
-          <PackageStatus data={data.packages} />
-        </div>
+          {/* LINE 通訊頁面 */}
+          <TabsContent value="line" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">未讀對話</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {data.line.unreadConversations}
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">活躍對話</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {data.line.activeConversations}
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">本期訊息</p>
+                <p className="text-3xl font-bold">
+                  {data.line.dailyMessageTrend.reduce((sum, day) => sum + day.sent + day.received, 0)}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card p-6 rounded-lg border">
+              <h3 className="text-lg font-semibold mb-4">訊息量趨勢</h3>
+              <div className="space-y-2">
+                {data.line.dailyMessageTrend.slice(-7).map((day, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(day.date).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })}
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm">
+                        <span className="text-blue-600">發送: {day.sent}</span>
+                        <span className="mx-2">/</span>
+                        <span className="text-green-600">接收: {day.received}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* 最後更新時間 */}
-        <div className="mt-8 text-center text-sm text-muted-foreground">
+        <div className="mt-6 text-center text-sm text-muted-foreground">
           最後更新：{new Date(data.generatedAt).toLocaleString('zh-TW')}
         </div>
       </div>
