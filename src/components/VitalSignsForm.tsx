@@ -68,7 +68,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
       };
 
       saveVitalSignsRecord(record);
-      toast.success("生命徵象記錄已新增");
+      toast.success("營養記錄已新增");
       onClose();
     } catch (error) {
       toast.error("儲存失敗，請稍後再試");
@@ -82,7 +82,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>新增生命徵象記錄</DialogTitle>
+          <DialogTitle>新增營養記錄</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -98,7 +98,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="bloodPressureSystolic">收縮壓 (mmHg)</Label>
+              <Label htmlFor="bloodPressureSystolic">卡路里攝取 (kcal)</Label>
               <Input
                 id="bloodPressureSystolic"
                 type="number"
@@ -113,7 +113,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bloodPressureDiastolic">舒張壓 (mmHg)</Label>
+              <Label htmlFor="bloodPressureDiastolic">蛋白質 (g)</Label>
               <Input
                 id="bloodPressureDiastolic"
                 type="number"
@@ -128,7 +128,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="heartRate">心率 (bpm)</Label>
+              <Label htmlFor="heartRate">碳水化合物 (g)</Label>
               <Input
                 id="heartRate"
                 type="number"
@@ -140,7 +140,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="temperature">體溫 (°C)</Label>
+              <Label htmlFor="temperature">脂肪攝取 (g)</Label>
               <Input
                 id="temperature"
                 type="number"
@@ -153,7 +153,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="respiratoryRate">呼吸率 (次/分)</Label>
+              <Label htmlFor="respiratoryRate">纖維 (g)</Label>
               <Input
                 id="respiratoryRate"
                 type="number"
@@ -165,7 +165,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="oxygenSaturation">血氧飽和度 (%)</Label>
+              <Label htmlFor="oxygenSaturation">水分攝取 (ml)</Label>
               <Input
                 id="oxygenSaturation"
                 type="number"

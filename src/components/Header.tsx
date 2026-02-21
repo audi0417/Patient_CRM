@@ -147,7 +147,7 @@ const Header = () => {
                     )}
                   >
                     <Heart className="h-4 w-4" />
-                    健康管理
+                    營養管理
                   </Link>
                 )}
                 {isModuleEnabled('appointments') && (

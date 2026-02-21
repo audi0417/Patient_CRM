@@ -438,14 +438,15 @@ const LineMessages = () => {
     return currentDate !== previousDate;
   };
 
-  const shouldShowUnreadMarker = (currentMsg: LineMessage, previousMsg?: LineMessage) => {
-    // 顯示在第一則未讀訊息之前
-    if (!previousMsg) return false;
+  const shouldShowUnreadMarker = (currentMsg: LineMessage, index: number) => {
+    // 只在第一則未讀的患者訊息前顯示一次
+    if (currentMsg.readAt || currentMsg.senderType !== 'PATIENT') return false;
 
-    const isPreviousRead = previousMsg.readAt || previousMsg.senderType !== 'PATIENT';
-    const isCurrentUnread = !currentMsg.readAt && currentMsg.senderType === 'PATIENT';
-
-    return isPreviousRead && isCurrentUnread;
+    // 檢查是否為所有訊息中第一則未讀的患者訊息
+    const firstUnreadIndex = messages.findIndex(
+      msg => msg.senderType === 'PATIENT' && !msg.readAt
+    );
+    return firstUnreadIndex === index;
   };
 
   if (loading) {
@@ -588,7 +589,7 @@ const LineMessages = () => {
                         {messages.map((message, index) => {
                           const previousMessage = index > 0 ? messages[index - 1] : undefined;
                           const showDateSeparator = shouldShowDateSeparator(message, previousMessage);
-                          const showUnreadMarker = shouldShowUnreadMarker(message, previousMessage);
+                          const showUnreadMarker = shouldShowUnreadMarker(message, index);
                           const isOutgoing = message.senderType === 'USER' || message.senderType === 'ADMIN';
 
                           return (

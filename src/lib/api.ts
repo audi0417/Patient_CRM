@@ -807,7 +807,7 @@ export const api = {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = `生命徵象記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.download = `營養記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
         document.body.appendChild(link);
         link.click();
         link.remove();

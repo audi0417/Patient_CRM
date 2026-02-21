@@ -289,24 +289,24 @@ const HealthDataCharts = ({
         </Card>
       )}
 
-      {/* 生命徵象圖表 */}
+      {/* 營養攝取趨勢圖表 */}
       {vitalSignsRecords.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Heart className="h-5 w-5" />
-              生命徵象趨勢
+              營養攝取趨勢
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="bloodPressure" className="w-full">
+            <Tabs defaultValue="macros" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="bloodPressure">血壓 & 心率</TabsTrigger>
-                <TabsTrigger value="temperature">體溫 & 血氧</TabsTrigger>
+                <TabsTrigger value="macros">卡路里 & 三大營養素</TabsTrigger>
+                <TabsTrigger value="hydration">水分 & 纖維</TabsTrigger>
                 <TabsTrigger value="glucose">血糖</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="bloodPressure" className="mt-6">
+              <TabsContent value="macros" className="mt-6">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={vitalSignsData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -320,16 +320,16 @@ const HealthDataCharts = ({
                       type="monotone"
                       dataKey="systolic"
                       stroke="#ff6b6b"
-                      name="收縮壓 (mmHg)"
+                      name="卡路里 (kcal)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
                     <Line
-                      yAxisId="left"
+                      yAxisId="right"
                       type="monotone"
                       dataKey="diastolic"
                       stroke="#4ecdc4"
-                      name="舒張壓 (mmHg)"
+                      name="蛋白質 (g)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
@@ -338,7 +338,7 @@ const HealthDataCharts = ({
                       type="monotone"
                       dataKey="heartRate"
                       stroke="#ffa726"
-                      name="心率 (bpm)"
+                      name="碳水化合物 (g)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
@@ -346,30 +346,30 @@ const HealthDataCharts = ({
                 </ResponsiveContainer>
               </TabsContent>
 
-              <TabsContent value="temperature" className="mt-6">
+              <TabsContent value="hydration" className="mt-6">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={vitalSignsData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
-                    <YAxis yAxisId="left" domain={[35, 40]} />
-                    <YAxis yAxisId="right" orientation="right" domain={[90, 100]} />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     <Line
                       yAxisId="left"
                       type="monotone"
-                      dataKey="temperature"
-                      stroke="#ff6b6b"
-                      name="體溫 (°C)"
+                      dataKey="oxygen"
+                      stroke="#51cf66"
+                      name="水分攝取 (ml)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
                     <Line
                       yAxisId="right"
                       type="monotone"
-                      dataKey="oxygen"
-                      stroke="#51cf66"
-                      name="血氧飽和度 (%)"
+                      dataKey="temperature"
+                      stroke="#ff6b6b"
+                      name="脂肪 (g)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
@@ -399,8 +399,8 @@ const HealthDataCharts = ({
         <Card>
           <CardContent className="py-16 text-center">
             <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">尚無健康數據</h3>
-            <p className="text-muted-foreground">請新增體組成或生命徵象記錄</p>
+            <h3 className="text-lg font-semibold mb-2">尚無營養數據</h3>
+            <p className="text-muted-foreground">請新增體組成或營養記錄</p>
           </CardContent>
         </Card>
       )}

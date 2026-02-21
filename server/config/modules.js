@@ -10,10 +10,10 @@
 const AVAILABLE_MODULES = {
   healthManagement: {
     id: 'healthManagement',
-    name: '健康管理',
-    description: '體組成記錄、生命徵象追蹤、健康目標設定與追蹤',
+    name: '營養管理',
+    description: '體組成記錄、營養攝取追蹤、減重目標設定與追蹤',
     defaultEnabled: false,
-    features: ['body_composition', 'vital_signs', 'goals', 'health_analytics']
+    features: ['body_composition', 'nutrition_tracking', 'goals', 'health_analytics']
   },
   appointments: {
     id: 'appointments',

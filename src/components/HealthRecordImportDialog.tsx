@@ -29,7 +29,7 @@ const HealthRecordImportDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  const recordTypeText = recordType === "bodyComposition" ? "體組成記錄" : "生命徵象記錄";
+  const recordTypeText = recordType === "bodyComposition" ? "體組成記錄" : "營養記錄";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

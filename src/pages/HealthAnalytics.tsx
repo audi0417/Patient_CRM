@@ -272,9 +272,9 @@ const HealthAnalytics = () => {
       <div className="container max-w-[90vw] py-8">
         {/* 頁面標題 */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">健康數據分析</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">營養管理</h1>
           <p className="text-muted-foreground">
-            選擇個案查看完整的健康數據趨勢與分析
+            選擇個案查看完整的營養與體組成數據分析
           </p>
         </div>
 
@@ -301,7 +301,7 @@ const HealthAnalytics = () => {
                   <Activity className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">有健康數據</p>
+                  <p className="text-sm text-muted-foreground">有營養數據</p>
                   <p className="text-2xl font-bold">
                     {patientSummaries.filter((s) => s.hasData).length}
                   </p>
@@ -333,7 +333,7 @@ const HealthAnalytics = () => {
                   <Heart className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">生命徵象記錄</p>
+                  <p className="text-sm text-muted-foreground">營養記錄</p>
                   <p className="text-2xl font-bold">
                     {patientSummaries.reduce((sum, s) => sum + s.vitalSignsCount, 0)}
                   </p>
@@ -570,7 +570,7 @@ const HealthAnalytics = () => {
                     ) : (
                       <div className="text-center py-4">
                         <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">尚無健康數據</p>
+                        <p className="text-sm text-muted-foreground">尚無營養數據</p>
                       </div>
                     )}
                   </CardContent>
@@ -736,7 +736,7 @@ const HealthAnalytics = () => {
                           ) : (
                             <div className="text-center py-4">
                               <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">尚無健康數據</p>
+                              <p className="text-sm text-muted-foreground">尚無營養數據</p>
                             </div>
                           )}
                         </CardContent>

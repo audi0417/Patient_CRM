@@ -35,7 +35,7 @@ export function useModules() {
       // Demo 模式：直接返回預設配置
       if ((window as unknown as Record<string, unknown>).__isDemoMode) {
         setModules({
-          healthManagement: { enabled: true, name: '健康管理' },
+          healthManagement: { enabled: true, name: '營養管理' },
           appointments: { enabled: true, name: '預約管理' },
           lineMessaging: { enabled: false, name: 'LINE 訊息' },
           clinicDashboard: { enabled: true, name: '營運儀表板' }
@@ -68,7 +68,7 @@ export function useModules() {
       setError(message);
       // 預設所有模組都啟用（降級處理）
       setModules({
-        healthManagement: { enabled: true, name: '健康管理' },
+        healthManagement: { enabled: true, name: '營養管理' },
         appointments: { enabled: true, name: '預約管理' },
         clinicDashboard: { enabled: true, name: '營運儀表板' }
       });

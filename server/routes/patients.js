@@ -10,6 +10,15 @@ const { accessControlMiddleware, requireAccess, Operation } = require('../middle
 // 定義需要加密的敏感欄位
 const SENSITIVE_FIELDS = ['medicalHistory', 'allergies', 'emergencyContact'];
 
+// 將 tag ID 陣列轉換為 tag name 陣列
+async function resolveTagNames(tenantQuery, tagIds) {
+  if (!tagIds || tagIds.length === 0) return [];
+  const allTags = await tenantQuery.findAll('tags');
+  const tagMap = {};
+  allTags.forEach(t => { tagMap[t.id] = t.name; });
+  return tagIds.map(id => tagMap[id] || id);
+}
+
 // 應用認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
@@ -29,13 +38,21 @@ router.get('/', requireAccess('patients', Operation.READ), async (req, res) => {
     // 解密敏感欄位
     const decryptedPatients = req.decryptObjectArray(patients, SENSITIVE_FIELDS);
 
-    // 解析 JSON 欄位
-    const parsedPatients = decryptedPatients.map(p => ({
-      ...p,
-      tags: p.tags ? JSON.parse(p.tags) : [],
-      groups: p.groups ? JSON.parse(p.groups) : [],
-      healthProfile: p.healthProfile ? JSON.parse(p.healthProfile) : null
-    }));
+    // 取得該組織所有標籤，建立 id -> name 的對照表
+    const allTags = await req.tenantQuery.findAll('tags');
+    const tagMap = {};
+    allTags.forEach(t => { tagMap[t.id] = t.name; });
+
+    // 解析 JSON 欄位，將 tag ID 轉換為 tag name
+    const parsedPatients = decryptedPatients.map(p => {
+      const tagIds = p.tags ? JSON.parse(p.tags) : [];
+      return {
+        ...p,
+        tags: tagIds.map(id => tagMap[id] || id),
+        groups: p.groups ? JSON.parse(p.groups) : [],
+        healthProfile: p.healthProfile ? JSON.parse(p.healthProfile) : null,
+      };
+    });
 
     // 根據角色權限過濾欄位
     const filteredPatients = req.filterFieldsArray('patients', parsedPatients);
@@ -60,8 +77,9 @@ router.get('/:id', async (req, res) => {
     // 解密敏感欄位
     const decryptedPatient = req.decryptFields(patient, SENSITIVE_FIELDS);
 
-    // 解析 JSON 欄位
-    decryptedPatient.tags = decryptedPatient.tags ? JSON.parse(decryptedPatient.tags) : [];
+    // 解析 JSON 欄位，將 tag ID 轉換為 tag name
+    const tagIds = decryptedPatient.tags ? JSON.parse(decryptedPatient.tags) : [];
+    decryptedPatient.tags = await resolveTagNames(req.tenantQuery, tagIds);
     decryptedPatient.groups = decryptedPatient.groups ? JSON.parse(decryptedPatient.groups) : [];
     decryptedPatient.healthProfile = decryptedPatient.healthProfile ? JSON.parse(decryptedPatient.healthProfile) : null;
 
@@ -120,9 +138,10 @@ router.post('/', checkTenantQuota('patients'), async (req, res) => {
     // 使用租戶查詢插入，自動加入 organizationId
     const newPatient = await req.tenantQuery.insert('patients', encryptedData);
 
-    // 解密後返回給前端
+    // 解密後返回給前端，將 tag ID 轉換為 tag name
     const decryptedPatient = req.decryptFields(newPatient, SENSITIVE_FIELDS);
-    decryptedPatient.tags = JSON.parse(decryptedPatient.tags);
+    const newTagIds = decryptedPatient.tags ? JSON.parse(decryptedPatient.tags) : [];
+    decryptedPatient.tags = await resolveTagNames(req.tenantQuery, newTagIds);
     decryptedPatient.groups = JSON.parse(decryptedPatient.groups);
     decryptedPatient.healthProfile = JSON.parse(decryptedPatient.healthProfile);
 
@@ -184,9 +203,10 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: '患者不存在或無權訪問' });
     }
 
-    // 解密後返回給前端
+    // 解密後返回給前端，將 tag ID 轉換為 tag name
     const decryptedPatient = req.decryptFields(updatedPatient, SENSITIVE_FIELDS);
-    decryptedPatient.tags = JSON.parse(decryptedPatient.tags);
+    const updatedTagIds = decryptedPatient.tags ? JSON.parse(decryptedPatient.tags) : [];
+    decryptedPatient.tags = await resolveTagNames(req.tenantQuery, updatedTagIds);
     decryptedPatient.groups = JSON.parse(decryptedPatient.groups);
     decryptedPatient.healthProfile = JSON.parse(decryptedPatient.healthProfile);
 

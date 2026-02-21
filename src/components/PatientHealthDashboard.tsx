@@ -100,7 +100,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
         toast.success("體組成記錄已刪除");
       } else {
         await deleteVitalSignsRecord(recordToDelete.id);
-        toast.success("生命徵象記錄已刪除");
+        toast.success("營養記錄已刪除");
       }
       await loadData();
     } catch (error) {
@@ -124,7 +124,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
   const handleExportVitalSigns = async () => {
     try {
       await api.health.vitalSigns.exportExcel(patient.id);
-      toast.success("生命徵象記錄已導出");
+      toast.success("營養記錄已導出");
     } catch (error) {
       toast.error("導出失敗");
       console.error('Export vital signs error:', error);
@@ -145,9 +145,9 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
 
   const handleImportVitalSigns = async (file: File) => {
     try {
-      toast.info("正在匯入生命徵象記錄...");
+      toast.info("正在匯入營養記錄...");
       await api.health.vitalSigns.importExcel(file, patient.id);
-      toast.success("生命徵象記錄匯入成功");
+      toast.success("營養記錄匯入成功");
       await loadData();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "匯入失敗");
@@ -236,16 +236,16 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
           </CardContent>
         </Card>
 
-        {/* 血壓 */}
+        {/* 每日卡路里 */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-2">
               <Heart className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">血壓</span>
+              <span className="text-sm text-muted-foreground">每日卡路里</span>
             </div>
-            {latestVitalSigns?.bloodPressureSystolic && latestVitalSigns?.bloodPressureDiastolic ? (
+            {latestVitalSigns?.bloodPressureSystolic ? (
               <p className="text-2xl font-bold">
-                {latestVitalSigns.bloodPressureSystolic}/{latestVitalSigns.bloodPressureDiastolic}
+                {latestVitalSigns.bloodPressureSystolic} <span className="text-sm font-normal text-muted-foreground">kcal</span>
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">無數據</p>
@@ -261,7 +261,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
-                健康目標
+                減重目標
               </CardTitle>
               <Button onClick={() => setShowGoalForm(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" />
@@ -276,7 +276,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold">{goal.title}</h4>
-                      <Badge variant="secondary">{goal.category === "weight" ? "體重" : goal.category === "bodyFat" ? "體脂率" : goal.category === "muscleMass" ? "肌肉量" : goal.category === "bmi" ? "BMI" : goal.category}</Badge>
+                      <Badge variant="secondary">{goal.category === "weight" ? "減重" : goal.category === "bodyFat" ? "體脂率" : goal.category === "muscleMass" ? "肌肉量" : goal.category === "bmi" ? "BMI" : goal.category === "exercise" ? "運動" : goal.category === "health" ? "卡路里" : goal.category}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       目標: {goal.targetValue} {goal.unit}
@@ -294,7 +294,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
               ))}
               {goals.filter(g => g.status === "active").length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  尚無活躍的健康目標
+                  尚無活躍的減重目標
                 </div>
               )}
             </div>
@@ -316,7 +316,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             體組成記錄 ({bodyCompositionRecords.length})
           </TabsTrigger>
           <TabsTrigger value="vitalSigns">
-            生命徵象 ({vitalSignsRecords.length})
+            營養記錄 ({vitalSignsRecords.length})
           </TabsTrigger>
         </TabsList>
 
@@ -420,7 +420,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>生命徵象記錄</CardTitle>
+                <CardTitle>營養記錄</CardTitle>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -441,7 +441,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
               {vitalSignsRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">尚無生命徵象記錄</p>
+                  <p className="text-muted-foreground mb-4">尚無營養記錄</p>
                   <Button onClick={() => setShowVitalSignsForm(true)}>
                     <Plus className="h-4 w-4 mr-1" />
                     新增第一筆記錄
@@ -471,36 +471,40 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
                           </Button>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          {record.bloodPressureSystolic && record.bloodPressureDiastolic && (
+                          {record.bloodPressureSystolic && (
                             <div>
-                              <p className="text-muted-foreground">血壓</p>
-                              <p className="font-medium">
-                                {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg
-                              </p>
+                              <p className="text-muted-foreground">卡路里</p>
+                              <p className="font-medium">{record.bloodPressureSystolic} kcal</p>
+                            </div>
+                          )}
+                          {record.bloodPressureDiastolic && (
+                            <div>
+                              <p className="text-muted-foreground">蛋白質</p>
+                              <p className="font-medium">{record.bloodPressureDiastolic} g</p>
                             </div>
                           )}
                           {record.heartRate && (
                             <div>
-                              <p className="text-muted-foreground">心率</p>
-                              <p className="font-medium">{record.heartRate} bpm</p>
+                              <p className="text-muted-foreground">碳水化合物</p>
+                              <p className="font-medium">{record.heartRate} g</p>
                             </div>
                           )}
                           {record.temperature && (
                             <div>
-                              <p className="text-muted-foreground">體溫</p>
-                              <p className="font-medium">{record.temperature}°C</p>
-                            </div>
-                          )}
-                          {record.oxygenSaturation && (
-                            <div>
-                              <p className="text-muted-foreground">血氧</p>
-                              <p className="font-medium">{record.oxygenSaturation}%</p>
+                              <p className="text-muted-foreground">脂肪</p>
+                              <p className="font-medium">{record.temperature} g</p>
                             </div>
                           )}
                           {record.respiratoryRate && (
                             <div>
-                              <p className="text-muted-foreground">呼吸率</p>
-                              <p className="font-medium">{record.respiratoryRate} 次/分</p>
+                              <p className="text-muted-foreground">纖維</p>
+                              <p className="font-medium">{record.respiratoryRate} g</p>
+                            </div>
+                          )}
+                          {record.oxygenSaturation && (
+                            <div>
+                              <p className="text-muted-foreground">水分</p>
+                              <p className="font-medium">{record.oxygenSaturation} ml</p>
                             </div>
                           )}
                           {record.bloodGlucose && (
@@ -563,7 +567,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
         recordType="bodyComposition"
       />
 
-      {/* 生命徵象記錄選擇對話框 */}
+      {/* 營養記錄選擇對話框 */}
       <HealthRecordImportDialog
         open={showVitalSignsImportDialog}
         onOpenChange={setShowVitalSignsImportDialog}
