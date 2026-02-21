@@ -364,7 +364,10 @@ export default function ClinicDashboard() {
                 <div className="bg-card p-6 rounded-lg border">
                   <p className="text-sm text-muted-foreground mb-2">總病患數</p>
                   <p className="text-3xl font-bold">{data.patients.total}</p>
-             LinePerformanceCard data={data.line} /
+                </div>
+              </div>
+            </div>
+            <LinePerformanceCard data={data.line} />
             <DormantPatients data={data.patients.dormant} />
           </TabsContent>
 
