@@ -1,7 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Package, Clock, CheckCircle2, XCircle } from "lucide-react";
 
 interface PackageStatusProps {
   data: {
@@ -18,93 +17,80 @@ interface PackageStatusProps {
 
 export default function PackageStatus({ data }: PackageStatusProps) {
   const maxUsage = data.topServices[0]?.usageCount || 1;
+  const total = data.active + data.completed + data.expired;
+
+  // Donut-style status bar data
+  const segments = [
+    { label: "進行中", value: data.active, color: "bg-blue-500" },
+    { label: "已完成", value: data.completed, color: "bg-emerald-500" },
+    { label: "已過期", value: data.expired, color: "bg-red-400" },
+  ];
 
   return (
-    <div className="space-y-4">
-      {/* 方案狀態摘要 */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">進行中</p>
-                <p className="text-2xl font-bold">{data.active}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">即將到期</p>
-                <p className="text-2xl font-bold">{data.expiringSoon}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">已完成</p>
-                <p className="text-2xl font-bold">{data.completed}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">已過期</p>
-                <p className="text-2xl font-bold">{data.expired}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 熱門服務項目排行 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>熱門服務項目排行</CardTitle>
-          <CardDescription>
-            根據療程使用記錄統計
-          </CardDescription>
+    <div className="grid gap-3 md:grid-cols-2 h-full">
+      {/* 療程狀態分佈 */}
+      <Card className="h-full">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-base">療程狀態分佈</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4">
+          {/* Stacked bar */}
+          <div className="flex rounded-full h-3 overflow-hidden mb-4">
+            {segments.map((seg) => (
+              <div
+                key={seg.label}
+                className={`${seg.color} transition-all`}
+                style={{ width: total > 0 ? `${(seg.value / total) * 100}%` : "0%" }}
+              />
+            ))}
+          </div>
+          <div className="space-y-3">
+            {segments.map((seg) => (
+              <div key={seg.label} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${seg.color}`} />
+                  <span className="text-sm">{seg.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">{seg.value}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({total > 0 ? ((seg.value / total) * 100).toFixed(0) : 0}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 熱門服務排行 */}
+      <Card className="h-full">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-base">熱門服務排行</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
           {data.topServices.length > 0 ? (
-            <div className="space-y-4">
-              {data.topServices.map((service, index) => (
-                <div key={index} className="space-y-2">
+            <div className="space-y-3">
+              {data.topServices.slice(0, 5).map((service, index) => (
+                <div key={index} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="w-8 justify-center">
+                      <Badge variant="outline" className="w-6 h-5 justify-center text-[10px] px-0">
                         {index + 1}
                       </Badge>
-                      <span className="font-medium">{service.name}</span>
+                      <span className="font-medium text-sm">{service.name}</span>
                     </div>
-                    <span className="text-muted-foreground">
-                      {service.usageCount} 次
-                    </span>
+                    <span className="text-muted-foreground text-xs">{service.usageCount} 次</span>
                   </div>
-                  <Progress 
-                    value={(service.usageCount / maxUsage) * 100} 
-                    className="h-2"
+                  <Progress
+                    value={(service.usageCount / maxUsage) * 100}
+                    className="h-1.5"
                   />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
               暫無服務使用記錄
             </div>
           )}

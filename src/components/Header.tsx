@@ -110,6 +110,7 @@ const Header = () => {
               </>
             ) : (
               <>
+                {isModuleEnabled('clinicDashboard') && (
                 <Link
                   to="/dashboard"
                   className={cn(
@@ -122,6 +123,7 @@ const Header = () => {
                   <TrendingUp className="h-4 w-4" />
                   營運儀表板
                 </Link>
+                )}
                 <Link
                   to="/"
                   className={cn(

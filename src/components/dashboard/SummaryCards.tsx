@@ -1,8 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Calendar, 
-  MessageSquare, 
-  UserPlus, 
+import {
+  Calendar,
+  MessageSquare,
+  UserPlus,
   AlertCircle,
   TrendingUp,
   TrendingDown
@@ -26,7 +25,6 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       title: "今日預約",
       value: data.todayAppointments,
       icon: Calendar,
-      description: "已安排的預約",
       trend: data.todayAppointmentsDiff,
       trendLabel: "vs 昨日"
     },
@@ -34,75 +32,58 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       title: "未讀訊息",
       value: data.unreadMessages,
       icon: MessageSquare,
-      description: "LINE 待回覆訊息",
       showBadge: data.unreadMessages > 0,
-      badgeVariant: "destructive" as const
     },
     {
       title: "本月新客",
       value: data.newPatientsThisMonth,
       icon: UserPlus,
-      description: "本月新增病患",
       trend: data.newPatientsGrowthRate,
-      trendLabel: "相較上月",
+      trendLabel: "vs 上月",
       trendType: "percentage" as const
     },
     {
       title: "到期療程",
       value: data.expiringPackages,
       icon: AlertCircle,
-      description: "7天內到期",
       showBadge: data.expiringPackages > 0,
-      badgeVariant: "default" as const,
       badgeText: "需處理"
     }
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 flex-shrink-0">
       {cards.map((card, index) => {
         const Icon = card.icon;
         return (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {card.title}
-              </CardTitle>
+          <div key={index} className="bg-card rounded-lg border px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
               <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{card.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {card.description}
-              </p>
-              
-              {card.trend !== undefined && (
-                <div className={`flex items-center mt-2 text-xs ${
-                  card.trend >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {card.trend >= 0 ? (
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 mr-1" />
-                  )}
-                  {card.trend > 0 ? '+' : ''}
-                  {card.trend}
-                  {card.trendType === 'percentage' ? '%' : ''}
-                  {card.trendLabel && (
-                    <span className="ml-1 text-muted-foreground">
-                      {card.trendLabel}
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              {card.showBadge && card.badgeText && (
-                <Badge variant={card.badgeVariant} className="mt-2">
-                  {card.badgeText}
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground leading-none">{card.title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-2xl font-bold leading-tight">{card.value}</span>
+                {card.trend !== undefined && (
+                  <span className={`flex items-center text-xs font-medium ${
+                    card.trend >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {card.trend >= 0 ? (
+                      <TrendingUp className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 mr-0.5" />
+                    )}
+                    {card.trend > 0 ? '+' : ''}{card.trend}{card.trendType === 'percentage' ? '%' : ''}
+                  </span>
+                )}
+                {card.showBadge && card.badgeText && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-amber-600 border-amber-200 bg-amber-50">
+                    {card.badgeText}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
         );
       })}
     </div>

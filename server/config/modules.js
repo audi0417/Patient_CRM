@@ -35,6 +35,13 @@ const AVAILABLE_MODULES = {
     description: 'Line@ 官方帳號整合，支援即時訊息、預約通知與貼圖互動',
     defaultEnabled: false,
     features: ['line_messaging', 'line_webhook', 'sticker_support', 'appointment_notifications']
+  },
+  clinicDashboard: {
+    id: 'clinicDashboard',
+    name: '營運儀表板',
+    description: '診所營運數據總覽、預約分析、病患成長、LINE 通訊績效',
+    defaultEnabled: false,
+    features: ['clinic_dashboard', 'analytics_overview', 'appointment_analytics', 'patient_analytics', 'line_analytics']
   }
 };
 

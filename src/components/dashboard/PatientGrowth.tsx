@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface PatientGrowthProps {
   data: Array<{
@@ -9,41 +9,33 @@ interface PatientGrowthProps {
 }
 
 export default function PatientGrowth({ data }: PatientGrowthProps) {
-  // 格式化月份顯示
   const formattedData = data.map(item => ({
     月份: formatMonth(item.month),
     新增病患: item.count
   }));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>病患成長</CardTitle>
-        <CardDescription>
-          每月新增病患數量
-        </CardDescription>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-1 pt-4 px-4 flex-shrink-0">
+        <CardTitle className="text-lg">病患成長</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0 px-4 pb-4">
         {formattedData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={formattedData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="月份" 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis />
+              <XAxis dataKey="月份" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} width={30} />
               <Tooltip />
-              <Legend />
-              <Bar 
-                dataKey="新增病患" 
-                fill="#10b981" 
-                radius={[8, 8, 0, 0]}
+              <Bar
+                dataKey="新增病患"
+                fill="#10b981"
+                radius={[6, 6, 0, 0]}
               />
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+          <div className="flex items-center justify-center h-full text-muted-foreground">
             暫無病患數據
           </div>
         )}

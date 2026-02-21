@@ -12,6 +12,7 @@ export interface OrganizationModules {
   healthManagement?: ModuleConfig;
   appointments?: ModuleConfig;
   lineMessaging?: ModuleConfig;
+  clinicDashboard?: ModuleConfig;
 }
 
 interface ModulesResponse {
@@ -36,7 +37,8 @@ export function useModules() {
         setModules({
           healthManagement: { enabled: true, name: '健康管理' },
           appointments: { enabled: true, name: '預約管理' },
-          lineMessaging: { enabled: false, name: 'LINE 訊息' }
+          lineMessaging: { enabled: false, name: 'LINE 訊息' },
+          clinicDashboard: { enabled: true, name: '營運儀表板' }
         });
         setLoading(false);
         return;
@@ -67,7 +69,8 @@ export function useModules() {
       // 預設所有模組都啟用（降級處理）
       setModules({
         healthManagement: { enabled: true, name: '健康管理' },
-        appointments: { enabled: true, name: '預約管理' }
+        appointments: { enabled: true, name: '預約管理' },
+        clinicDashboard: { enabled: true, name: '營運儀表板' }
       });
     } finally {
       setLoading(false);

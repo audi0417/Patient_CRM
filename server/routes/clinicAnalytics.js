@@ -3,11 +3,13 @@ const router = express.Router();
 const { queryAll, queryOne } = require('../database/helpers');
 const { authenticateToken } = require('../middleware/auth');
 const { requireTenant, checkSubscriptionExpiry } = require('../middleware/tenantContext');
+const { requireModule } = require('../middleware/moduleAccess');
 
 // 應用認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
 router.use(checkSubscriptionExpiry);
+router.use(requireModule('clinicDashboard'));
 
 /**
  * 診所營運儀表板 API

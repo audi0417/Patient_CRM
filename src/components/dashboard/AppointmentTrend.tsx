@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface AppointmentTrendProps {
   data: Array<{
@@ -9,47 +9,42 @@ interface AppointmentTrendProps {
 }
 
 export default function AppointmentTrend({ data }: AppointmentTrendProps) {
-  // 格式化日期顯示
   const formattedData = data.map(item => ({
     date: formatDate(item.date),
     預約數: item.count
   }));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>預約趨勢</CardTitle>
-        <CardDescription>
-          過去 {data.length} 天的預約數量變化
-        </CardDescription>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-1 pt-4 px-4 flex-shrink-0">
+        <CardTitle className="text-lg">預約趨勢</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0 px-4 pb-4">
         {formattedData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formattedData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
-                height={60}
+                height={40}
               />
-              <YAxis />
+              <YAxis tick={{ fontSize: 11 }} width={30} />
               <Tooltip />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="預約數" 
-                stroke="#8b5cf6" 
+              <Line
+                type="monotone"
+                dataKey="預約數"
+                stroke="#8b5cf6"
                 strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
               />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+          <div className="flex items-center justify-center h-full text-muted-foreground">
             暫無預約數據
           </div>
         )}
@@ -60,7 +55,5 @@ export default function AppointmentTrend({ data }: AppointmentTrendProps) {
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  return `${month}/${day}`;
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
