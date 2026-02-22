@@ -7,13 +7,15 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
-const { requireTenant } = require('../middleware/tenantContext');
+const { requireTenant, injectTenantQuery } = require('../middleware/tenantContext');
 const EmailService = require('../services/emailService');
 const { queryOne } = require('../database/helpers');
 
 // 所有郵件路由都需要認證和租戶上下文
 router.use(authenticateToken);
 router.use(requireTenant);
+router.use(injectTenantQuery); // 🔒 注入租户查询函数
+router.use(injectTenantQuery); // 🔒 注入租戶查詢函數
 
 /**
  * GET /api/email/status
@@ -48,8 +50,15 @@ router.post('/send/appointment-reminder', async (req, res) => {
     // 取得病患姓名
     let patientName = req.body.patientName;
     if (!patientName && patientId) {
-      const patient = await queryOne('SELECT name FROM patients WHERE id = ?', [patientId]);
-      patientName = patient?.name || '患者';
+      // 🔒 使用租户查询，验证病患是否属于当前组织
+      const patient = await req.tenantQuery.findById('patients', patientId);
+      if (!patient) {
+        return res.status(400).json({
+          success: false,
+          error: '患者不存在或無權訪問'
+        });
+      }
+      patientName = patient.name || '患者';
     }
 
     // 發送郵件
@@ -101,8 +110,15 @@ router.post('/send/appointment-confirmation', async (req, res) => {
     // 取得病患姓名
     let patientName = req.body.patientName;
     if (!patientName && patientId) {
-      const patient = await queryOne('SELECT name FROM patients WHERE id = ?', [patientId]);
-      patientName = patient?.name || '患者';
+      // 🔒 使用租戶查詢，驗證病患是否屬於當前組織
+      const patient = await req.tenantQuery.findById('patients', patientId);
+      if (!patient) {
+        return res.status(400).json({
+          success: false,
+          error: '患者不存在或無權訪問'
+        });
+      }
+      patientName = patient.name || '患者';
     }
 
     // 發送郵件
@@ -154,8 +170,15 @@ router.post('/send/appointment-cancellation', async (req, res) => {
     // 取得病患姓名
     let patientName = req.body.patientName;
     if (!patientName && patientId) {
-      const patient = await queryOne('SELECT name FROM patients WHERE id = ?', [patientId]);
-      patientName = patient?.name || '患者';
+      // 🔒 使用租戶查詢，驗證病患是否屬於當前組織
+      const patient = await req.tenantQuery.findById('patients', patientId);
+      if (!patient) {
+        return res.status(400).json({
+          success: false,
+          error: '患者不存在或無權訪問'
+        });
+      }
+      patientName = patient.name || '患者';
     }
 
     // 發送郵件
@@ -207,8 +230,15 @@ router.post('/send/notification', async (req, res) => {
     // 取得病患姓名
     let patientName = req.body.patientName;
     if (!patientName && patientId) {
-      const patient = await queryOne('SELECT name FROM patients WHERE id = ?', [patientId]);
-      patientName = patient?.name || '患者';
+      // 🔒 使用租戶查詢，驗證病患是否屬於當前組織
+      const patient = await req.tenantQuery.findById('patients', patientId);
+      if (!patient) {
+        return res.status(400).json({
+          success: false,
+          error: '患者不存在或無權訪問'
+        });
+      }
+      patientName = patient.name || '患者';
     }
 
     // 發送郵件

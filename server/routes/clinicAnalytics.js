@@ -77,19 +77,34 @@ function calculateDateRanges(period) {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   
   let periodStart = new Date(today);
+  let periodDays = 0;
   switch (period) {
     case '7d':
+      periodDays = 7;
       periodStart.setDate(periodStart.getDate() - 7);
       break;
     case '30d':
+      periodDays = 30;
       periodStart.setDate(periodStart.getDate() - 30);
       break;
     case '90d':
+      periodDays = 90;
       periodStart.setDate(periodStart.getDate() - 90);
       break;
     case '1y':
+      periodDays = 365;
       periodStart.setFullYear(periodStart.getFullYear() - 1);
       break;
+  }
+
+  // 計算上一期的日期範圍（用於對比）
+  const previousPeriodEnd = new Date(periodStart);
+  previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+  const previousPeriodStart = new Date(previousPeriodEnd);
+  if (period === '1y') {
+    previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 1);
+  } else {
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays);
   }
 
   return {
@@ -98,6 +113,8 @@ function calculateDateRanges(period) {
     startOfMonth: startOfMonth.toISOString().split('T')[0],
     startOfLastMonth: startOfLastMonth.toISOString().split('T')[0],
     periodStart: periodStart.toISOString().split('T')[0],
+    previousPeriodStart: previousPeriodStart.toISOString().split('T')[0],
+    previousPeriodEnd: previousPeriodEnd.toISOString().split('T')[0],
     now: now.toISOString()
   };
 }
@@ -240,6 +257,29 @@ async function getPatientsAnalytics(organizationId, dateRanges) {
     ? (patientsWithMultipleVisits?.count || 0) / totalPatients.count 
     : 0;
 
+  // 上一期回訪率（用於計算變化率）
+  const { previousPeriodStart, previousPeriodEnd } = dateRanges;
+  
+  // 上一期的總病患數（在上一期結束時的累計）
+  const previousTotalPatients = await queryOne(`
+    SELECT COUNT(*) as count
+    FROM patients
+    WHERE organizationId = ? AND DATE(createdAt) <= ?
+  `, [organizationId, previousPeriodEnd]);
+
+  // 上一期有多次預約的病患數（僅統計到上一期結束時）
+  const previousPatientsWithMultipleVisits = await queryOne(`
+    SELECT COUNT(DISTINCT patientId) as count
+    FROM appointments
+    WHERE organizationId = ? AND DATE(date) <= ?
+    GROUP BY patientId
+    HAVING COUNT(*) >= 2
+  `, [organizationId, previousPeriodEnd]);
+
+  const previousReturningRate = previousTotalPatients?.count > 0 
+    ? (previousPatientsWithMultipleVisits?.count || 0) / previousTotalPatients.count 
+    : 0;
+
   // 沉睡客戶（90天無預約）
   const dormantDays = 90;
   const dormantDate = new Date();
@@ -275,6 +315,7 @@ async function getPatientsAnalytics(organizationId, dateRanges) {
       count: row.count
     })),
     returningRate: Math.round(returningRate * 100) / 100,
+    previousReturningRate: Math.round(previousReturningRate * 100) / 100,
     dormant: dormantPatients.map(row => ({
       id: row.id,
       name: row.name,
@@ -307,6 +348,26 @@ async function getAppointmentsAnalytics(organizationId, dateRanges) {
   const total = Object.values(statusCounts).reduce((sum, count) => sum + Number(count), 0);
   const completed = statusCounts.completed || 0;
   const cancelled = statusCounts.cancelled || 0;
+
+  // 上一期統計（用於計算完成率變化）
+  const { previousPeriodStart, previousPeriodEnd } = dateRanges;
+  const previousStatusStats = await queryAll(`
+    SELECT 
+      status,
+      COUNT(*) as count
+    FROM appointments
+    WHERE organizationId = ? 
+      AND DATE(date) >= ? 
+      AND DATE(date) <= ?
+    GROUP BY status
+  `, [organizationId, previousPeriodStart, previousPeriodEnd]);
+
+  const previousStatusCounts = Object.fromEntries(
+    previousStatusStats.map(row => [row.status, row.count])
+  );
+  const previousTotal = Object.values(previousStatusCounts).reduce((sum, count) => sum + Number(count), 0);
+  const previousCompleted = previousStatusCounts.completed || 0;
+  const previousCompletionRate = previousTotal > 0 ? Math.round((previousCompleted / previousTotal) * 100) / 100 : 0;
 
   // 上期統計（用於對比）
   const lastPeriodStats = await queryAll(`
@@ -386,6 +447,7 @@ async function getAppointmentsAnalytics(organizationId, dateRanges) {
     total,
     lastPeriodTotal,
     completionRate: total > 0 ? Math.round((completed / total) * 100) / 100 : 0,
+    previousCompletionRate,
     cancellationRate: total > 0 ? Math.round((cancelled / total) * 100) / 100 : 0,
     trend: trend.map(row => ({
       date: row.date,

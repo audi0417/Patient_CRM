@@ -58,6 +58,7 @@ interface DashboardData {
     genderDistribution: Record<string, number>;
     ageDistribution: Array<{ range: string; count: number }>;
     returningRate: number;
+    previousReturningRate: number;
     dormant: Array<{
       id: string;
       name: string;
@@ -69,6 +70,7 @@ interface DashboardData {
     total: number;
     lastPeriodTotal: number;
     completionRate: number;
+    previousCompletionRate: number;
     cancellationRate: number;
     trend: Array<{ date: string; count: number }>;
     byTimeSlot: Array<{ time: string; count: number }>;
@@ -245,6 +247,24 @@ export default function ClinicDashboard() {
 
   if (!data) return null;
 
+  // 計算變化率的輔助函數
+  const calculateChangeRate = (current: number, previous: number): number => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  // 計算回訪率變化
+  const returningRateChange = calculateChangeRate(
+    data.patients.returningRate,
+    data.patients.previousReturningRate
+  );
+
+  // 計算預約完成率變化
+  const completionRateChange = calculateChangeRate(
+    data.appointments.completionRate,
+    data.appointments.previousCompletionRate
+  );
+
   const sheetConfig: Record<Exclude<SheetPanel, null>, { title: string; description: string }> = {
     insights: { title: "營運建議", description: "根據數據自動產生的營運分析與建議" },
     appointmentSource: { title: "預約來源分析", description: "各管道預約來源佔比與趨勢" },
@@ -339,14 +359,14 @@ export default function ClinicDashboard() {
                 <MiniMetric
                   label="回訪率"
                   value={`${(data.patients.returningRate * 100).toFixed(0)}%`}
-                  diff={5}
-                  positive
+                  diff={Math.abs(returningRateChange)}
+                  positive={returningRateChange >= 0}
                 />
                 <MiniMetric
                   label="預約完成率"
                   value={`${(data.appointments.completionRate * 100).toFixed(0)}%`}
-                  diff={2}
-                  positive
+                  diff={Math.abs(completionRateChange)}
+                  positive={completionRateChange >= 0}
                 />
                 <div className="bg-card rounded-lg border px-4 py-3 flex-1 overflow-y-auto">
                   <p className="text-sm text-muted-foreground mb-2">營運建議</p>

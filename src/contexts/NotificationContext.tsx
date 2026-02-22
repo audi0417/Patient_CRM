@@ -38,41 +38,46 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const refreshNotifications = useCallback(async () => {
-    const appointments = await getAppointments();
-    const patients = await getPatients();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      const appointments = await getAppointments();
+      const patients = await getPatients();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const upcomingNotifications = appointments
-      .filter((apt) => {
-        if (apt.status !== "scheduled") return false;
+      const upcomingNotifications = appointments
+        .filter((apt) => {
+          if (apt.status !== "scheduled") return false;
 
-        const appointmentDate = parseISO(apt.date);
-        const reminderDays = apt.reminderDays || 1;
-        const daysUntil = differenceInDays(appointmentDate, today);
+          const appointmentDate = parseISO(apt.date);
+          const reminderDays = apt.reminderDays || 1;
+          const daysUntil = differenceInDays(appointmentDate, today);
 
-        return daysUntil >= 0 && daysUntil <= reminderDays;
-      })
-      .map((apt) => {
-        const patient = patients.find((p) => p.id === apt.patientId);
-        const appointmentDate = parseISO(apt.date);
-        const daysUntil = differenceInDays(appointmentDate, today);
-        const notificationId = `appointment_${apt.id}`;
+          return daysUntil >= 0 && daysUntil <= reminderDays;
+        })
+        .map((apt) => {
+          const patient = patients.find((p) => p.id === apt.patientId);
+          const appointmentDate = parseISO(apt.date);
+          const daysUntil = differenceInDays(appointmentDate, today);
+          const notificationId = `appointment_${apt.id}`;
 
-        return {
-          id: notificationId,
-          type: "appointment" as const,
-          appointment: apt,
-          patient: patient!,
-          daysUntil,
-          read: readStatus[notificationId] || false,
-          createdAt: apt.date,
-        };
-      })
-      .filter((item) => item.patient)
-      .sort((a, b) => a.daysUntil - b.daysUntil);
+          return {
+            id: notificationId,
+            type: "appointment" as const,
+            appointment: apt,
+            patient: patient!,
+            daysUntil,
+            read: readStatus[notificationId] || false,
+            createdAt: apt.date,
+          };
+        })
+        .filter((item) => item.patient)
+        .sort((a, b) => a.daysUntil - b.daysUntil);
 
-    setNotifications(upcomingNotifications);
+      setNotifications(upcomingNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      // 发生错误时不更新通知列表，避免无限重试
+    }
   }, [readStatus]);
 
   useEffect(() => {
@@ -101,7 +106,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     // 每分鐘檢查一次
     const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
-  }, [user?.organizationId, user?.role, refreshNotifications]);
+  }, [user?.organizationId, user?.role]); // 移除 refreshNotifications 依賴，避免循環
 
   // 當 readStatus 改變時，重新整理通知以更新已讀狀態
   useEffect(() => {
