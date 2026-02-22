@@ -915,16 +915,18 @@ const OrganizationManagement = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>確認永久刪除組織？</AlertDialogTitle>
               <AlertDialogDescription>
-                此操作將<strong className="text-destructive">永久刪除</strong>該組織及其所有相關資料，包括：
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>組織下所有用戶帳號</li>
-                  <li>所有患者資料</li>
-                  <li>預約紀錄、諮詢紀錄</li>
-                  <li>健康數據、目標設定</li>
-                </ul>
-                <p className="mt-3 text-destructive font-semibold">
-                  此操作無法復原，請謹慎確認！
-                </p>
+                <div>
+                  此操作將<strong className="text-destructive">永久刪除</strong>該組織及其所有相關資料，包括：
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>組織下所有用戶帳號</li>
+                    <li>所有患者資料</li>
+                    <li>預約紀錄、諮詢紀錄</li>
+                    <li>健康數據、目標設定</li>
+                  </ul>
+                  <div className="mt-3 text-destructive font-semibold">
+                    此操作無法復原，請謹慎確認！
+                  </div>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -924,4 +924,227 @@ router.put('/:id/modules', authenticateToken, requireSuperAdmin, async (req, res
   }
 });
 
+// ========== 健康管理模式 ==========
+
+// 獲取可用的健康管理模式（組織管理員）
+router.get('/me/health-modes/available', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    const { getAllHealthModes } = require('../config/healthModes');
+    const healthModes = getAllHealthModes();
+    
+    // 轉換為陣列格式，供前端選擇使用
+    const modesList = Object.values(healthModes).map(mode => ({
+      id: mode.id,
+      name: mode.name,
+      description: mode.description,
+      icon: mode.icon,
+      category: mode.category
+    }));
+
+    res.json(modesList);
+  } catch (error) {
+    console.error('Get available health modes error:', error);
+    res.status(500).json({ error: '獲取健康模式列表失敗' });
+  }
+});
+
+// 獲取當前組織的健康管理模式配置
+router.get('/me/health-mode', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    // Super Admin 沒有 organizationId
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.json({
+        healthMode: 'nutrition', // 預設模式
+        customizations: {},
+        isDefault: true
+      });
+    }
+
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
+    
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    let healthMode = 'nutrition'; // 預設為營養管理模式
+    let customizations = {};
+    
+    if (org.settings) {
+      try {
+        const settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+        healthMode = settings.healthMode || 'nutrition';
+        customizations = settings.healthModeCustomizations || {};
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 獲取完整模式配置
+    const { getHealthMode } = require('../config/healthModes');
+    const modeConfig = getHealthMode(healthMode);
+    
+    if (!modeConfig) {
+      // 如果模式不存在，回退到預設模式
+      healthMode = 'nutrition';
+      const defaultMode = getHealthMode('nutrition');
+      return res.json({
+        healthMode,
+        modeConfig: defaultMode,
+        customizations: {},
+        isDefault: true
+      });
+    }
+
+    res.json({
+      healthMode,
+      modeConfig,
+      customizations,
+      isDefault: false
+    });
+  } catch (error) {
+    console.error('Get organization health mode error:', error);
+    res.status(500).json({ error: '獲取健康模式配置失敗' });
+  }
+});
+
+// 更新當前組織的健康管理模式（組織管理員）
+router.put('/me/health-mode', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    // Super Admin 無法更新組織設定
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.status(403).json({ error: 'Super Admin 無法更新組織健康模式' });
+    }
+
+    const { healthMode, customizations } = req.body;
+
+    if (!healthMode) {
+      return res.status(400).json({ error: '請選擇健康管理模式' });
+    }
+
+    // 驗證模式是否存在
+    const { getHealthMode, createCustomMode, validateModeConfig } = require('../config/healthModes');
+    const baseMode = getHealthMode(healthMode);
+    
+    if (!baseMode) {
+      return res.status(400).json({ error: '無效的健康管理模式' });
+    }
+
+    // 如果有自訂配置，驗證格式
+    if (customizations) {
+      const customMode = createCustomMode(healthMode, customizations);
+      if (!validateModeConfig(customMode)) {
+        return res.status(400).json({ error: '無效的自訂配置格式' });
+      }
+    }
+
+    // 獲取現有設定
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
+    
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    let settings = {};
+    if (org.settings) {
+      try {
+        settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 更新健康管理模式設定
+    settings.healthMode = healthMode;
+    if (customizations) {
+      settings.healthModeCustomizations = customizations;
+    } else {
+      delete settings.healthModeCustomizations;
+    }
+
+    const now = new Date().toISOString();
+    await execute(
+      'UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?',
+      [JSON.stringify(settings), now, req.tenantContext.organizationId]
+    );
+
+    res.json({
+      success: true,
+      message: '健康管理模式已更新',
+      healthMode,
+      customizations: customizations || {},
+      modeConfig: baseMode
+    });
+  } catch (error) {
+    console.error('Update health mode error:', error);
+    res.status(500).json({ error: '更新健康管理模式失敗' });
+  }
+});
+
+// 重置為預設健康管理模式（組織管理員）
+router.post('/me/health-mode/reset', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+
+  try {
+    // Super Admin 無法更新組織設定
+    if (req.user.role === 'super_admin' || !req.tenantContext) {
+      return res.status(403).json({ error: 'Super Admin 無法重置組織健康模式' });
+    }
+
+    // 獲取現有設定
+    const org = await queryOne('SELECT settings FROM organizations WHERE id = ?', [req.tenantContext.organizationId]);
+    
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    let settings = {};
+    if (org.settings) {
+      try {
+        settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 重置為預設模式（營養管理）
+    settings.healthMode = 'nutrition';
+    delete settings.healthModeCustomizations;
+
+    const now = new Date().toISOString();
+    await execute(
+      'UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?',
+      [JSON.stringify(settings), now, req.tenantContext.organizationId]
+    );
+
+    // 獲取預設模式配置
+    const { getHealthMode } = require('../config/healthModes');
+    const defaultMode = getHealthMode('nutrition');
+
+    res.json({
+      success: true,
+      message: '已重置為預設的營養管理模式',
+      healthMode: 'nutrition',
+      modeConfig: defaultMode,
+      customizations: {}
+    });
+  } catch (error) {
+    console.error('Reset health mode error:', error);
+    res.status(500).json({ error: '重置健康管理模式失敗' });
+  }
+});
+
 module.exports = router;

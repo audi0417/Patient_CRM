@@ -653,4 +653,209 @@ if (process.env.ENABLE_SUPERADMIN_PII_ACCESS === 'true') {
   });
 }
 
+// ========== 健康模式管理 ==========
+
+/**
+ * GET /api/superadmin/health-modes
+ * 獲取所有可用的健康管理模式
+ */
+router.get('/health-modes', async (req, res) => {
+  try {
+    const { getAllHealthModes } = require('../config/healthModes');
+    const healthModes = getAllHealthModes();
+    
+    // 轉換為陣列格式並添加統計資訊
+    const modesList = await Promise.all(
+      Object.values(healthModes).map(async (mode) => {
+        // 統計使用此模式的組織數量
+        const orgCount = await queryOne(`
+          SELECT COUNT(*) as count 
+          FROM organizations 
+          WHERE JSON_EXTRACT(settings, '$.healthMode') = ?
+        `, [mode.id]);
+
+        return {
+          ...mode,
+          organizationCount: orgCount.count
+        };
+      })
+    );
+
+    res.json(modesList);
+  } catch (error) {
+    console.error('Get health modes error:', error);
+    res.status(500).json({ error: '獲取健康模式失敗' });
+  }
+});
+
+/**
+ * GET /api/superadmin/health-modes/:id
+ * 獲取特定健康管理模式的詳細資訊
+ */
+router.get('/health-modes/:id', async (req, res) => {
+  try {
+    const { getHealthMode } = require('../config/healthModes');
+    const mode = getHealthMode(req.params.id);
+    
+    if (!mode) {
+      return res.status(404).json({ error: '健康模式不存在' });
+    }
+
+    // 獲取使用此模式的組織列表
+    const organizations = await queryAll(`
+      SELECT id, name, slug, plan, createdAt
+      FROM organizations 
+      WHERE JSON_EXTRACT(settings, '$.healthMode') = ?
+      ORDER BY createdAt DESC
+    `, [req.params.id]);
+
+    res.json({
+      ...mode,
+      organizations
+    });
+  } catch (error) {
+    console.error('Get health mode detail error:', error);
+    res.status(500).json({ error: '獲取健康模式詳細資訊失敗' });
+  }
+});
+
+/**
+ * GET /api/superadmin/health-modes/usage/analytics
+ * 健康模式使用量分析
+ */
+router.get('/health-modes/usage/analytics', async (req, res) => {
+  try {
+    const { getAllHealthModes } = require('../config/healthModes');
+    const healthModes = getAllHealthModes();
+    
+    // 獲取每種模式的使用統計
+    const analytics = await Promise.all(
+      Object.keys(healthModes).map(async (modeId) => {
+        const mode = healthModes[modeId];
+        
+        // 組織數量
+        const orgCount = await queryOne(`
+          SELECT COUNT(*) as count 
+          FROM organizations 
+          WHERE JSON_EXTRACT(settings, '$.healthMode') = ? AND ${whereBool('isActive', true)}
+        `, [modeId]);
+
+        // 用戶數量 
+        const userCount = await queryOne(`
+          SELECT COUNT(u.id) as count
+          FROM users u
+          JOIN organizations o ON u.organizationId = o.id
+          WHERE JSON_EXTRACT(o.settings, '$.healthMode') = ? AND ${whereBool('u.isActive', true)}
+        `, [modeId]);
+
+        // 患者數量
+        const patientCount = await queryOne(`
+          SELECT COUNT(p.id) as count
+          FROM patients p
+          JOIN organizations o ON p.organizationId = o.id
+          WHERE JSON_EXTRACT(o.settings, '$.healthMode') = ?
+        `, [modeId]);
+
+        // 本月新增組織
+        const newOrgsThisMonth = await queryOne(`
+          SELECT COUNT(*) as count 
+          FROM organizations 
+          WHERE JSON_EXTRACT(settings, '$.healthMode') = ? 
+          AND createdAt >= ?
+        `, [modeId, currentMonthStart()]);
+
+        return {
+          modeId,
+          modeName: mode.name,
+          modeIcon: mode.icon,
+          category: mode.category,
+          stats: {
+            organizations: orgCount.count,
+            users: userCount.count,
+            patients: patientCount.count,
+            newOrganizationsThisMonth: newOrgsThisMonth.count
+          }
+        };
+      })
+    );
+
+    // 計算總計
+    const totals = analytics.reduce((acc, curr) => ({
+      organizations: acc.organizations + curr.stats.organizations,
+      users: acc.users + curr.stats.users,
+      patients: acc.patients + curr.stats.patients,
+      newOrganizationsThisMonth: acc.newOrganizationsThisMonth + curr.stats.newOrganizationsThisMonth
+    }), { organizations: 0, users: 0, patients: 0, newOrganizationsThisMonth: 0 });
+
+    res.json({
+      analytics,
+      totals,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get health modes analytics error:', error);
+    res.status(500).json({ error: '獲取健康模式分析失敗' });
+  }
+});
+
+/**
+ * POST /api/superadmin/organizations/:orgId/health-mode
+ * 為組織設定健康管理模式（SuperAdmin 專用）
+ */
+router.post('/organizations/:orgId/health-mode', async (req, res) => {
+  try {
+    const { modeId, customizations } = req.body;
+    
+    if (!modeId) {
+      return res.status(400).json({ error: '請選擇健康管理模式' });
+    }
+
+    // 驗證模式是否存在
+    const { getHealthMode } = require('../config/healthModes');
+    const mode = getHealthMode(modeId);
+    
+    if (!mode) {
+      return res.status(400).json({ error: '無效的健康管理模式' });
+    }
+
+    // 檢查組織是否存在
+    const org = await queryOne('SELECT id, settings FROM organizations WHERE id = ?', [req.params.orgId]);
+    if (!org) {
+      return res.status(404).json({ error: '組織不存在' });
+    }
+
+    // 更新組織設定
+    let settings = {};
+    if (org.settings) {
+      try {
+        settings = typeof org.settings === 'string' ? JSON.parse(org.settings) : org.settings;
+      } catch (e) {
+        console.error('解析組織設定失敗:', e);
+      }
+    }
+
+    // 設定健康模式
+    settings.healthMode = modeId;
+    if (customizations) {
+      settings.healthModeCustomizations = customizations;
+    }
+
+    const now = new Date().toISOString();
+    await execute(
+      'UPDATE organizations SET settings = ?, updatedAt = ? WHERE id = ?',
+      [JSON.stringify(settings), now, req.params.orgId]
+    );
+
+    res.json({
+      success: true,
+      message: `已將組織健康管理模式設定為：${mode.name}`,
+      healthMode: mode,
+      customizations
+    });
+  } catch (error) {
+    console.error('Set organization health mode error:', error);
+    res.status(500).json({ error: '設定健康管理模式失敗' });
+  }
+});
+
 module.exports = router;

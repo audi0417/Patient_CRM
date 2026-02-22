@@ -25,6 +25,7 @@ import BodyCompositionForm from "./BodyCompositionForm";
 import VitalSignsForm from "./VitalSignsForm";
 import GoalForm from "./GoalForm";
 import HealthRecordImportDialog from "./HealthRecordImportDialog";
+import { useVitalSignsMapping, useDataMode } from "@/contexts/DataModeContext";
 import {
   Plus,
   TrendingUp,
@@ -71,6 +72,11 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
   const [recordToDelete, setRecordToDelete] = useState<{ type: 'body' | 'vital', id: string } | null>(null);
   const [editingBodyRecord, setEditingBodyRecord] = useState<BodyCompositionRecord | null>(null);
   const [editingVitalRecord, setEditingVitalRecord] = useState<VitalSignsRecord | null>(null);
+
+  // 使用數據模式 context
+  const { labels, units } = useVitalSignsMapping();
+  const { getChartTitles } = useDataMode();
+  const chartTitles = getChartTitles();
 
   useEffect(() => {
     loadData();
@@ -241,11 +247,11 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-2">
               <Heart className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">每日卡路里</span>
+              <span className="text-sm text-muted-foreground">{labels.bloodPressureSystolic}</span>
             </div>
             {latestVitalSigns?.bloodPressureSystolic ? (
               <p className="text-2xl font-bold">
-                {latestVitalSigns.bloodPressureSystolic} <span className="text-sm font-normal text-muted-foreground">kcal</span>
+                {latestVitalSigns.bloodPressureSystolic} <span className="text-sm font-normal text-muted-foreground">{units.bloodPressureSystolic}</span>
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">無數據</p>
@@ -261,7 +267,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
-                減重目標
+                {getChartTitle('dashboard')}
               </CardTitle>
               <Button onClick={() => setShowGoalForm(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" />
@@ -276,7 +282,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold">{goal.title}</h4>
-                      <Badge variant="secondary">{goal.category === "weight" ? "減重" : goal.category === "bodyFat" ? "體脂率" : goal.category === "muscleMass" ? "肌肉量" : goal.category === "bmi" ? "BMI" : goal.category === "exercise" ? "運動" : goal.category === "health" ? "卡路里" : goal.category}</Badge>
+                      <Badge variant="secondary">{goal.category === "weight" ? "減重" : goal.category === "bodyFat" ? "體脂率" : goal.category === "muscleMass" ? "增肌" : goal.category === "bmi" ? "BMI" : goal.category === "exercise" ? "運動" : goal.category === "health" ? "卡路里" : goal.category}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       目標: {goal.targetValue} {goal.unit}
@@ -294,7 +300,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
               ))}
               {goals.filter(g => g.status === "active").length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  尚無活躍的減重目標
+                  尚無活躍的{getChartTitle('dashboard').replace('目標', '')}
                 </div>
               )}
             </div>
@@ -316,7 +322,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
             體組成記錄 ({bodyCompositionRecords.length})
           </TabsTrigger>
           <TabsTrigger value="vitalSigns">
-            營養記錄 ({vitalSignsRecords.length})
+            {getChartTitle('records')} ({vitalSignsRecords.length})
           </TabsTrigger>
         </TabsList>
 
@@ -420,7 +426,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>營養記錄</CardTitle>
+                <CardTitle>{getChartTitle('records')}</CardTitle>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -441,7 +447,7 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
               {vitalSignsRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">尚無營養記錄</p>
+                  <p className="text-muted-foreground mb-4">尚無{getChartTitle('records')}</p>
                   <Button onClick={() => setShowVitalSignsForm(true)}>
                     <Plus className="h-4 w-4 mr-1" />
                     新增第一筆記錄
@@ -473,44 +479,44 @@ const PatientHealthDashboard = ({ patient }: PatientHealthDashboardProps) => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           {record.bloodPressureSystolic && (
                             <div>
-                              <p className="text-muted-foreground">卡路里</p>
-                              <p className="font-medium">{record.bloodPressureSystolic} kcal</p>
+                              <p className="text-muted-foreground">{labels.bloodPressureSystolic}</p>
+                              <p className="font-medium">{record.bloodPressureSystolic} {units.bloodPressureSystolic}</p>
                             </div>
                           )}
                           {record.bloodPressureDiastolic && (
                             <div>
-                              <p className="text-muted-foreground">蛋白質</p>
-                              <p className="font-medium">{record.bloodPressureDiastolic} g</p>
+                              <p className="text-muted-foreground">{labels.bloodPressureDiastolic}</p>
+                              <p className="font-medium">{record.bloodPressureDiastolic} {units.bloodPressureDiastolic}</p>
                             </div>
                           )}
                           {record.heartRate && (
                             <div>
-                              <p className="text-muted-foreground">碳水化合物</p>
-                              <p className="font-medium">{record.heartRate} g</p>
+                              <p className="text-muted-foreground">{labels.heartRate}</p>
+                              <p className="font-medium">{record.heartRate} {units.heartRate}</p>
                             </div>
                           )}
                           {record.temperature && (
                             <div>
-                              <p className="text-muted-foreground">脂肪</p>
-                              <p className="font-medium">{record.temperature} g</p>
+                              <p className="text-muted-foreground">{labels.temperature}</p>
+                              <p className="font-medium">{record.temperature} {units.temperature}</p>
                             </div>
                           )}
                           {record.respiratoryRate && (
                             <div>
-                              <p className="text-muted-foreground">纖維</p>
-                              <p className="font-medium">{record.respiratoryRate} g</p>
+                              <p className="text-muted-foreground">{labels.respiratoryRate}</p>
+                              <p className="font-medium">{record.respiratoryRate} {units.respiratoryRate}</p>
                             </div>
                           )}
                           {record.oxygenSaturation && (
                             <div>
-                              <p className="text-muted-foreground">水分</p>
-                              <p className="font-medium">{record.oxygenSaturation} ml</p>
+                              <p className="text-muted-foreground">{labels.oxygenSaturation}</p>
+                              <p className="font-medium">{record.oxygenSaturation} {units.oxygenSaturation}</p>
                             </div>
                           )}
                           {record.bloodGlucose && (
                             <div>
-                              <p className="text-muted-foreground">血糖</p>
-                              <p className="font-medium">{record.bloodGlucose} mg/dL</p>
+                              <p className="text-muted-foreground">{labels.bloodGlucose}</p>
+                              <p className="font-medium">{record.bloodGlucose} {units.bloodGlucose}</p>
                             </div>
                           )}
                         </div>

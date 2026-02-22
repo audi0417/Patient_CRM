@@ -21,6 +21,7 @@ import { PatientGoal } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getTodayDateString } from "@/lib/utils";
+import { useDataMode } from "@/contexts/DataModeContext";
 
 interface GoalFormProps {
   patientId: string;
@@ -29,6 +30,8 @@ interface GoalFormProps {
 
 const GoalForm = ({ patientId, onClose }: GoalFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { getGoalCategories } = useDataMode();
+  
   const [formData, setFormData] = useState({
     category: "weight" as PatientGoal["category"],
     title: "",
@@ -40,15 +43,7 @@ const GoalForm = ({ patientId, onClose }: GoalFormProps) => {
     targetDate: "",
   });
 
-  const categoryOptions = [
-    { value: "weight", label: "減重目標", unit: "kg" },
-    { value: "bodyFat", label: "體脂率", unit: "%" },
-    { value: "muscleMass", label: "肌肉量", unit: "kg" },
-    { value: "bmi", label: "BMI", unit: "" },
-    { value: "exercise", label: "每週運動", unit: "次/週" },
-    { value: "health", label: "每日卡路里", unit: "kcal" },
-    { value: "custom", label: "自訂", unit: "" },
-  ];
+  const categoryOptions = getGoalCategories();
 
   const handleCategoryChange = (value: PatientGoal["category"]) => {
     const option = categoryOptions.find((opt) => opt.value === value);

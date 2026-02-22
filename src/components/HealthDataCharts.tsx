@@ -61,7 +61,7 @@ const HealthDataCharts = ({
       bmr: record.bmr,
     }));
 
-  // 準備生命徵象數據
+  // 準備營養記錄數據
   const vitalSignsData = vitalSignsRecords
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map((record) => ({

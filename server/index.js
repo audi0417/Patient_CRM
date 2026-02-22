@@ -88,6 +88,7 @@ const groupRoutes = require('./routes/groups');
 const tagRoutes = require('./routes/tags');
 const auditLogRoutes = require('./routes/auditLogs');
 const clinicAnalyticsRoutes = require('./routes/clinicAnalytics');
+const dataModesRoutes = require('./routes/dataModes');
 
 // 登入端點添加特殊限流保護
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
@@ -105,6 +106,7 @@ app.use('/api/seed', seedRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/superadmin', superadminRoutes);
+app.use('/api/data-modes', dataModesRoutes);
 // Line Webhook 必須在 /api/line 之前註冊（避免路由衝突）
 // Line Webhook 不需要 rate limiting（Line 平台自身就有頻率控制）
 app.use('/api/line/webhook', lineWebhookRoutes);

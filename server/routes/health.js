@@ -8,7 +8,7 @@ const ExcelJS = require('exceljs');
 
 router.use(authenticateToken);
 
-// 健康數據相關路由需要 healthManagement 模組
+// 營養數據相關路由需要 healthManagement 模組
 router.use(requireModule('healthManagement'));
 
 // ===== 體組成記錄 =====
@@ -189,9 +189,9 @@ router.delete('/body-composition/:id', async (req, res) => {
   }
 });
 
-// ===== 生命徵象記錄 =====
+// ===== 營養記錄 =====
 
-// 導出生命徵象記錄為 Excel（需要放在其他路由之前）
+// 導出營養記錄為 Excel（需要放在其他路由之前）
 router.get('/vital-signs/export/excel', async (req, res) => {
   try {
     const { patientId } = req.query;
@@ -219,19 +219,19 @@ router.get('/vital-signs/export/excel', async (req, res) => {
 
     // 創建 Excel 工作簿
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('生命徵象記錄');
+    const worksheet = workbook.addWorksheet('營養記錄');
 
     // 設定欄位
     worksheet.columns = [
       { header: '日期', key: 'date', width: 12 },
       { header: '病患姓名', key: 'patientName', width: 15 },
       { header: '病患電話', key: 'patientPhone', width: 15 },
-      { header: '收縮壓(mmHg)', key: 'bloodPressureSystolic', width: 15 },
-      { header: '舒張壓(mmHg)', key: 'bloodPressureDiastolic', width: 15 },
-      { header: '心率(bpm)', key: 'heartRate', width: 12 },
-      { header: '體溫(°C)', key: 'temperature', width: 10 },
-      { header: '呼吸率(次/分)', key: 'respiratoryRate', width: 15 },
-      { header: '血氧飽和度(%)', key: 'oxygenSaturation', width: 15 },
+      { header: '卡路里攝取(kcal)', key: 'bloodPressureSystolic', width: 15 },
+      { header: '蛋白質(g)', key: 'bloodPressureDiastolic', width: 15 },
+      { header: '碳水化合物(g)', key: 'heartRate', width: 12 },
+      { header: '脂肪攝取(g)', key: 'temperature', width: 10 },
+      { header: '纖維(g)', key: 'respiratoryRate', width: 15 },
+      { header: '水分攝取(ml)', key: 'oxygenSaturation', width: 15 },
       { header: '血糖(mg/dL)', key: 'bloodGlucose', width: 12 },
       { header: '備註', key: 'notes', width: 30 }
     ];
@@ -270,7 +270,7 @@ router.get('/vital-signs/export/excel', async (req, res) => {
     });
 
     // 設定響應頭
-    const fileName = `生命徵象記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `營養記錄_${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
 
@@ -279,11 +279,11 @@ router.get('/vital-signs/export/excel', async (req, res) => {
     res.end();
   } catch (error) {
     console.error('Export vital signs error:', error);
-    res.status(500).json({ error: '導出生命徵象記錄失敗' });
+    res.status(500).json({ error: '更新營養記錄失敗' });
   }
 });
 
-// 獲取生命徵象記錄
+// 獲取營養記錄
 router.get('/vital-signs', async (req, res) => {
   try {
     const { patientId } = req.query;
@@ -301,11 +301,11 @@ router.get('/vital-signs', async (req, res) => {
     res.json(records);
   } catch (error) {
     console.error('Get vital signs error:', error);
-    res.status(500).json({ error: '獲取生命徵象記錄失敗' });
+    res.status(500).json({ error: '獲取營養記錄失敗' });
   }
 });
 
-// 創建生命徵象記錄
+// 創建營養記錄
 router.post('/vital-signs', async (req, res) => {
   try {
     const { patientId, date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes } = req.body;
@@ -321,11 +321,11 @@ router.post('/vital-signs', async (req, res) => {
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Create vital signs error:', error);
-    res.status(500).json({ error: '創建生命徵象記錄失敗' });
+    res.status(500).json({ error: '創建營養記錄失敗' });
   }
 });
 
-// 更新生命徵象記錄
+// 更新營養記錄
 router.put('/vital-signs/:id', async (req, res) => {
   try {
     const { date, bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, respiratoryRate, oxygenSaturation, bloodGlucose, notes } = req.body;
@@ -348,7 +348,7 @@ router.put('/vital-signs/:id', async (req, res) => {
   }
 });
 
-// 刪除生命徵象記錄
+// 刪除營養記錄
 router.delete('/vital-signs/:id', async (req, res) => {
   try {
     const result = await execute('DELETE FROM vital_signs WHERE id = ?', [req.params.id]);

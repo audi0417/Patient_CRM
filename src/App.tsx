@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DemoProvider } from "@/contexts/DemoContext";
+import { DataModeProvider } from "@/contexts/DataModeContext";
 import DemoScenarioManager from "@/components/demo/DemoScenarioManager";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -21,6 +22,7 @@ import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import OrganizationManagement from "./pages/OrganizationManagement";
+import OrganizationSettings from "./pages/OrganizationSettings";
 import Analytics from "./pages/Analytics";
 import LineSettings from "./pages/LineSettings";
 import LineMessages from "./pages/LineMessages";
@@ -179,6 +181,16 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/organization/settings"
+        element={
+          <ProtectedRoute requiredRoles={["super_admin", "admin"]}>
+            <ProtectedLayout>
+              <OrganizationSettings />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/line/messages"
         element={
           <ProtectedRoute>
@@ -302,12 +314,14 @@ const App = () => (
         <Sonner />
         <DemoProvider>
           <AuthProvider>
-            <NotificationProvider>
-              {/* Demo 場景管理器 - 監控並引導 Demo 流程 */}
-              <DemoScenarioManager />
-              {/* 根據 Demo 模式選擇路由 */}
-              {window.__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
-            </NotificationProvider>
+            <DataModeProvider>
+              <NotificationProvider>
+                {/* Demo 場景管理器 - 監控並引導 Demo 流程 */}
+                <DemoScenarioManager />
+                {/* 根據 Demo 模式選擇路由 */}
+                {window.__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
+              </NotificationProvider>
+            </DataModeProvider>
           </AuthProvider>
         </DemoProvider>
       </TooltipProvider>

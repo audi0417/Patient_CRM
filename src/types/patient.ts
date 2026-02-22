@@ -56,12 +56,12 @@ export interface VitalSignsRecord {
   id: string;
   patientId: string;
   date: string;
-  bloodPressureSystolic?: number; // 收縮壓 (mmHg)
-  bloodPressureDiastolic?: number; // 舒張壓 (mmHg)
-  heartRate?: number; // 心率 (bpm)
-  temperature?: number; // 體溫 (°C)
-  respiratoryRate?: number; // 呼吸率 (次/分)
-  oxygenSaturation?: number; // 血氧飽和度 (%)
+  bloodPressureSystolic?: number; // 卡路里攝取 (kcal)
+  bloodPressureDiastolic?: number; // 蛋白質 (g) 
+  heartRate?: number; // 碳水化合物 (g)
+  temperature?: number; // 脂肪攝取 (g)
+  respiratoryRate?: number; // 纖維 (g)
+  oxygenSaturation?: number; // 水分攝取 (ml)
   bloodGlucose?: number; // 血糖 (mg/dL)
   notes?: string;
 }

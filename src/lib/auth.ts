@@ -88,6 +88,11 @@ export const logout = async (): Promise<void> => {
   } finally {
     // 清除本地儲存的使用者資料
     localStorage.removeItem(CURRENT_USER_KEY);
+    // 清除通知的已讀狀態，防止跨組織污染
+    const notificationKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('hospital_crm_notification_read_status')
+    );
+    notificationKeys.forEach(key => localStorage.removeItem(key));
   }
 };
 

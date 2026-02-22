@@ -14,6 +14,7 @@ import { VitalSignsRecord } from "@/types/patient";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getTodayDateString } from "@/lib/utils";
+import { useVitalSignsMapping, useDataMode } from "@/contexts/DataModeContext";
 
 interface VitalSignsFormProps {
   patientId: string;
@@ -22,6 +23,9 @@ interface VitalSignsFormProps {
 
 const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { labels, units } = useVitalSignsMapping();
+  const { getChartTitles } = useDataMode();
+  
   const [formData, setFormData] = useState({
     date: getTodayDateString(),
     bloodPressureSystolic: "",
@@ -68,7 +72,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
       };
 
       saveVitalSignsRecord(record);
-      toast.success("營養記錄已新增");
+      toast.success(`${getChartTitle('records')}已新增`);
       onClose();
     } catch (error) {
       toast.error("儲存失敗，請稍後再試");
@@ -82,7 +86,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>新增營養記錄</DialogTitle>
+          <DialogTitle>新增{getChartTitle('records')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -98,7 +102,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="bloodPressureSystolic">卡路里攝取 (kcal)</Label>
+              <Label htmlFor="bloodPressureSystolic">{labels.bloodPressureSystolic} ({units.bloodPressureSystolic})</Label>
               <Input
                 id="bloodPressureSystolic"
                 type="number"
@@ -113,7 +117,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bloodPressureDiastolic">蛋白質 (g)</Label>
+              <Label htmlFor="bloodPressureDiastolic">{labels.bloodPressureDiastolic} ({units.bloodPressureDiastolic})</Label>
               <Input
                 id="bloodPressureDiastolic"
                 type="number"
@@ -128,7 +132,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="heartRate">碳水化合物 (g)</Label>
+              <Label htmlFor="heartRate">{labels.heartRate} ({units.heartRate})</Label>
               <Input
                 id="heartRate"
                 type="number"
@@ -140,7 +144,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="temperature">脂肪攝取 (g)</Label>
+              <Label htmlFor="temperature">{labels.temperature} ({units.temperature})</Label>
               <Input
                 id="temperature"
                 type="number"
@@ -153,7 +157,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="respiratoryRate">纖維 (g)</Label>
+              <Label htmlFor="respiratoryRate">{labels.respiratoryRate} ({units.respiratoryRate})</Label>
               <Input
                 id="respiratoryRate"
                 type="number"
@@ -165,7 +169,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="oxygenSaturation">水分攝取 (ml)</Label>
+              <Label htmlFor="oxygenSaturation">{labels.oxygenSaturation} ({units.oxygenSaturation})</Label>
               <Input
                 id="oxygenSaturation"
                 type="number"
@@ -177,7 +181,7 @@ const VitalSignsForm = ({ patientId, onClose }: VitalSignsFormProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bloodGlucose">血糖 (mg/dL)</Label>
+              <Label htmlFor="bloodGlucose">{labels.bloodGlucose} ({units.bloodGlucose})</Label>
               <Input
                 id="bloodGlucose"
                 type="number"

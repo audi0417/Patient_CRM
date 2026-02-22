@@ -24,14 +24,16 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const NOTIFICATIONS_STORAGE_KEY = "hospital_crm_notification_read_status";
+const NOTIFICATIONS_STORAGE_KEY_PREFIX = "hospital_crm_notification_read_status";
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppointmentNotification[]>([]);
   const [readStatus, setReadStatus] = useState<Record<string, boolean>>(() => {
-    // 初始化時就從 localStorage 載入
-    const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    // 初始化時就從 localStorage 載入，使用組織ID隔離
+    if (!user?.organizationId) return {};
+    const storageKey = `${NOTIFICATIONS_STORAGE_KEY_PREFIX}_${user.organizationId}`;
+    const saved = localStorage.getItem(storageKey);
     return saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
   });
 
@@ -76,13 +78,22 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // 如果用戶未登入，不載入通知
     if (!user) {
+      setNotifications([]);
+      setReadStatus({});
       return;
     }
 
     // 超級管理員不需要載入預約通知
     if (user.role === 'super_admin') {
+      setNotifications([]);
       return;
     }
+
+    // 當組織ID變化時，重新載入該組織的已讀狀態
+    const storageKey = `${NOTIFICATIONS_STORAGE_KEY_PREFIX}_${user.organizationId}`;
+    const saved = localStorage.getItem(storageKey);
+    const orgReadStatus = saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
+    setReadStatus(orgReadStatus);
 
     // 初始載入通知
     refreshNotifications();
@@ -90,7 +101,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     // 每分鐘檢查一次
     const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
-  }, [user, refreshNotifications]);
+  }, [user?.organizationId, user?.role, refreshNotifications]);
 
   // 當 readStatus 改變時，重新整理通知以更新已讀狀態
   useEffect(() => {
@@ -106,9 +117,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, [readStatus]);
 
   const markAsRead = (notificationId: string) => {
+    if (!user?.organizationId) return;
     const newReadStatus = { ...readStatus, [notificationId]: true };
     setReadStatus(newReadStatus);
-    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(newReadStatus));
+    const storageKey = `${NOTIFICATIONS_STORAGE_KEY_PREFIX}_${user.organizationId}`;
+    localStorage.setItem(storageKey, JSON.stringify(newReadStatus));
 
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
@@ -116,12 +129,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAllAsRead = () => {
+    if (!user?.organizationId) return;
     const newReadStatus = { ...readStatus };
     notifications.forEach((n) => {
       newReadStatus[n.id] = true;
     });
     setReadStatus(newReadStatus);
-    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(newReadStatus));
+    const storageKey = `${NOTIFICATIONS_STORAGE_KEY_PREFIX}_${user.organizationId}`;
+    localStorage.setItem(storageKey, JSON.stringify(newReadStatus));
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };

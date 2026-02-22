@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Settings, Loader2 } from "lucide-react";
+import { Settings, Loader2, Database } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { tokenManager } from "@/lib/api";
 
@@ -38,6 +46,14 @@ interface AvailableModule {
   features: string[];
 }
 
+interface DataMode {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+}
+
 interface ModuleSettingsDialogProps {
   organizationId: string;
   organizationName: string;
@@ -58,6 +74,8 @@ export function ModuleSettingsDialog({
   const [saving, setSaving] = useState(false);
   const [availableModules, setAvailableModules] = useState<Record<string, AvailableModule>>({});
   const [modules, setModules] = useState<OrganizationModules>({});
+  const [availableDataModes, setAvailableDataModes] = useState<DataMode[]>([]);
+  const [selectedDataMode, setSelectedDataMode] = useState<string>('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -96,6 +114,34 @@ export function ModuleSettingsDialog({
 
       const modulesData = await modulesRes.json();
       setModules(modulesData.modules || {});
+
+      // 獲取可用的數據記錄模式
+      const dataModesRes = await fetch('/api/data-modes/admin/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (dataModesRes.ok) {
+        const dataModesData = await dataModesRes.json();
+        setAvailableDataModes(dataModesData);
+      }
+
+      // 獲取組織目前的數據記錄模式  
+      const orgRes = await fetch(`/api/organizations/${organizationId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (orgRes.ok) {
+        const orgData = await orgRes.json();
+        const settings = orgData.settings || {};
+        const dataMode = settings.dataMode || {};
+        setSelectedDataMode(dataMode.modeId || '');
+      }
     } catch (error: unknown) {
       console.error('獲取模組資料失敗:', error);
       toast({
@@ -149,9 +195,32 @@ export function ModuleSettingsDialog({
         throw new Error(errorData.error || '儲存失敗');
       }
 
+      // 如果選擇了數據記錄模式，進行分配
+      if (selectedDataMode) {
+        const dataModesResponse = await fetch('/api/data-modes/admin/assign', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            organizationId,
+            modeId: selectedDataMode
+          })
+        });
+
+        if (!dataModesResponse.ok) {
+          const errorData = await dataModesResponse.json();
+          console.warn('數據記錄模式分配失敗:', errorData);
+          // 不阻止整體成功，只是警告
+        }
+      }
+
       toast({
         title: "儲存成功",
-        description: "模組設定已更新"
+        description: selectedDataMode 
+          ? "模組設定和數據記錄模式已更新" 
+          : "模組設定已更新"
       });
 
       onSuccess?.();
@@ -229,6 +298,58 @@ export function ModuleSettingsDialog({
                 </Card>
               );
             })}
+            
+            {/* 數據記錄模式設定 */}
+            <Separator />
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Database className="h-5 w-5 text-primary" />
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">
+                      數據記錄模式
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      為此組織分配合適的數據記錄模式，影響生命徵象欄位和追蹤目標類型
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <Label htmlFor="dataMode">選擇數據記錄模式</Label>
+                  <Select value={selectedDataMode} onValueChange={setSelectedDataMode}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇合適的數據記錄模式" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        <div className="flex items-center gap-2">
+                          <span>❌</span>
+                          <span>未設定</span>
+                        </div>
+                      </SelectItem>
+                      {availableDataModes.map((mode) => (
+                        <SelectItem key={mode.id} value={mode.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{mode.icon}</span>
+                            <div>
+                              <div className="font-medium">{mode.name}</div>
+                              <div className="text-xs text-muted-foreground">{mode.description}</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedDataMode && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      {availableDataModes.find(m => m.id === selectedDataMode)?.description}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

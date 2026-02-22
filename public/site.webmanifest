@@ -1,0 +1,17 @@
+{
+  "name": "醫療CRM系統",
+  "short_name": "Patient CRM",
+  "description": "專業的醫院患者管理系統，追蹤健康數據與回診預約",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}

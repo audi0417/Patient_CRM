@@ -227,6 +227,12 @@ const Header = () => {
                   使用者管理
                 </DropdownMenuItem>
               )}
+              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                <DropdownMenuItem onClick={() => navigate("/organization/settings")}>
+                  <Activity className="mr-2 h-4 w-4" />
+                  組織設定
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => navigate("/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
                 系統設定

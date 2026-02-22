@@ -433,6 +433,11 @@ export const getGroups = async (): Promise<PatientGroup[]> => {
       const data = localStorage.getItem(GROUPS_KEY);
       return data ? JSON.parse(data) : [];
     }
+    // 安全檢查api.groups是否存在
+    if (!api?.groups?.getAll) {
+      console.warn('Groups API not available');
+      return [];
+    }
     const result = await api.groups.getAll();
     return result || [];
   } catch (error) {

@@ -67,7 +67,7 @@ const HealthAnalytics = () => {
       const groupsData = await getGroups();
       setGroups(groupsData || []);
 
-      // 載入每個病患的健康數據摘要
+      // 載入每個病患的營養數據摘要
       const summaries = await Promise.all(
         (patientsData || []).map(async (patient) => {
           const bodyRecords = await getBodyCompositionRecords(patient.id);
@@ -260,7 +260,7 @@ const HealthAnalytics = () => {
             </Card>
           </div>
 
-          {/* 健康數據儀表板 */}
+          {/* 營養數據儀表板 */}
           <PatientHealthDashboard patient={selectedPatient} />
         </div>
       </div>
@@ -509,7 +509,7 @@ const HealthAnalytics = () => {
                       </div>
                     )}
 
-                    {/* 健康數據摘要 */}
+                    {/* 營養數據摘要 */}
                     {summary.hasData ? (
                       <div className="space-y-2 text-sm">
                         {summary.latestWeight && (
@@ -675,7 +675,7 @@ const HealthAnalytics = () => {
                             </div>
                           )}
 
-                          {/* 健康數據摘要 */}
+                          {/* 營養數據摘要 */}
                           {summary.hasData ? (
                             <div className="space-y-2 text-sm">
                               {summary.latestWeight && (
