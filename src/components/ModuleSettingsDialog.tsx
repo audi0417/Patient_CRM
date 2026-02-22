@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Settings, Loader2, Database } from "lucide-react";
+import { Settings, Loader2, Database, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -76,9 +76,11 @@ export function ModuleSettingsDialog({
   const [modules, setModules] = useState<OrganizationModules>({});
   const [availableDataModes, setAvailableDataModes] = useState<DataMode[]>([]);
   const [selectedDataMode, setSelectedDataMode] = useState<string>('');
+  const [fetchError, setFetchError] = useState<string>('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setFetchError('');
     try {
       const token = tokenManager.get();
       if (!token) {
@@ -143,11 +145,13 @@ export function ModuleSettingsDialog({
         setSelectedDataMode(dataMode.modeId || '');
       }
     } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "無法載入模組設定";
       console.error('獲取模組資料失敗:', error);
+      setFetchError(errorMessage);
       toast({
         variant: "destructive",
         title: "載入失敗",
-        description: error instanceof Error ? error.message : "無法載入模組設定"
+        description: errorMessage
       });
     } finally {
       setLoading(false);
@@ -157,20 +161,42 @@ export function ModuleSettingsDialog({
   useEffect(() => {
     if (open) {
       fetchData();
+    } else {
+      // 對話框關閉時重置錯誤狀態
+      setFetchError('');
     }
   }, [open, fetchData]);
 
   const handleToggleModule = (moduleId: keyof OrganizationModules) => {
-    setModules(prev => ({
-      ...prev,
-      [moduleId]: {
-        ...prev[moduleId],
-        enabled: !prev[moduleId]?.enabled,
-        name: availableModules[moduleId]?.name || prev[moduleId]?.name || '',
-        description: availableModules[moduleId]?.description,
-        features: availableModules[moduleId]?.features || prev[moduleId]?.features || []
+    setModules(prev => {
+      const currentModule = prev[moduleId];
+      const availableModule = availableModules[moduleId];
+      
+      // 如果模組不存在，使用可用模組的資訊初始化
+      if (!currentModule) {
+        return {
+          ...prev,
+          [moduleId]: {
+            enabled: true,
+            name: availableModule?.name || '',
+            description: availableModule?.description,
+            features: availableModule?.features || []
+          }
+        };
       }
-    }));
+      
+      // 如果模組已存在，切換啟用狀態
+      return {
+        ...prev,
+        [moduleId]: {
+          ...currentModule,
+          enabled: !currentModule.enabled,
+          name: availableModule?.name || currentModule.name,
+          description: availableModule?.description || currentModule.description,
+          features: availableModule?.features || currentModule.features || []
+        }
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -181,6 +207,7 @@ export function ModuleSettingsDialog({
         throw new Error('未登入');
       }
 
+      // 先保存模組設定
       const response = await fetch(`/api/organizations/${organizationId}/modules`, {
         method: 'PUT',
         headers: {
@@ -195,7 +222,7 @@ export function ModuleSettingsDialog({
         throw new Error(errorData.error || '儲存失敗');
       }
 
-      // 如果選擇了數據記錄模式，進行分配
+      // 處理數據記錄模式的分配或清除
       if (selectedDataMode) {
         const dataModesResponse = await fetch('/api/data-modes/admin/assign', {
           method: 'POST',
@@ -212,16 +239,23 @@ export function ModuleSettingsDialog({
         if (!dataModesResponse.ok) {
           const errorData = await dataModesResponse.json();
           console.warn('數據記錄模式分配失敗:', errorData);
-          // 不阻止整體成功，只是警告
+          toast({
+            variant: "default",
+            title: "部分保存成功",
+            description: "模組設定已更新，但數據記錄模式設定失敗"
+          });
+        } else {
+          toast({
+            title: "儲存成功",
+            description: "模組設定和數據記錄模式已更新"
+          });
         }
+      } else {
+        toast({
+          title: "儲存成功",
+          description: "模組設定已更新"
+        });
       }
-
-      toast({
-        title: "儲存成功",
-        description: selectedDataMode 
-          ? "模組設定和數據記錄模式已更新" 
-          : "模組設定已更新"
-      });
 
       onSuccess?.();
       onOpenChange(false);
@@ -261,6 +295,16 @@ export function ModuleSettingsDialog({
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="text-destructive text-sm text-center">
+              {fetchError}
+            </div>
+            <Button variant="outline" onClick={fetchData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              重新載入
+            </Button>
           </div>
         ) : (
           <div className="space-y-4 py-4">
@@ -316,35 +360,32 @@ export function ModuleSettingsDialog({
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label htmlFor="dataMode">選擇數據記錄模式</Label>
-                  <Select value={selectedDataMode} onValueChange={setSelectedDataMode}>
+                  <Select value={selectedDataMode || 'none'} onValueChange={(value) => setSelectedDataMode(value === 'none' ? '' : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="選擇合適的數據記錄模式" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">
-                        <div className="flex items-center gap-2">
-                          <span>❌</span>
-                          <span>未設定</span>
-                        </div>
-                      </SelectItem>
+                      <SelectItem value="none">❌ 未設定</SelectItem>
                       {availableDataModes.map((mode) => (
                         <SelectItem key={mode.id} value={mode.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{mode.icon}</span>
-                            <div>
-                              <div className="font-medium">{mode.name}</div>
-                              <div className="text-xs text-muted-foreground">{mode.description}</div>
-                            </div>
-                          </div>
+                          {mode.icon} {mode.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedDataMode && (
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {availableDataModes.find(m => m.id === selectedDataMode)?.description}
+                  {selectedDataMode && availableDataModes.find(m => m.id === selectedDataMode) && (
+                    <div className="rounded-md bg-muted p-3 space-y-1">
+                      <div className="text-sm font-medium">
+                        {availableDataModes.find(m => m.id === selectedDataMode)?.icon} {availableDataModes.find(m => m.id === selectedDataMode)?.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {availableDataModes.find(m => m.id === selectedDataMode)?.description}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        類別: {availableDataModes.find(m => m.id === selectedDataMode)?.category}
+                      </div>
                     </div>
                   )}
                 </div>

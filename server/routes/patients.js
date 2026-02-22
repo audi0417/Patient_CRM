@@ -65,7 +65,7 @@ router.get('/', requireAccess('patients', Operation.READ), async (req, res) => {
 });
 
 // 獲取單個患者（自動驗證組織權限）
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAccess('patients', Operation.READ), async (req, res) => {
   try {
     // 使用租戶查詢，自動驗證是否屬於同一組織
     const patient = await req.tenantQuery.findById('patients', req.params.id);
@@ -98,7 +98,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // 創建患者（自動檢查配額並關聯組織）
-router.post('/', checkTenantQuota('patients'), async (req, res) => {
+router.post('/', requireAccess('patients', Operation.CREATE), checkTenantQuota('patients'), async (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, medicalHistory, allergies, notes, tags, groups, healthProfile } = req.body;
 
@@ -164,7 +164,7 @@ router.post('/', checkTenantQuota('patients'), async (req, res) => {
 });
 
 // 更新患者（自動驗證組織權限）
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAccess('patients', Operation.UPDATE), async (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, medicalHistory, allergies, notes, tags, groups, healthProfile } = req.body;
     const now = new Date().toISOString();
@@ -232,7 +232,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // 刪除患者（自動驗證組織權限）
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAccess('patients', Operation.DELETE), async (req, res) => {
   try {
     // 使用租戶查詢刪除，自動驗證 organizationId
     const success = await req.tenantQuery.delete('patients', req.params.id);
