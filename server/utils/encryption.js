@@ -23,13 +23,18 @@ function getEncryptionKey() {
     throw new Error('ENCRYPTION_KEY 環境變數未設定');
   }
 
-  // 確保金鑰長度為 32 字節（256 位元）
-  if (key.length < 32) {
-    throw new Error('ENCRYPTION_KEY 長度必須至少 32 個字元');
+  // 優先嘗試 hex 解碼（64 hex chars = 32 bytes，安全性更高）
+  if (/^[0-9a-fA-F]{64}$/.test(key)) {
+    return Buffer.from(key, 'hex');
   }
 
-  // 使用前 32 字節作為金鑰
-  return Buffer.from(key.slice(0, 32), 'utf-8');
+  // 向下相容：使用 UTF-8 編碼，確保至少 32 字節
+  if (Buffer.byteLength(key, 'utf-8') < 32) {
+    throw new Error('ENCRYPTION_KEY 長度不足，需至少 32 字節（建議使用 64 位 hex 字串）');
+  }
+
+  // 使用 SHA-256 雜湊確保得到固定 32 字節金鑰
+  return crypto.createHash('sha256').update(key).digest();
 }
 
 /**
@@ -148,8 +153,8 @@ function decryptFields(obj, fields) {
  */
 function isEncryptionKeyValid() {
   try {
-    const key = process.env.ENCRYPTION_KEY;
-    return key && key.length >= 32;
+    getEncryptionKey();
+    return true;
   } catch {
     return false;
   }

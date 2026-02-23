@@ -311,7 +311,7 @@ const PatientList = () => {
                   ? "請嘗試其他搜尋條件"
                   : "點擊上方按鈕開始新增患者"}
               </p>
-              {!searchTerm && selectedOrg === "all" && selectedGroup === "all" && genderFilter === "all" && !isSuperAdmin && (
+              {!searchTerm && selectedOrg === "all" && selectedGroup === "all" && genderFilter === "all" && (
                 <Button onClick={() => navigate("/patient/new")}>
                   <Plus className="mr-2 h-4 w-4" />
                   新增第一位患者

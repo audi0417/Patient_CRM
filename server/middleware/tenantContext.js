@@ -70,7 +70,6 @@ async function requireTenant(req, res, next) {
         maxPatients: org.maxPatients
       }
     };
-
     // 設定 PostgreSQL RLS 上下文（僅在 PostgreSQL 環境下）
     // 這提供資料庫層的第二道防線
     const dbType = process.env.DB_TYPE || 'sqlite';
@@ -100,8 +99,63 @@ async function requireTenant(req, res, next) {
  * 自動注入 organizationId 過濾條件
  */
 class TenantQuery {
+  // 允許的表名白名單（防止 SQL 注入）
+  static ALLOWED_TABLES = new Set([
+    'patients', 'users', 'appointments', 'consultations',
+    'goals', 'tags', 'groups', 'service_types', 'service_items',
+    'treatment_packages', 'body_composition', 'vital_signs',
+    'organizations', 'line_channels', 'line_messages',
+    'line_rich_menus', 'module_settings', 'data_mode_settings'
+  ]);
+
+  // 允許的 ORDER BY 欄位白名單
+  static ALLOWED_ORDER_COLUMNS = new Set([
+    'id', 'name', 'createdAt', 'updatedAt', 'date', 'birthDate',
+    'phone', 'email', 'gender', 'bloodType', 'status', 'priority',
+    'startTime', 'endTime', 'sort', 'sortOrder', 'appointmentDate'
+  ]);
+
   constructor(organizationId) {
     this.organizationId = organizationId;
+  }
+
+  /**
+   * 驗證表名是否在白名單中
+   */
+  _validateTable(table) {
+    if (!TenantQuery.ALLOWED_TABLES.has(table)) {
+      throw new Error(`Invalid table name: ${table}`);
+    }
+    return table;
+  }
+
+  /**
+   * 驗證並解析 ORDER BY 子句
+   * 支援格式: "column DESC", "column ASC", "column"
+   */
+  _validateOrderBy(orderBy) {
+    if (!orderBy) return null;
+    const parts = orderBy.trim().split(/\s+/);
+    const column = parts[0];
+    const direction = (parts[1] || 'ASC').toUpperCase();
+
+    if (!TenantQuery.ALLOWED_ORDER_COLUMNS.has(column)) {
+      throw new Error(`Invalid ORDER BY column: ${column}`);
+    }
+    if (direction !== 'ASC' && direction !== 'DESC') {
+      throw new Error(`Invalid ORDER BY direction: ${direction}`);
+    }
+    return `${quoteIdentifier(column)} ${direction}`;
+  }
+
+  /**
+   * 驗證欄位名稱（用於 WHERE 條件和 SET 子句的 key）
+   */
+  _validateColumnName(key) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+      throw new Error(`Invalid column name: ${key}`);
+    }
+    return key;
   }
 
   /**
@@ -111,9 +165,10 @@ class TenantQuery {
    * @returns {Promise<Object|null>}
    */
   async findById(table, id) {
+    this._validateTable(table);
     return await queryOne(`
       SELECT * FROM ${table}
-      WHERE id = ? AND organizationId = ?
+      WHERE id = ? AND ${quoteIdentifier('organizationId')} = ?
     `, [id, this.organizationId]);
   }
 
@@ -124,21 +179,23 @@ class TenantQuery {
    * @returns {Promise<Array>}
    */
   async findAll(table, options = {}) {
-    let query = `SELECT * FROM ${table} WHERE organizationId = ?`;
+    this._validateTable(table);
+    let query = `SELECT * FROM ${table} WHERE ${quoteIdentifier('organizationId')} = ?`;
     const params = [this.organizationId];
 
     if (options.orderBy) {
-      query += ` ORDER BY ${options.orderBy}`;
+      const safeOrderBy = this._validateOrderBy(options.orderBy);
+      query += ` ORDER BY ${safeOrderBy}`;
     }
 
     if (options.limit) {
       query += ` LIMIT ?`;
-      params.push(options.limit);
+      params.push(Number(options.limit));
     }
 
     if (options.offset) {
       query += ` OFFSET ?`;
-      params.push(options.offset);
+      params.push(Number(options.offset));
     }
 
     return await queryAll(query, params);
@@ -152,24 +209,27 @@ class TenantQuery {
    * @returns {Promise<Array>}
    */
   async findWhere(table, where = {}, options = {}) {
-    const conditions = ['organizationId = ?'];
+    this._validateTable(table);
+    const conditions = [`${quoteIdentifier('organizationId')} = ?`];
     const params = [this.organizationId];
 
-    // 建立 WHERE 條件
+    // 建立 WHERE 條件（驗證欄位名稱）
     Object.entries(where).forEach(([key, value]) => {
-      conditions.push(`${key} = ?`);
+      this._validateColumnName(key);
+      conditions.push(`${quoteIdentifier(key)} = ?`);
       params.push(value);
     });
 
     let query = `SELECT * FROM ${table} WHERE ${conditions.join(' AND ')}`;
 
     if (options.orderBy) {
-      query += ` ORDER BY ${options.orderBy}`;
+      const safeOrderBy = this._validateOrderBy(options.orderBy);
+      query += ` ORDER BY ${safeOrderBy}`;
     }
 
     if (options.limit) {
       query += ` LIMIT ?`;
-      params.push(options.limit);
+      params.push(Number(options.limit));
     }
 
     return await queryAll(query, params);
@@ -182,11 +242,13 @@ class TenantQuery {
    * @returns {Promise<number>}
    */
   async count(table, where = {}) {
-    const conditions = ['organizationId = ?'];
+    this._validateTable(table);
+    const conditions = [`${quoteIdentifier('organizationId')} = ?`];
     const params = [this.organizationId];
 
     Object.entries(where).forEach(([key, value]) => {
-      conditions.push(`${key} = ?`);
+      this._validateColumnName(key);
+      conditions.push(`${quoteIdentifier(key)} = ?`);
       params.push(value);
     });
 
@@ -202,8 +264,12 @@ class TenantQuery {
    * @returns {Promise<Object>} 插入的記錄
    */
   async insert(table, data) {
+    this._validateTable(table);
     const columns = Object.keys(data);
     const values = Object.values(data);
+
+    // 驗證所有欄位名稱
+    columns.forEach(col => this._validateColumnName(col));
 
     // 自動加入 organizationId
     columns.push('organizationId');
@@ -226,13 +292,17 @@ class TenantQuery {
    * @returns {Promise<Object|null>} 更新後的記錄
    */
   async update(table, id, data) {
-    const setClause = Object.keys(data).map(key => `${key} = ?`).join(', ');
+    this._validateTable(table);
+    // 驗證所有欄位名稱
+    Object.keys(data).forEach(key => this._validateColumnName(key));
+
+    const setClause = Object.keys(data).map(key => `${quoteIdentifier(key)} = ?`).join(', ');
     const values = Object.values(data);
 
     const query = `
       UPDATE ${table}
       SET ${setClause}
-      WHERE id = ? AND organizationId = ?
+      WHERE id = ? AND ${quoteIdentifier('organizationId')} = ?
     `;
 
     const result = await execute(query, [...values, id, this.organizationId]);
@@ -251,9 +321,10 @@ class TenantQuery {
    * @returns {Promise<boolean>} 是否成功刪除
    */
   async delete(table, id) {
+    this._validateTable(table);
     const result = await execute(`
       DELETE FROM ${table}
-      WHERE id = ? AND organizationId = ?
+      WHERE id = ? AND ${quoteIdentifier('organizationId')} = ?
     `, [id, this.organizationId]);
 
     return result.changes > 0;
@@ -352,6 +423,7 @@ function checkTenantQuota(resourceType) {
       }
 
       if (currentCount >= maxLimit) {
+        console.log('[Quota] Quota exceeded:', { resourceType, currentCount, maxLimit });
         return res.status(403).json({
           error: `已達到 ${resourceType} 數量上限 (${maxLimit})`,
           code: 'QUOTA_EXCEEDED',

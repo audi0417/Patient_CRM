@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 require('dotenv').config();
 
@@ -11,8 +12,23 @@ const PORT = process.env.PORT || 3001;
 // 這讓 Express 能正確讀取 X-Forwarded-For header 來識別真實客戶端 IP
 app.set('trust proxy', 1);
 
+// Security Headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", ...(process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [])],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // 允許載入外部資源
+}));
+
 // Rate Limiting - 僅導入登入保護所需的限流器
-const { accountLoginLimiter, loginLimiter } = require('./middleware/rateLimit');
+const { accountLoginLimiter, loginLimiter, apiLimiter, strictLimiter } = require('./middleware/rateLimit');
 
 // CORS 設定 - 限制允許的來源
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
@@ -32,8 +48,8 @@ app.use(cors({
     // 如果未設置 ALLOWED_ORIGINS，對 zeabur.app 子域名自動開放（方便在 Zeabur 平台部署時不用額外設定）
     // 注意：這僅在 ALLOWED_ORIGINS 為空時啟用；若需要更嚴格控制，請在部署時設定 ALLOWED_ORIGINS 環境變數。
     if (allowedOrigins.length === 0) {
-      if (origin && origin.includes('zeabur.app')) {
-        console.log(`[CORS] Auto-allowed Zeabur origin: ${origin}`);
+      // 嚴格驗證：只允許 *.zeabur.app（防止 attacker-zeabur.app 之類的繞過）
+      if (origin && /^https?:\/\/[a-zA-Z0-9-]+\.zeabur\.app$/.test(origin)) {
         return callback(null, true);
       }
     }
@@ -42,8 +58,6 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`[CORS] Blocked origin: ${origin}`);
-      console.log(`[CORS] Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -94,6 +108,13 @@ const dataModesRoutes = require('./routes/dataModes');
 // accountLoginLimiter: 基於帳號的失敗次數追蹤（15次鎖定15分鐘）
 // loginLimiter: 基於IP的請求頻率限制（防止暴力嘗試多個帳號）
 app.use('/api/auth/login', accountLoginLimiter, loginLimiter);
+
+// 敏感操作限流
+app.use('/api/auth/change-password', strictLimiter);
+app.use('/api/auth/first-login-password', strictLimiter);
+app.use('/api/auth/refresh', apiLimiter);
+app.use('/api/superadmin', apiLimiter);
+app.use('/api/seed', strictLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -246,11 +267,22 @@ app.get(/^(?!\/api).*/, (req, res) => {
 // Error handling middleware
 // ========================================
 app.use((err, req, res, next) => {
-  console.error('[Server] Error:', err);
-  res.status(err.status || 500).json({
+  // 僅在伺服器端記錄完整錯誤（含堆疊追蹤）
+  console.error('[Server] Error:', err.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(err.stack);
+  }
+
+  const status = err.status || 500;
+  // 不向客戶端洩漏內部錯誤訊息
+  const clientMessage = status < 500
+    ? err.message
+    : '伺服器發生錯誤，請稍後再試';
+
+  res.status(status).json({
     error: {
-      message: err.message || 'Internal Server Error',
-      status: err.status || 500
+      message: clientMessage,
+      status
     }
   });
 });

@@ -1,11 +1,32 @@
 const express = require('express');
 const router = express.Router();
+const { body, param, validationResult } = require('express-validator');
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireTenant, injectTenantQuery, checkTenantQuota, checkSubscriptionExpiry } = require('../middleware/tenantContext');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const encryptionMiddleware = require('../middleware/encryptionMiddleware');
 const { accessControlMiddleware, requireAccess, Operation } = require('../middleware/accessControl');
+
+// 患者輸入驗證規則
+const patientValidation = [
+  body('name').trim().notEmpty().withMessage('姓名不能為空').isLength({ max: 100 }).withMessage('姓名長度不能超過 100 字元'),
+  body('gender').optional({ nullable: true }).isIn(['male', 'female', 'other']).withMessage('性別格式無效'),
+  body('birthDate').optional({ nullable: true }).isISO8601().withMessage('生日格式無效'),
+  body('phone').optional({ nullable: true }).isLength({ max: 30 }).withMessage('電話長度不能超過 30 字元'),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Email 格式無效'),
+  body('bloodType').optional({ nullable: true }).isIn(['A', 'B', 'O', 'AB', '']).withMessage('血型格式無效'),
+  body('tags').optional().isArray().withMessage('標籤必須為陣列'),
+  body('groups').optional().isArray().withMessage('群組必須為陣列'),
+];
+
+function handleValidationErrors(req, res, next) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array()[0].msg, errors: errors.array() });
+  }
+  next();
+}
 
 // 定義需要加密的敏感欄位
 const SENSITIVE_FIELDS = ['medicalHistory', 'allergies', 'emergencyContact'];
@@ -98,7 +119,7 @@ router.get('/:id', requireAccess('patients', Operation.READ), async (req, res) =
 });
 
 // 創建患者（自動檢查配額並關聯組織）
-router.post('/', requireAccess('patients', Operation.CREATE), checkTenantQuota('patients'), async (req, res) => {
+router.post('/', requireAccess('patients', Operation.CREATE), patientValidation, handleValidationErrors, checkTenantQuota('patients'), async (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, medicalHistory, allergies, notes, tags, groups, healthProfile } = req.body;
 
@@ -164,7 +185,7 @@ router.post('/', requireAccess('patients', Operation.CREATE), checkTenantQuota('
 });
 
 // 更新患者（自動驗證組織權限）
-router.put('/:id', requireAccess('patients', Operation.UPDATE), async (req, res) => {
+router.put('/:id', requireAccess('patients', Operation.UPDATE), patientValidation, handleValidationErrors, async (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, medicalHistory, allergies, notes, tags, groups, healthProfile } = req.body;
     const now = new Date().toISOString();
