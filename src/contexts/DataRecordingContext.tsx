@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 // 數據記錄模式配置類型
 interface VitalSignsMapping {
@@ -125,6 +126,7 @@ interface DataRecordingProviderProps {
 const DataRecordingContext = createContext<DataRecordingContextType | undefined>(undefined);
 
 export const DataRecordingProvider: React.FC<DataRecordingProviderProps> = ({ children }) => {
+  const { authState } = useAuth();
   const [dataRecordingMode, setDataRecordingMode] = useState<string>('nutrition');
   const [modeConfig, setModeConfig] = useState<DataRecordingModeConfig | null>(DEFAULT_CONFIG);
   const [customizations, setCustomizations] = useState<any>({});
@@ -193,8 +195,16 @@ export const DataRecordingProvider: React.FC<DataRecordingProviderProps> = ({ ch
   };
 
   useEffect(() => {
-    loadDataRecordingModeConfig();
-  }, []);
+    // 只在使用者已登入且有 token 時才載入模式配置
+    if (authState.isAuthenticated && authState.token) {
+      loadDataRecordingModeConfig();
+    } else {
+      // 未登入時使用預設配置
+      setModeConfig(DEFAULT_CONFIG);
+      setDataRecordingMode('nutrition');
+      setCustomizations({});
+    }
+  }, [authState.isAuthenticated, authState.token]);
 
   const getVitalSignLabel = (field: string): string => {
     return modeConfig?.vitalSignsMapping[field]?.label || field;
