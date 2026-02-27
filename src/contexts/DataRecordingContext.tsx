@@ -195,11 +195,12 @@ export const DataRecordingProvider: React.FC<DataRecordingProviderProps> = ({ ch
   };
 
   useEffect(() => {
-    // 只在使用者已登入且有 token 時才載入模式配置
-    if (authState.isAuthenticated && authState.token) {
+    const isDemoMode = !!(window as any).__isDemoMode;
+    // 只在使用者已登入、有真實 token 且非 Demo 模式時才載入模式配置
+    if (authState.isAuthenticated && authState.token && !isDemoMode) {
       loadDataRecordingModeConfig();
     } else {
-      // 未登入時使用預設配置
+      // 未登入或 Demo 模式時使用預設配置
       setModeConfig(DEFAULT_CONFIG);
       setDataRecordingMode('nutrition');
       setCustomizations({});
