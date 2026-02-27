@@ -10,6 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +32,7 @@ const LineSettings = () => {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
   const [formData, setFormData] = useState<LineConfigInput>({
     channelId: '',
     channelSecret: '',
@@ -104,10 +115,7 @@ const LineSettings = () => {
   };
 
   const handleDisable = async () => {
-    if (!confirm('確定要停用 LINE 整合嗎？這將無法接收和發送訊息。')) {
-      return;
-    }
-
+    setShowDisableDialog(false);
     try {
       setSaving(true);
       const response = await lineApi.config.disable();
@@ -533,7 +541,7 @@ const LineSettings = () => {
               {config && (
                 <Button
                   variant="destructive"
-                  onClick={handleDisable}
+                  onClick={() => setShowDisableDialog(true)}
                   disabled={saving}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -648,6 +656,26 @@ const LineSettings = () => {
           </div>
         </CardContent>
       </Card>
+      {/* 停用確認對話框 */}
+      <AlertDialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>確定要停用 LINE 整合？</AlertDialogTitle>
+            <AlertDialogDescription>
+              停用後將無法接收和發送 LINE 訊息。您可以隨時重新啟用。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisable}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              確認停用
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

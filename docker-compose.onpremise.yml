@@ -13,8 +13,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # 初始化腳本
-      - ./server/database/schema.js:/docker-entrypoint-initdb.d/00-schema.sql:ro
+      # RLS 策略（Schema 由應用程式自動初始化和遷移）
       - ./server/database/rls-policies.sql:/docker-entrypoint-initdb.d/01-rls-policies.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres}"]

@@ -27,6 +27,9 @@
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
     "test:postgres": "node scripts/testPostgresConnection.js",
+    "migrate": "node bin/migrate.js",
+    "migrate:status": "node bin/migrate.js status",
+    "migrate:create": "node bin/migrate.js create",
     "test": "jest --forceExit --detectOpenHandles",
     "test:watch": "jest --watch --forceExit",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles"

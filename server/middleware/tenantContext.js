@@ -276,7 +276,8 @@ class TenantQuery {
     values.push(this.organizationId);
 
     const placeholders = columns.map(() => '?').join(', ');
-    const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
+    const quotedColumns = columns.map(col => quoteIdentifier(col)).join(', ');
+    const query = `INSERT INTO ${table} (${quotedColumns}) VALUES (${placeholders})`;
 
     await execute(query, values);
 

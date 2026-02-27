@@ -653,25 +653,25 @@ if (process.env.ENABLE_SUPERADMIN_PII_ACCESS === 'true') {
   });
 }
 
-// ========== 健康模式管理 ==========
+// ========== 數據記錄模式管理 ==========
 
 /**
- * GET /api/superadmin/health-modes
- * 獲取所有可用的健康管理模式
+ * GET /api/superadmin/data-recording-modes
+ * 獲取所有可用的數據記錄模式
  */
-router.get('/health-modes', async (req, res) => {
+router.get('/data-recording-modes', async (req, res) => {
   try {
-    const { getAllHealthModes } = require('../config/healthModes');
-    const healthModes = getAllHealthModes();
+    const { getAllDataRecordingModes } = require('../config/dataRecordingModes');
+    const dataRecordingModes = getAllDataRecordingModes();
     
     // 轉換為陣列格式並添加統計資訊
     const modesList = await Promise.all(
-      Object.values(healthModes).map(async (mode) => {
+      Object.values(dataRecordingModes).map(async (mode) => {
         // 統計使用此模式的組織數量
         const orgCount = await queryOne(`
           SELECT COUNT(*) as count 
           FROM organizations 
-          WHERE JSON_EXTRACT(settings, '$.healthMode') = ?
+          WHERE JSON_EXTRACT(settings, '$.dataRecordingMode') = ?
         `, [mode.id]);
 
         return {
@@ -683,29 +683,29 @@ router.get('/health-modes', async (req, res) => {
 
     res.json(modesList);
   } catch (error) {
-    console.error('Get health modes error:', error);
-    res.status(500).json({ error: '獲取健康模式失敗' });
+    console.error('Get data recording modes error:', error);
+    res.status(500).json({ error: '獲取數據記錄模式失敗' });
   }
 });
 
 /**
- * GET /api/superadmin/health-modes/:id
- * 獲取特定健康管理模式的詳細資訊
+ * GET /api/superadmin/data-recording-modes/:id
+ * 獲取特定數據記錄模式的詳細資訊
  */
-router.get('/health-modes/:id', async (req, res) => {
+router.get('/data-recording-modes/:id', async (req, res) => {
   try {
-    const { getHealthMode } = require('../config/healthModes');
-    const mode = getHealthMode(req.params.id);
+    const { getDataRecordingModeById } = require('../config/dataRecordingModes');
+    const mode = getDataRecordingModeById(req.params.id);
     
     if (!mode) {
-      return res.status(404).json({ error: '健康模式不存在' });
+      return res.status(404).json({ error: '數據記錄模式不存在' });
     }
 
     // 獲取使用此模式的組織列表
     const organizations = await queryAll(`
       SELECT id, name, slug, plan, createdAt
       FROM organizations 
-      WHERE JSON_EXTRACT(settings, '$.healthMode') = ?
+      WHERE JSON_EXTRACT(settings, '$.dataRecordingMode') = ?
       ORDER BY createdAt DESC
     `, [req.params.id]);
 
@@ -714,30 +714,30 @@ router.get('/health-modes/:id', async (req, res) => {
       organizations
     });
   } catch (error) {
-    console.error('Get health mode detail error:', error);
-    res.status(500).json({ error: '獲取健康模式詳細資訊失敗' });
+    console.error('Get data recording mode detail error:', error);
+    res.status(500).json({ error: '獲取數據記錄模式詳細資訊失敗' });
   }
 });
 
 /**
- * GET /api/superadmin/health-modes/usage/analytics
- * 健康模式使用量分析
+ * GET /api/superadmin/data-recording-modes/usage/analytics
+ * 數據記錄模式使用量分析
  */
-router.get('/health-modes/usage/analytics', async (req, res) => {
+router.get('/data-recording-modes/usage/analytics', async (req, res) => {
   try {
-    const { getAllHealthModes } = require('../config/healthModes');
-    const healthModes = getAllHealthModes();
+    const { getAllDataRecordingModes } = require('../config/dataRecordingModes');
+    const dataRecordingModes = getAllDataRecordingModes();
     
     // 獲取每種模式的使用統計
     const analytics = await Promise.all(
-      Object.keys(healthModes).map(async (modeId) => {
-        const mode = healthModes[modeId];
+      Object.keys(dataRecordingModes).map(async (modeId) => {
+        const mode = dataRecordingModes[modeId];
         
         // 組織數量
         const orgCount = await queryOne(`
           SELECT COUNT(*) as count 
           FROM organizations 
-          WHERE JSON_EXTRACT(settings, '$.healthMode') = ? AND ${whereBool('isActive', true)}
+          WHERE JSON_EXTRACT(settings, '$.dataRecordingMode') = ? AND ${whereBool('isActive', true)}
         `, [modeId]);
 
         // 用戶數量 
@@ -745,7 +745,7 @@ router.get('/health-modes/usage/analytics', async (req, res) => {
           SELECT COUNT(u.id) as count
           FROM users u
           JOIN organizations o ON u.organizationId = o.id
-          WHERE JSON_EXTRACT(o.settings, '$.healthMode') = ? AND ${whereBool('u.isActive', true)}
+          WHERE JSON_EXTRACT(o.settings, '$.dataRecordingMode') = ? AND ${whereBool('u.isActive', true)}
         `, [modeId]);
 
         // 患者數量
@@ -753,15 +753,14 @@ router.get('/health-modes/usage/analytics', async (req, res) => {
           SELECT COUNT(p.id) as count
           FROM patients p
           JOIN organizations o ON p.organizationId = o.id
-          WHERE JSON_EXTRACT(o.settings, '$.healthMode') = ?
+          WHERE JSON_EXTRACT(o.settings, '$.dataRecordingMode') = ?
         `, [modeId]);
 
         // 本月新增組織
         const newOrgsThisMonth = await queryOne(`
           SELECT COUNT(*) as count 
           FROM organizations 
-          WHERE JSON_EXTRACT(settings, '$.healthMode') = ? 
-          AND createdAt >= ?
+          WHERE JSON_EXTRACT(settings, '$.dataRecordingMode') = ? AND createdAt >= ?
         `, [modeId, currentMonthStart()]);
 
         return {
@@ -793,29 +792,29 @@ router.get('/health-modes/usage/analytics', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Get health modes analytics error:', error);
-    res.status(500).json({ error: '獲取健康模式分析失敗' });
+    console.error('Get data recording modes analytics error:', error);
+    res.status(500).json({ error: '獲取數據記錄模式分析失敗' });
   }
 });
 
 /**
- * POST /api/superadmin/organizations/:orgId/health-mode
- * 為組織設定健康管理模式（SuperAdmin 專用）
+ * POST /api/superadmin/organizations/:orgId/data-recording-mode
+ * 為組織設定數據記錄模式（SuperAdmin 專用）
  */
-router.post('/organizations/:orgId/health-mode', async (req, res) => {
+router.post('/organizations/:orgId/data-recording-mode', async (req, res) => {
   try {
     const { modeId, customizations } = req.body;
     
     if (!modeId) {
-      return res.status(400).json({ error: '請選擇健康管理模式' });
+      return res.status(400).json({ error: '請選擇數據記錄模式' });
     }
 
     // 驗證模式是否存在
-    const { getHealthMode } = require('../config/healthModes');
-    const mode = getHealthMode(modeId);
+    const { getDataRecordingModeById } = require('../config/dataRecordingModes');
+    const mode = getDataRecordingModeById(modeId);
     
     if (!mode) {
-      return res.status(400).json({ error: '無效的健康管理模式' });
+      return res.status(400).json({ error: '無效的數據記錄模式' });
     }
 
     // 檢查組織是否存在
@@ -834,10 +833,10 @@ router.post('/organizations/:orgId/health-mode', async (req, res) => {
       }
     }
 
-    // 設定健康模式
-    settings.healthMode = modeId;
+    // 設定數據記錄模式
+    settings.dataRecordingMode = modeId;
     if (customizations) {
-      settings.healthModeCustomizations = customizations;
+      settings.dataRecordingModeCustomizations = customizations;
     }
 
     const now = new Date().toISOString();
@@ -848,13 +847,91 @@ router.post('/organizations/:orgId/health-mode', async (req, res) => {
 
     res.json({
       success: true,
-      message: `已將組織健康管理模式設定為：${mode.name}`,
-      healthMode: mode,
+      message: `已將組織數據記錄模式設定為：${mode.name}`,
+      dataRecordingMode: mode,
       customizations
     });
   } catch (error) {
-    console.error('Set organization health mode error:', error);
-    res.status(500).json({ error: '設定健康管理模式失敗' });
+    console.error('Set organization data recording mode error:', error);
+    res.status(500).json({ error: '設定數據記錄模式失敗' });
+  }
+});
+
+// ========== 租戶開通管理 ==========
+
+const { provisionTenant, suspendTenant, reactivateTenant } = require('../services/provisioningService');
+
+/**
+ * POST /api/superadmin/tenants
+ * 自動化開通新租戶（組織 + 管理員 + 預設群組 + 歡迎郵件）
+ */
+router.post('/tenants', async (req, res) => {
+  try {
+    const {
+      name, slug, contactName, contactEmail,
+      plan, maxUsers, maxPatients,
+      domain, billingEmail, contactPhone, settings
+    } = req.body;
+
+    const result = await provisionTenant({
+      name, slug, contactName, contactEmail,
+      plan, maxUsers, maxPatients,
+      domain, billingEmail, contactPhone, settings,
+      provisionedBy: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `租戶「${name}」開通成功`,
+      ...result
+    });
+  } catch (error) {
+    console.error('Provision tenant error:', error);
+
+    const status = error.message.includes('already in use') ? 409
+      : error.message.includes('Missing required') ? 400
+      : error.message.includes('Invalid') ? 400
+      : 500;
+
+    res.status(status).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/superadmin/tenants/:id/suspend
+ * 暫停租戶
+ */
+router.put('/tenants/:id/suspend', async (req, res) => {
+  try {
+    const org = await suspendTenant(req.params.id, req.user.id);
+    res.json({
+      success: true,
+      message: `租戶「${org.name}」已暫停`,
+      organization: org
+    });
+  } catch (error) {
+    console.error('Suspend tenant error:', error);
+    const status = error.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/superadmin/tenants/:id/reactivate
+ * 重新啟用租戶
+ */
+router.put('/tenants/:id/reactivate', async (req, res) => {
+  try {
+    const org = await reactivateTenant(req.params.id, req.user.id);
+    res.json({
+      success: true,
+      message: `租戶「${org.name}」已重新啟用`,
+      organization: org
+    });
+  } catch (error) {
+    console.error('Reactivate tenant error:', error);
+    const status = error.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 

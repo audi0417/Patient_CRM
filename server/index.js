@@ -147,6 +147,10 @@ const { getOrganizationModules } = require('./middleware/moduleAccess');
 const { authenticateToken: authToken } = require('./middleware/auth');
 app.get('/api/modules', authToken, getOrganizationModules);
 
+// License 資訊端點（地端部署使用）
+const { getLicenseInfo } = require('./middleware/licenseCheck');
+app.get('/api/license', authToken, getLicenseInfo);
+
 // ========================================
 // 健康檢查端點
 // ========================================
@@ -299,6 +303,10 @@ async function startServer() {
     // 初始化資料庫
     const { initialize: initializeDatabase } = require('./database/db');
     await initializeDatabase();
+
+    // 執行資料庫遷移
+    const { runMigrations } = require('./database/migrationRunner');
+    await runMigrations();
 
     // 地端模式：初始化 License
     if (isOnPremise()) {

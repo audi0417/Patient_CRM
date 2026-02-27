@@ -103,11 +103,13 @@ const PatientForm = () => {
       // 檢查是否為配額或訂閱錯誤
       const err = error instanceof Error ? error : null;
       const errObj = error as Record<string, unknown>;
+      const errorData = (err as { data?: Record<string, unknown> })?.data;
+      const errorCode = typeof errorData?.code === 'string' ? errorData.code : '';
       const errorMessage = err?.message || (typeof errObj?.error === 'string' ? errObj.error : '') || (isEdit ? "更新患者資料失敗" : "新增患者失敗");
 
-      if (errorMessage.includes("配額") || errorMessage.includes("QUOTA_EXCEEDED")) {
+      if (errorCode === 'QUOTA_EXCEEDED' || errorMessage.includes("數量上限") || errorMessage.includes("配額")) {
         toast.error("已達到患者數量上限，請聯繫管理員升級方案");
-      } else if (errorMessage.includes("訂閱") || errorMessage.includes("SUBSCRIPTION_EXPIRED")) {
+      } else if (errorCode === 'SUBSCRIPTION_EXPIRED' || errorMessage.includes("訂閱")) {
         toast.error("訂閱已過期，請聯繫管理員續訂");
       } else {
         toast.error(errorMessage);

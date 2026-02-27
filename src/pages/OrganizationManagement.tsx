@@ -914,8 +914,8 @@ const OrganizationManagement = () => {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>確認永久刪除組織？</AlertDialogTitle>
-              <AlertDialogDescription>
-                <div>
+              <AlertDialogDescription asChild>
+                <div className="text-sm text-muted-foreground">
                   此操作將<strong className="text-destructive">永久刪除</strong>該組織及其所有相關資料，包括：
                   <ul className="list-disc list-inside mt-2 space-y-1">
                     <li>組織下所有用戶帳號</li>
@@ -954,8 +954,8 @@ const OrganizationManagement = () => {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>確認重置管理員密碼？</AlertDialogTitle>
-              <AlertDialogDescription>
-                <div className="space-y-3">
+              <AlertDialogDescription asChild>
+                <div className="text-sm text-muted-foreground space-y-3">
                   <p>即將為以下管理員重置密碼：</p>
                   <div className="p-3 bg-muted rounded-lg space-y-1">
                     <div className="flex justify-between">

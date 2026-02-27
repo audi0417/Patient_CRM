@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface HealthMode {
+interface DataRecordingMode {
   id: string;
   name: string;
   description: string;
@@ -50,18 +50,18 @@ interface HealthMode {
     };
   };
   goalCategories: Array<{
-    id: string;
-    name: string;
-    description: string;
+    value: string;
+    label: string;
+    unit: string;
   }>;
   chartTitles: {
     vitalSigns: string;
-    goals: string;
-    progress: string;
+    dashboard: string;
+    records: string;
   };
 }
 
-interface OrganizationMode {
+interface OrganizationDataMode {
   modeId: string;
   modeName: string;
   customizations: {
@@ -73,28 +73,28 @@ interface OrganizationMode {
       };
     };
     goalCategories?: Array<{
-      id: string;
-      name: string;
-      description: string;
+      value: string;
+      label: string;
+      unit: string;
     }>;
     chartTitles?: {
       vitalSigns: string;
-      goals: string;
-      progress: string;
+      dashboard: string;
+      records: string;
     };
   };
 }
 
-const OrganizationHealthModeSettings = () => {
-  const [availableModes, setAvailableModes] = useState<HealthMode[]>([]);
-  const [currentMode, setCurrentMode] = useState<OrganizationMode | null>(null);
+const OrganizationDataRecordingSettings = () => {
+  const [availableModes, setAvailableModes] = useState<DataRecordingMode[]>([]);
+  const [currentMode, setCurrentMode] = useState<OrganizationDataMode | null>(null);
   const [selectedMode, setSelectedMode] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
-  const [customizations, setCustomizations] = useState<OrganizationMode['customizations']>({});
+  const [customizations, setCustomizations] = useState<OrganizationDataMode['customizations']>({});
 
-  // 載入可用的健康模式和當前設定
+  // 載入可用的數據記錄模式和當前設定
   useEffect(() => {
     loadAvailableModes();
     loadCurrentMode();
@@ -102,7 +102,7 @@ const OrganizationHealthModeSettings = () => {
 
   const loadAvailableModes = async () => {
     try {
-      const response = await fetch('/api/organizations/me/health-modes/available', {
+      const response = await fetch('/api/organizations/me/data-recording-modes/available', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -120,7 +120,7 @@ const OrganizationHealthModeSettings = () => {
   const loadCurrentMode = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/organizations/me/health-mode', {
+      const response = await fetch('/api/organizations/me/data-recording-mode', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -128,7 +128,11 @@ const OrganizationHealthModeSettings = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setCurrentMode(data);
+        setCurrentMode({
+          modeId: data.dataRecordingMode || 'nutrition',
+          modeName: data.modeConfig?.name || '營養管理',
+          customizations: data.customizations || {}
+        });
         setCustomizations(data.customizations || {});
       }
     } catch (error) {
@@ -141,19 +145,23 @@ const OrganizationHealthModeSettings = () => {
   const switchMode = async (modeId: string) => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/organizations/me/health-mode', {
+      const response = await fetch('/api/organizations/me/data-recording-mode', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ modeId })
+        body: JSON.stringify({ dataRecordingMode: modeId })
       });
 
       if (response.ok) {
         const data = await response.json();
-        toast.success('健康模式已切換');
-        setCurrentMode(data);
+        toast.success('數據記錄模式已切換');
+        setCurrentMode({
+          modeId: data.dataRecordingMode || modeId,
+          modeName: data.modeConfig?.name || '營養管理',
+          customizations: data.customizations || {}
+        });
         setCustomizations(data.customizations || {});
         setSelectedMode('');
       } else {
@@ -173,14 +181,14 @@ const OrganizationHealthModeSettings = () => {
 
     setIsSaving(true);
     try {
-      const response = await fetch('/api/organizations/me/health-mode', {
+      const response = await fetch('/api/organizations/me/data-recording-mode', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ 
-          modeId: currentMode.modeId,
+          dataRecordingMode: currentMode.modeId,
           customizations 
         })
       });
@@ -188,7 +196,10 @@ const OrganizationHealthModeSettings = () => {
       if (response.ok) {
         const data = await response.json();
         toast.success('自定義設定已保存');
-        setCurrentMode(data);
+        setCurrentMode({
+          ...currentMode,
+          customizations: data.customizations || {}
+        });
         setShowCustomizeDialog(false);
       } else {
         const error = await response.json();
@@ -207,7 +218,7 @@ const OrganizationHealthModeSettings = () => {
 
     setIsSaving(true);
     try {
-      const response = await fetch('/api/organizations/me/health-mode/reset', {
+      const response = await fetch('/api/organizations/me/data-recording-mode/reset', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -217,8 +228,13 @@ const OrganizationHealthModeSettings = () => {
       if (response.ok) {
         const data = await response.json();
         toast.success('已重置為預設設定');
-        setCurrentMode(data);
+        setCurrentMode({
+          modeId: data.dataRecordingMode || 'nutrition',
+          modeName: data.modeConfig?.name || '營養管理',
+          customizations: {}
+        });
         setCustomizations({});
+        setShowCustomizeDialog(false);
       } else {
         const error = await response.json();
         toast.error(error.error || '重置失敗');
@@ -231,25 +247,12 @@ const OrganizationHealthModeSettings = () => {
     }
   };
 
-  const updateVitalSignCustomization = (fieldKey: string, field: string, value: string) => {
+  const updateCustomization = (section: string, key: string, value: string) => {
     setCustomizations(prev => ({
       ...prev,
-      vitalSignsMapping: {
-        ...prev.vitalSignsMapping,
-        [fieldKey]: {
-          ...prev.vitalSignsMapping?.[fieldKey],
-          [field]: value
-        }
-      }
-    }));
-  };
-
-  const updateChartTitle = (chartKey: string, value: string) => {
-    setCustomizations(prev => ({
-      ...prev,
-      chartTitles: {
-        ...prev.chartTitles,
-        [chartKey]: value
+      [section]: {
+        ...prev[section as keyof typeof prev],
+        [key]: value
       }
     }));
   };
@@ -271,7 +274,7 @@ const OrganizationHealthModeSettings = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <Settings className="h-12 w-12 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">載入健康模式設定...</p>
+            <p className="text-muted-foreground">載入數據記錄模式設定...</p>
           </div>
         </div>
       </div>
@@ -287,7 +290,7 @@ const OrganizationHealthModeSettings = () => {
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
-                目前健康模式
+                目前數據記錄模式
               </div>
               <div className="flex gap-2">
                 <Dialog open={showCustomizeDialog} onOpenChange={setShowCustomizeDialog}>
@@ -299,7 +302,7 @@ const OrganizationHealthModeSettings = () => {
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>自定義健康模式</DialogTitle>
+                      <DialogTitle>自定義數據記錄模式</DialogTitle>
                       <DialogDescription>
                         自定義欄位標籤、單位和圖表標題以符合您的組織需求
                       </DialogDescription>
@@ -308,7 +311,7 @@ const OrganizationHealthModeSettings = () => {
                     {/* 生命徵象自定義 */}
                     <div className="space-y-4 py-4">
                       <div>
-                        <h4 className="font-medium mb-3">生命徵象欄位</h4>
+                        <h4 className="font-medium mb-3">數據欄位</h4>
                         <div className="grid grid-cols-1 gap-4">
                           {availableModes.find(m => m.id === currentMode?.modeId)?.vitalSignsMapping && 
                            Object.entries(availableModes.find(m => m.id === currentMode?.modeId)!.vitalSignsMapping).map(([key, field]) => (
@@ -317,19 +320,21 @@ const OrganizationHealthModeSettings = () => {
                                 <h5 className="font-medium text-sm">{key}</h5>
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <Label className="text-xs">顯示標籤</Label>
+                                    <Label className="text-xs">欄位標籤</Label>
                                     <Input
                                       placeholder={field.label}
-                                      value={customizations.vitalSignsMapping?.[key]?.label || ''}
-                                      onChange={(e) => updateVitalSignCustomization(key, 'label', e.target.value)}
+                                      defaultValue={customizations.vitalSignsMapping?.[key]?.label || ''}
+                                      onChange={(e) => updateCustomization('vitalSignsMapping', `${key}.label`, e.target.value)}
+                                      className="h-8 text-sm"
                                     />
                                   </div>
                                   <div>
                                     <Label className="text-xs">單位</Label>
                                     <Input
                                       placeholder={field.unit}
-                                      value={customizations.vitalSignsMapping?.[key]?.unit || ''}
-                                      onChange={(e) => updateVitalSignCustomization(key, 'unit', e.target.value)}
+                                      defaultValue={customizations.vitalSignsMapping?.[key]?.unit || ''}
+                                      onChange={(e) => updateCustomization('vitalSignsMapping', `${key}.unit`, e.target.value)}
+                                      className="h-8 text-sm"
                                     />
                                   </div>
                                 </div>
@@ -342,29 +347,33 @@ const OrganizationHealthModeSettings = () => {
                       {/* 圖表標題自定義 */}
                       <div>
                         <h4 className="font-medium mb-3">圖表標題</h4>
-                        <div className="space-y-3">
-                          {availableModes.find(m => m.id === currentMode?.modeId)?.chartTitles &&
-                           Object.entries(availableModes.find(m => m.id === currentMode?.modeId)!.chartTitles).map(([key, title]) => (
-                            <div key={key}>
-                              <Label className="text-sm">{key}</Label>
+                        <div className="grid grid-cols-1 gap-3">
+                          {['vitalSigns', 'dashboard', 'records'].map((title) => (
+                            <div key={title}>
+                              <Label className="text-sm capitalize">{title}</Label>
                               <Input
-                                placeholder={title}
-                                value={customizations.chartTitles?.[key as keyof typeof customizations.chartTitles] || ''}
-                                onChange={(e) => updateChartTitle(key, e.target.value)}
+                                defaultValue={customizations.chartTitles?.[title as keyof typeof customizations.chartTitles] || ''}
+                                onChange={(e) => updateCustomization('chartTitles', title, e.target.value)}
+                                className="mt-1"
                               />
                             </div>
                           ))}
                         </div>
                       </div>
+                    </div>
 
-                      <div className="flex gap-2 pt-4">
+                    <div className="flex justify-between pt-4">
+                      <Button variant="outline" onClick={resetToDefault} disabled={isSaving}>
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        重置為預設
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setShowCustomizeDialog(false)}>
+                          取消
+                        </Button>
                         <Button onClick={saveCustomizations} disabled={isSaving}>
                           <Save className="h-4 w-4 mr-2" />
                           {isSaving ? '保存中...' : '保存設定'}
-                        </Button>
-                        <Button variant="outline" onClick={resetToDefault} disabled={isSaving}>
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          重置預設
                         </Button>
                       </div>
                     </div>
@@ -401,7 +410,7 @@ const OrganizationHealthModeSettings = () => {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            尚未設定健康模式，請聯繫系統管理員進行設定
+            尚未設定數據記錄模式，請聯繫系統管理員進行設定
           </AlertDescription>
         </Alert>
       )}
@@ -410,14 +419,14 @@ const OrganizationHealthModeSettings = () => {
       {availableModes.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>切換健康模式</CardTitle>
+            <CardTitle>切換數據記錄模式</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-4">
               <div className="flex-1">
                 <Select value={selectedMode} onValueChange={setSelectedMode}>
                   <SelectTrigger>
-                    <SelectValue placeholder="選擇健康模式" />
+                    <SelectValue placeholder="選擇數據記錄模式" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableModes.map((mode) => (
@@ -475,4 +484,4 @@ const OrganizationHealthModeSettings = () => {
   );
 };
 
-export default OrganizationHealthModeSettings;
+export default OrganizationDataRecordingSettings;

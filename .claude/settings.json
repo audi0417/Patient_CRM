@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(npm test)"
     ]
   }
 }

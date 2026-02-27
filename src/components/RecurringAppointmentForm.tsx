@@ -147,6 +147,8 @@ const RecurringAppointmentForm = ({
         await saveAppointment(parentAppointment);
 
         // 建立後續的預約
+        let successCount = 1; // 第一筆已成功
+        let failCount = 0;
         for (let i = 1; i < dates.length; i++) {
           const appointment: Appointment = {
             id: '', // Let backend generate ID
@@ -162,10 +164,19 @@ const RecurringAppointmentForm = ({
             parentAppointmentId: undefined, // Will be handled by backend
             reminderDays: formData.reminderDays,
           };
-          await saveAppointment(appointment);
+          try {
+            await saveAppointment(appointment);
+            successCount++;
+          } catch {
+            failCount++;
+          }
         }
 
-        toast.success(`已建立 ${dates.length} 個定期回診預約`);
+        if (failCount > 0) {
+          toast.warning(`已建立 ${successCount}/${dates.length} 個預約，${failCount} 個建立失敗`);
+        } else {
+          toast.success(`已建立 ${dates.length} 個定期回診預約`);
+        }
       } else {
         // 單次預約
         const appointment: Appointment = {

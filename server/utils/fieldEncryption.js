@@ -79,8 +79,19 @@ function deriveOrgKey(organizationId) {
  * @returns {string|null} 加密後的密文（格式：iv:authTag:encrypted），若輸入為空則返回 null
  */
 function encryptField(plaintext, organizationId) {
-  // 空值或空字串不加密
-  if (!plaintext || plaintext.trim() === '') {
+  // 空值不加密
+  if (!plaintext) {
+    return null;
+  }
+  
+  // 將非字符串類型轉為字符串
+  let textToEncrypt = plaintext;
+  if (typeof textToEncrypt !== 'string') {
+    textToEncrypt = JSON.stringify(textToEncrypt);
+  }
+  
+  // 空字串不加密
+  if (textToEncrypt.trim() === '') {
     return null;
   }
 
@@ -90,7 +101,7 @@ function encryptField(plaintext, organizationId) {
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
     // 加密
-    let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+    let encrypted = cipher.update(textToEncrypt, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
     // 取得驗證標籤

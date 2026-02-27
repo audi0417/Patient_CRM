@@ -94,36 +94,53 @@ jobs:
           echo "**Version:** ${{ steps.package.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
-  # deploy:
-  #   name: Deploy to Environment
-  #   runs-on: ubuntu-latest
-  #   needs: build-and-push
-  #   if: github.ref == 'refs/heads/main'
-  #
-  #   steps:
-  #     - name: Deploy to production
-  #       run: |
-  #         echo "Deploying ${{ needs.build-and-push.outputs.image-tag }}"
-  #         # Add your deployment commands here
-  #         # Examples:
-  #         # - kubectl set image deployment/patient-crm app=${{ needs.build-and-push.outputs.image-tag }}
-  #         # - aws ecs update-service --cluster prod --service patient-crm --force-new-deployment
-  #         # - curl -X POST ${{ secrets.WEBHOOK_URL }} -d "image=${{ needs.build-and-push.outputs.image-tag }}"
-  #
-  #     - name: Run database migrations
-  #       run: |
-  #         echo "Running migrations..."
-  #         # Add migration commands here
-  #         # Examples:
-  #         # - kubectl exec deployment/patient-crm -- node server/database/migrate.js up
-  #         # - docker run --rm ${{ needs.build-and-push.outputs.image-tag }} node server/database/migrate.js up
-  #
-  #     - name: Health check
-  #       run: |
-  #         echo "Checking deployment health..."
-  #         # Add health check commands here
-  #         # Example:
-  #         # - curl -f https://api.yourdomain.com/api/health-check
+  deploy:
+    name: Deploy to Environment
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    environment: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via webhook
+        if: vars.DEPLOY_METHOD == 'webhook'
+        run: |
+          echo "Deploying via webhook..."
+          curl -sf -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"image\":\"${{ needs.build-and-push.outputs.image-tag }}\",\"sha\":\"${{ github.sha }}\"}"
+
+      - name: Deploy via ECS
+        if: vars.DEPLOY_METHOD == 'ecs'
+        run: |
+          echo "Deploying to ECS..."
+          # aws ecs update-service --cluster ${{ vars.ECS_CLUSTER }} --service ${{ vars.ECS_SERVICE }} --force-new-deployment
+
+      - name: Run database migrations
+        if: vars.DEPLOY_METHOD != ''
+        run: |
+          echo "Running migrations..."
+          # Migrations run automatically on server startup via migrationRunner.js
+          # For manual execution: node bin/migrate.js up
+
+      - name: Health check
+        if: vars.DEPLOY_METHOD != ''
+        run: |
+          echo "Checking deployment health..."
+          HEALTH_URL="${{ vars.APP_URL || 'https://api.yourdomain.com' }}/api/health-check"
+          for i in $(seq 1 12); do
+            if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Waiting... (attempt $i/12)"
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
 
   notify:
     name: Notify Deployment Status

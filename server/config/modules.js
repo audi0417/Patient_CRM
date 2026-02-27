@@ -8,12 +8,12 @@
  * 可用模組定義
  */
 const AVAILABLE_MODULES = {
-  healthManagement: {
-    id: 'healthManagement',
-    name: '營養管理',
-    description: '體組成記錄、營養攝取追蹤、減重目標設定與追蹤',
+  dataRecording: {
+    id: 'dataRecording',
+    name: '數據記錄模組',
+    description: '支援多種數據記錄模式：營養管理、醫療監護、運動訓練、復健追蹤等',
     defaultEnabled: false,
-    features: ['body_composition', 'nutrition_tracking', 'goals', 'health_analytics']
+    features: ['body_composition', 'vital_signs_recording', 'goals', 'data_analytics', 'multiple_recording_modes']
   },
   appointments: {
     id: 'appointments',

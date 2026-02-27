@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -41,6 +51,7 @@ export default function ServiceItems() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [showDialog, setShowDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<ServiceItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ServiceItem | null>(null);
   const [formData, setFormData] = useState<CreateServiceItemData>({
     name: "",
     code: "",
@@ -160,13 +171,10 @@ export default function ServiceItems() {
   };
 
   // 刪除
-  const handleDelete = async (item: ServiceItem) => {
-    if (!confirm(`確定要刪除「${item.name}」嗎？\n\n如果有療程方案正在使用此項目，將無法刪除。`)) {
-      return;
-    }
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await treatmentApi.serviceItems.delete(item.id);
+      await treatmentApi.serviceItems.delete(deleteTarget.id);
       toast({
         title: "刪除成功",
         description: "服務項目已刪除",
@@ -179,6 +187,8 @@ export default function ServiceItems() {
         description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -310,7 +320,7 @@ export default function ServiceItems() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDelete(item)}
+                                onClick={() => setDeleteTarget(item)}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -412,6 +422,27 @@ export default function ServiceItems() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* 刪除確認對話框 */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>確定要刪除服務項目？</AlertDialogTitle>
+              <AlertDialogDescription>
+                確定要刪除「{deleteTarget?.name}」嗎？如果有療程方案正在使用此項目，將無法刪除。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                確認刪除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

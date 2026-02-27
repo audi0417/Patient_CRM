@@ -160,6 +160,55 @@ jobs:
           node test-server-sqlite.js
           rm test-server-sqlite.js
 
+      - name: Test server startup (On-Premise mode)
+        run: |
+          cat > test-server-onpremise.js << 'EOF'
+          process.env.NODE_ENV = 'test';
+          process.env.DATABASE_TYPE = 'postgres';
+          process.env.DATABASE_HOST = 'localhost';
+          process.env.DATABASE_PORT = '5432';
+          process.env.DATABASE_USER = 'postgres';
+          process.env.DATABASE_PASSWORD = 'postgres';
+          process.env.DATABASE_NAME = 'patient_crm_test';
+          process.env.JWT_SECRET = 'test_jwt_secret_for_ci_pipeline_minimum_32_characters';
+          process.env.ENCRYPTION_KEY = 'test_encryption_key_for_ci_minimum_32_chars';
+          process.env.DEPLOYMENT_MODE = 'on-premise';
+
+          console.log('Testing on-premise mode...');
+
+          try {
+            const deployment = require('./server/config/deployment');
+            console.log('  Mode:', deployment.getDeploymentMode());
+            console.log('  isOnPremise:', deployment.isOnPremise());
+
+            if (!deployment.isOnPremise()) {
+              throw new Error('Expected on-premise mode');
+            }
+
+            // Test license middleware loads
+            const licenseCheck = require('./server/middleware/licenseCheck');
+            console.log('✓ License middleware loaded');
+
+            // Test migration runner loads
+            const migrationRunner = require('./server/database/migrationRunner');
+            console.log('✓ Migration runner loaded');
+
+            // Test provisioning service loads
+            const provisioning = require('./server/services/provisioningService');
+            console.log('✓ Provisioning service loaded');
+
+            console.log('\n✅ On-premise mode test passed');
+            process.exit(0);
+          } catch (error) {
+            console.error('\n❌ On-premise mode test failed:');
+            console.error(error.message);
+            process.exit(1);
+          }
+          EOF
+
+          node test-server-onpremise.js
+          rm test-server-onpremise.js
+
       - name: Upload build artifacts
         if: success()
         uses: actions/upload-artifact@v4

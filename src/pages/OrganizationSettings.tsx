@@ -12,8 +12,7 @@ import {
   MessageSquare,
   Shield,
 } from 'lucide-react';
-import OrganizationHealthModeSettings from '@/components/OrganizationHealthModeSettings';
-import OrganizationDataModeSettings from '@/components/OrganizationDataModeSettings';
+import OrganizationDataRecordingSettings from '@/components/OrganizationDataRecordingSettings';
 import LineSettings from './LineSettings';
 
 const OrganizationSettings = () => {
@@ -45,7 +44,7 @@ const OrganizationSettings = () => {
         </TabsList>
 
         <TabsContent value="data-mode">
-          <OrganizationDataModeSettings />
+          <OrganizationDataRecordingSettings />
         </TabsContent>
 
         <TabsContent value="line">

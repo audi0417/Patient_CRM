@@ -4,6 +4,7 @@ const { body, param, validationResult } = require('express-validator');
 const { db } = require('../database/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requireTenant, injectTenantQuery, checkTenantQuota, checkSubscriptionExpiry } = require('../middleware/tenantContext');
+const { checkPatientQuota } = require('../middleware/licenseCheck');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const encryptionMiddleware = require('../middleware/encryptionMiddleware');
 const { accessControlMiddleware, requireAccess, Operation } = require('../middleware/accessControl');
@@ -119,7 +120,7 @@ router.get('/:id', requireAccess('patients', Operation.READ), async (req, res) =
 });
 
 // 創建患者（自動檢查配額並關聯組織）
-router.post('/', requireAccess('patients', Operation.CREATE), patientValidation, handleValidationErrors, checkTenantQuota('patients'), async (req, res) => {
+router.post('/', requireAccess('patients', Operation.CREATE), patientValidation, handleValidationErrors, checkTenantQuota('patients'), checkPatientQuota, async (req, res) => {
   try {
     const { name, gender, birthDate, phone, email, address, emergencyContact, emergencyPhone, bloodType, medicalHistory, allergies, notes, tags, groups, healthProfile } = req.body;
 

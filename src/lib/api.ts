@@ -1137,6 +1137,64 @@ export const api = {
       });
     },
   },
+
+  /**
+   * Tags (標籤) 相關 API
+   */
+  tags: {
+    getAll: async () => {
+      return apiRequest<Record<string, unknown>[]>('/tags');
+    },
+    getById: async (id: string) => {
+      return apiRequest<Record<string, unknown>>(`/tags/${id}`);
+    },
+    create: async (data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>('/tags', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    update: async (id: string, data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>(`/tags/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async (id: string) => {
+      return apiRequest<{ success: boolean; message: string }>(`/tags/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  /**
+   * Groups (群組) 相關 API
+   */
+  groups: {
+    getAll: async () => {
+      return apiRequest<Record<string, unknown>[]>('/groups');
+    },
+    getById: async (id: string) => {
+      return apiRequest<Record<string, unknown>>(`/groups/${id}`);
+    },
+    create: async (data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>('/groups', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    update: async (id: string, data: Record<string, unknown>) => {
+      return apiRequest<Record<string, unknown>>(`/groups/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async (id: string) => {
+      return apiRequest<{ success: boolean; message: string }>(`/groups/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
 };
 
 /**
@@ -1333,64 +1391,6 @@ export const treatmentApi = {
      */
     getSummary: async (id: number): Promise<PackageSummary> => {
       return apiRequest<PackageSummary>(`/treatment-packages/${id}/summary`);
-    },
-  },
-
-  /**
-   * Tags (標籤) 相關 API
-   */
-  tags: {
-    getAll: async () => {
-      return apiRequest<Record<string, unknown>[]>('/tags');
-    },
-    getById: async (id: string) => {
-      return apiRequest<Record<string, unknown>>(`/tags/${id}`);
-    },
-    create: async (data: Record<string, unknown>) => {
-      return apiRequest<Record<string, unknown>>('/tags', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-    update: async (id: string, data: Record<string, unknown>) => {
-      return apiRequest<Record<string, unknown>>(`/tags/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    },
-    delete: async (id: string) => {
-      return apiRequest<{ success: boolean; message: string }>(`/tags/${id}`, {
-        method: 'DELETE',
-      });
-    },
-  },
-
-  /**
-   * Groups (群組) 相關 API
-   */
-  groups: {
-    getAll: async () => {
-      return apiRequest<Record<string, unknown>[]>('/groups');
-    },
-    getById: async (id: string) => {
-      return apiRequest<Record<string, unknown>>(`/groups/${id}`);
-    },
-    create: async (data: Record<string, unknown>) => {
-      return apiRequest<Record<string, unknown>>('/groups', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-    update: async (id: string, data: Record<string, unknown>) => {
-      return apiRequest<Record<string, unknown>>(`/groups/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    },
-    delete: async (id: string) => {
-      return apiRequest<{ success: boolean; message: string }>(`/groups/${id}`, {
-        method: 'DELETE',
-      });
     },
   },
 };

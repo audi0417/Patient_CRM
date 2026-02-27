@@ -93,19 +93,29 @@ const PatientDetail = () => {
 
   const handleDelete = async () => {
     if (id) {
-      await deletePatient(id);
-      toast.success("患者資料已刪除");
-      navigate("/");
+      try {
+        await deletePatient(id);
+        toast.success("患者資料已刪除");
+        navigate("/");
+      } catch (error) {
+        console.error("刪除患者失敗:", error);
+        toast.error(error instanceof Error ? error.message : "刪除患者失敗");
+      }
     }
   };
 
   const handleDeleteConsultation = async () => {
     if (recordToDelete) {
-      await deleteConsultationRecord(recordToDelete);
-      toast.success("看診紀錄已刪除");
-      loadPatientData();
-      setDeleteDialogOpen(false);
-      setRecordToDelete(null);
+      try {
+        await deleteConsultationRecord(recordToDelete);
+        toast.success("看診紀錄已刪除");
+        loadPatientData();
+        setDeleteDialogOpen(false);
+        setRecordToDelete(null);
+      } catch (error) {
+        console.error("刪除看診紀錄失敗:", error);
+        toast.error(error instanceof Error ? error.message : "刪除看診紀錄失敗");
+      }
     }
   };
 

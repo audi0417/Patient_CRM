@@ -1,0 +1,95 @@
+/**
+ * 心理健康模式（範例）
+ * 適用於心理諮商中心、身心科診所，專注於心理健康追蹤
+ * 這是一個範例模組，展示如何添加新的數據記錄模式
+ */
+
+module.exports = {
+  id: 'mental_health',
+  name: '心理健康',
+  description: '適用於心理諮商中心、身心科診所，專注於心理健康狀態追蹤',
+  icon: '🧠',
+  category: 'mental',
+  
+  // 利用生命徵象欄位來記錄心理健康相關數據
+  vitalSignsMapping: {
+    bloodPressureSystolic: {
+      label: '壓力指數',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '1-5分'
+    },
+    bloodPressureDiastolic: {
+      label: '焦慮程度',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '1-5分'
+    },
+    heartRate: {
+      label: '情緒穩定度',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '6-10分'
+    },
+    temperature: {
+      label: '睡眠品質',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '6-10分'
+    },
+    respiratoryRate: {
+      label: '專注力',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '6-10分'
+    },
+    oxygenSaturation: {
+      label: '社交活動',
+      unit: '次/週',
+      type: 'number',
+      required: false,
+      normalRange: '2-5次/週'
+    },
+    bloodGlucose: {
+      label: '正向思考',
+      unit: '分',
+      type: 'number',
+      required: false,
+      min: 1,
+      max: 10,
+      normalRange: '6-10分'
+    }
+  },
+  
+  goalCategories: [
+    { value: 'stress_management', label: '壓力管理', unit: '分' },
+    { value: 'anxiety_control', label: '焦慮控制', unit: '分' },
+    { value: 'mood_stability', label: '情緒穩定', unit: '分' },
+    { value: 'sleep_quality', label: '睡眠改善', unit: '小時' },
+    { value: 'social_activity', label: '社交互動', unit: '次/週' },
+    { value: 'mindfulness', label: '正念練習', unit: '分鐘/日' },
+    { value: 'custom', label: '自訂', unit: '' }
+  ],
+  
+  chartTitles: {
+    vitalSigns: '心理健康指標',
+    goals: '心理健康目標',
+    progress: '心理狀態記錄', 
+    dashboard: '心理健康目標'
+  }
+};

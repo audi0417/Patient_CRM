@@ -164,10 +164,12 @@ const PatientList = () => {
             <h1 className="text-3xl font-bold text-foreground mb-2">患者管理</h1>
             <p className="text-muted-foreground">管理和追蹤所有患者資訊與健康數據</p>
           </div>
-          <Button onClick={() => navigate("/patient/new")} size="lg">
-            <Plus className="mr-2 h-5 w-5" />
-            新增患者
-          </Button>
+          {!isSuperAdmin && (
+            <Button onClick={() => navigate("/patient/new")} size="lg">
+              <Plus className="mr-2 h-5 w-5" />
+              新增患者
+            </Button>
+          )}
         </div>
 
         {/* 篩選區域 */}
@@ -311,7 +313,7 @@ const PatientList = () => {
                   ? "請嘗試其他搜尋條件"
                   : "點擊上方按鈕開始新增患者"}
               </p>
-              {!searchTerm && selectedOrg === "all" && selectedGroup === "all" && genderFilter === "all" && (
+              {!isSuperAdmin && !searchTerm && selectedOrg === "all" && selectedGroup === "all" && genderFilter === "all" && (
                 <Button onClick={() => navigate("/patient/new")}>
                   <Plus className="mr-2 h-4 w-4" />
                   新增第一位患者

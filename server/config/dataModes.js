@@ -7,93 +7,76 @@
  */
 
 const DEFAULT_DATA_MODES = {
-  // 營養健康模式 - 適用於營養診所、減重中心、健康管理中心
+  // 營養管理模式 - 適用於營養師、減重中心，專注於飲食與營養追蹤
   nutrition: {
     id: 'nutrition',
-    name: '營養健康',
-    description: '記錄身高、體重、血糖、腰圍、體脂等健康管理指標，適用於營養診所和健康管理中心',
+    name: '營養管理',
+    description: '適用於營養師、減重中心，專注於飲食與營養追蹤',
     icon: '🥗',
     category: 'wellness',
     
+    // 利用生命徵象欄位來記錄營養相關數據
     vitalSignsMapping: {
       bloodPressureSystolic: {
-        label: '身高',
-        unit: 'cm',
+        label: '卡路里攝取',
+        unit: 'kcal',
         type: 'number',
-        required: false,
-        normalRange: '150-200cm'
+        required: false
       },
       bloodPressureDiastolic: {
-        label: '體重',
-        unit: 'kg', 
+        label: '蛋白質',
+        unit: 'g',
         type: 'number',
-        required: false,
-        step: '0.1',
-        normalRange: '40-150kg'
+        required: false
       },
       heartRate: {
-        label: '血糖',
-        unit: 'mg/dL',
+        label: '碳水化合物',
+        unit: 'g',
         type: 'number',
-        required: false,
-        normalRange: '70-140mg/dL'
+        required: false
       },
       temperature: {
-        label: '腰圍',
-        unit: 'cm',
+        label: '脂肪攝取',
+        unit: 'g',
         type: 'number',
         required: false,
-        step: '0.1',
-        normalRange: '60-120cm'
+        step: '0.1'
       },
       respiratoryRate: {
-        label: '臀圍',
-        unit: 'cm',
+        label: '纖維',
+        unit: 'g',
         type: 'number',
         required: false
       },
       oxygenSaturation: {
-        label: '體脂率',
-        unit: '%',
+        label: '水分攝取',
+        unit: 'ml',
         type: 'number',
-        required: false,
-        step: '0.1',
-        normalRange: '10-40%'
+        required: false
+      },
+      bloodGlucose: {
+        label: '血糖',
+        unit: 'mg/dL',
+        type: 'number',
+        required: false
       }
     },
     
     goalCategories: [
-      {
-        id: 'weight',
-        name: '體重管理',
-        description: '設定理想體重和體型目標'
-      },
-      {
-        id: 'nutrition',
-        name: '營養攝取', 
-        description: '日常飲食和營養均衡目標'
-      },
-      {
-        id: 'body_composition',
-        name: '體脂控制',
-        description: '體脂率和肌肉量改善目標'
-      },
-      {
-        id: 'blood_sugar',
-        name: '血糖管理',
-        description: '血糖控制和代謝健康目標'
-      },
-      {
-        id: 'lifestyle',
-        name: '生活習慣',
-        description: '健康生活方式養成目標'
-      }
+      { value: 'weight', label: '減重目標', unit: 'kg' },
+      { value: 'bodyFat', label: '體脂率', unit: '%' },
+      { value: 'muscleMass', label: '增肌目標', unit: 'kg' },
+      { value: 'bmi', label: 'BMI', unit: '' },
+      { value: 'exercise', label: '每週運動', unit: '次/週' },
+      { value: 'health', label: '每日卡路里', unit: 'kcal' },
+      { value: 'custom', label: '自訂', unit: '' }
     ],
     
     chartTitles: {
-      vitalSigns: '營養健康數據',
-      goals: '健康目標追蹤', 
-      progress: '健康進度報告'
+      vitalSigns: '營養攝取趨勢',
+      goals: '營養目標',
+      progress: '營養記錄',
+      dashboard: '營養目標'
     }
   },
 
@@ -191,7 +174,7 @@ const DEFAULT_DATA_MODES = {
   }
 };
 
-// 根據ID獲取健康模式
+// 根據ID獲取數據模式
 const getDataModeById = (id) => {
   return DEFAULT_DATA_MODES[id] || null;
 };

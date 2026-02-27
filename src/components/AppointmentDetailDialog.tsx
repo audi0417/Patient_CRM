@@ -98,19 +98,30 @@ const AppointmentDetailDialog = ({
       reminderDays: typeof formData.reminderDays === "number" ? formData.reminderDays : 1,
     };
 
-    await saveAppointment(updatedAppointment);
-    toast.success("預約已更新");
-    setIsEditing(false);
-    onUpdate?.();
-    // 不關閉對話框，讓用戶可以繼續查看
+    try {
+      await saveAppointment(updatedAppointment);
+      toast.success("預約已更新");
+      setIsEditing(false);
+      onUpdate?.();
+      // 不關閉對話框，讓用戶可以繼續查看
+    } catch (error) {
+      console.error("更新預約失敗:", error);
+      toast.error(error instanceof Error ? error.message : "更新預約失敗");
+    }
   };
 
   const handleDelete = async () => {
-    await deleteAppointment(appointment.id);
-    toast.success("預約已刪除");
-    setShowDeleteDialog(false);
-    onUpdate?.();
-    onClose();
+    try {
+      await deleteAppointment(appointment.id);
+      toast.success("預約已刪除");
+      setShowDeleteDialog(false);
+      onUpdate?.();
+      onClose();
+    } catch (error) {
+      console.error("刪除預約失敗:", error);
+      toast.error(error instanceof Error ? error.message : "刪除預約失敗");
+      setShowDeleteDialog(false);
+    }
   };
 
   const handleCancel = () => {

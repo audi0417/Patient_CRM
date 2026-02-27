@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, checkRole } = require('../middleware/auth');
+const { requireFeature } = require('../middleware/licenseCheck');
 const AuditLogger = require('../services/auditService');
 
-// 查詢稽核日誌（管理員限定）
-router.get('/', authenticateToken, checkRole('admin', 'super_admin'), async (req, res) => {
+// 查詢稽核日誌（管理員限定，需要 audit_logs License 功能）
+router.get('/', authenticateToken, checkRole('admin', 'super_admin'), requireFeature('audit_logs'), async (req, res) => {
   const { userId, resource, action, startDate, endDate, limit, offset } = req.query;
 
   try {

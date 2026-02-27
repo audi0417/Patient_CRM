@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
-// 健康模式配置類型
+// 數據記錄模式配置類型
 interface VitalSignsMapping {
   [key: string]: {
     label: string;
@@ -24,7 +24,7 @@ interface ChartTitles {
   records: string;
 }
 
-interface HealthModeConfig {
+interface DataRecordingModeConfig {
   id: string;
   name: string;
   description: string;
@@ -35,9 +35,9 @@ interface HealthModeConfig {
   chartTitles: ChartTitles;
 }
 
-interface HealthModeContextType {
-  healthMode: string;
-  modeConfig: HealthModeConfig | null;
+interface DataRecordingContextType {
+  dataRecordingMode: string;
+  modeConfig: DataRecordingModeConfig | null;
   customizations: any;
   isLoading: boolean;
   error: string | null;
@@ -50,23 +50,57 @@ interface HealthModeContextType {
   getChartTitle: (type: 'vitalSigns' | 'dashboard' | 'records') => string;
 }
 
-const HealthModeContext = createContext<HealthModeContextType | undefined>(undefined);
-
-// 預設配置（備用）
-const DEFAULT_CONFIG: HealthModeConfig = {
+// 預設配置（向後兼容營養管理模式）
+const DEFAULT_CONFIG: DataRecordingModeConfig = {
   id: 'nutrition',
   name: '營養管理',
-  description: '適用於營養師、減重中心，專注於飲食與營養追蹤',
+  description: '營養師和減重中心的營養管理',
   icon: '🥗',
   category: 'wellness',
   vitalSignsMapping: {
-    bloodPressureSystolic: { label: '卡路里攝取', unit: 'kcal', type: 'number', required: false },
-    bloodPressureDiastolic: { label: '蛋白質', unit: 'g', type: 'number', required: false },
-    heartRate: { label: '碳水化合物', unit: 'g', type: 'number', required: false },
-    temperature: { label: '脂肪攝取', unit: 'g', type: 'number', required: false, step: '0.1' },
-    respiratoryRate: { label: '纖維', unit: 'g', type: 'number', required: false },
-    oxygenSaturation: { label: '水分攝取', unit: 'ml', type: 'number', required: false },
-    bloodGlucose: { label: '血糖', unit: 'mg/dL', type: 'number', required: false }
+    bloodPressureSystolic: {
+      label: '卡路里攝取',
+      unit: 'kcal',
+      type: 'number',
+      required: false
+    },
+    bloodPressureDiastolic: {
+      label: '蛋白質',
+      unit: 'g', 
+      type: 'number',
+      required: false
+    },
+    heartRate: {
+      label: '碳水化合物',
+      unit: 'g',
+      type: 'number',
+      required: false
+    },
+    temperature: {
+      label: '脂肪攝取',
+      unit: 'g',
+      type: 'number',
+      required: false,
+      step: '0.1'
+    },
+    respiratoryRate: {
+      label: '纖維',
+      unit: 'g',
+      type: 'number',
+      required: false
+    },
+    oxygenSaturation: {
+      label: '水分攝取',
+      unit: 'ml',
+      type: 'number',
+      required: false
+    },
+    bloodGlucose: {
+      label: '血糖',
+      unit: 'mg/dL',
+      type: 'number',
+      required: false
+    }
   },
   goalCategories: [
     { value: 'weight', label: '減重目標', unit: 'kg' },
@@ -84,24 +118,25 @@ const DEFAULT_CONFIG: HealthModeConfig = {
   }
 };
 
-interface HealthModeProviderProps {
+interface DataRecordingProviderProps {
   children: React.ReactNode;
 }
 
-export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children }) => {
-  const [healthMode, setHealthMode] = useState<string>('nutrition');
-  const [modeConfig, setModeConfig] = useState<HealthModeConfig | null>(DEFAULT_CONFIG);
+const DataRecordingContext = createContext<DataRecordingContextType | undefined>(undefined);
+
+export const DataRecordingProvider: React.FC<DataRecordingProviderProps> = ({ children }) => {
+  const [dataRecordingMode, setDataRecordingMode] = useState<string>('nutrition');
+  const [modeConfig, setModeConfig] = useState<DataRecordingModeConfig | null>(DEFAULT_CONFIG);
   const [customizations, setCustomizations] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadHealthModeConfig = async () => {
+  const loadDataRecordingModeConfig = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // 獲取組織的健康模式配置
-      const response = await fetch('/api/organizations/me/health-mode', {
+      const response = await fetch('/api/organizations/me/data-recording-mode', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -109,16 +144,17 @@ export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children
       
       if (!response.ok) {
         // 如果無權限或其他錯誤，使用預設配置
-        console.warn('Failed to load health mode config, using default');
+        console.warn('Failed to load data recording mode config, using default');
         setModeConfig(DEFAULT_CONFIG);
-        setHealthMode('nutrition');
+        setDataRecordingMode('nutrition');
         setCustomizations({});
         return;
       }
 
       const data = await response.json();
       
-      setHealthMode(data.healthMode || 'nutrition');
+      // 設置數據記錄模式
+      setDataRecordingMode(data.dataRecordingMode || 'nutrition');
       
       // 合併基礎配置和自訂配置
       let finalConfig = data.modeConfig || DEFAULT_CONFIG;
@@ -143,12 +179,13 @@ export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children
       
       setModeConfig(finalConfig);
       setCustomizations(data.customizations || {});
-    } catch (err) {
-      console.error('Error loading health mode config:', err);
-      setError('載入健康模式配置失敗');
-      // 使用預設配置作為備用
+      
+    } catch (error) {
+      console.error('Error loading data recording mode config:', error);
+      setError('載入數據記錄模式配置失敗');
+      // 使用預設配置
       setModeConfig(DEFAULT_CONFIG);
-      setHealthMode('nutrition');
+      setDataRecordingMode('nutrition');
       setCustomizations({});
     } finally {
       setIsLoading(false);
@@ -156,10 +193,9 @@ export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children
   };
 
   useEffect(() => {
-    loadHealthModeConfig();
+    loadDataRecordingModeConfig();
   }, []);
 
-  // 便利方法
   const getVitalSignLabel = (field: string): string => {
     return modeConfig?.vitalSignsMapping[field]?.label || field;
   };
@@ -169,24 +205,20 @@ export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children
   };
 
   const getGoalCategories = (): GoalCategory[] => {
-    return modeConfig?.goalCategories || DEFAULT_CONFIG.goalCategories;
+    return modeConfig?.goalCategories || [];
   };
 
   const getChartTitle = (type: 'vitalSigns' | 'dashboard' | 'records'): string => {
-    return modeConfig?.chartTitles[type] || DEFAULT_CONFIG.chartTitles[type];
+    return modeConfig?.chartTitles[type] || '';
   };
 
-  const refreshConfig = (): Promise<void> => {
-    return loadHealthModeConfig();
-  };
-
-  const contextValue: HealthModeContextType = {
-    healthMode,
+  const value: DataRecordingContextType = {
+    dataRecordingMode,
     modeConfig,
     customizations,
     isLoading,
     error,
-    refreshConfig,
+    refreshConfig: loadDataRecordingModeConfig,
     getVitalSignLabel,
     getVitalSignUnit,
     getGoalCategories,
@@ -194,51 +226,18 @@ export const HealthModeProvider: React.FC<HealthModeProviderProps> = ({ children
   };
 
   return (
-    <HealthModeContext.Provider value={contextValue}>
+    <DataRecordingContext.Provider value={value}>
       {children}
-    </HealthModeContext.Provider>
+    </DataRecordingContext.Provider>
   );
 };
 
-// Hook for using health mode context
-export const useHealthMode = (): HealthModeContextType => {
-  const context = useContext(HealthModeContext);
+export const useDataRecording = (): DataRecordingContextType => {
+  const context = useContext(DataRecordingContext);
   if (context === undefined) {
-    throw new Error('useHealthMode must be used within a HealthModeProvider');
+    throw new Error('useDataRecording must be used within a DataRecordingProvider');
   }
   return context;
 };
 
-// Hook for vital signs mapping
-export const useVitalSignsMapping = () => {
-  const { modeConfig, getVitalSignLabel, getVitalSignUnit } = useHealthMode();
-  
-  return {
-    mapping: modeConfig?.vitalSignsMapping || {},
-    getLabel: getVitalSignLabel,
-    getUnit: getVitalSignUnit,
-    
-    // 常用欄位的快速取得方法
-    labels: {
-      bloodPressureSystolic: getVitalSignLabel('bloodPressureSystolic'),
-      bloodPressureDiastolic: getVitalSignLabel('bloodPressureDiastolic'),
-      heartRate: getVitalSignLabel('heartRate'),
-      temperature: getVitalSignLabel('temperature'),
-      respiratoryRate: getVitalSignLabel('respiratoryRate'),
-      oxygenSaturation: getVitalSignLabel('oxygenSaturation'),
-      bloodGlucose: getVitalSignLabel('bloodGlucose')
-    },
-    
-    units: {
-      bloodPressureSystolic: getVitalSignUnit('bloodPressureSystolic'),
-      bloodPressureDiastolic: getVitalSignUnit('bloodPressureDiastolic'),
-      heartRate: getVitalSignUnit('heartRate'),
-      temperature: getVitalSignUnit('temperature'),
-      respiratoryRate: getVitalSignUnit('respiratoryRate'),
-      oxygenSaturation: getVitalSignUnit('oxygenSaturation'),
-      bloodGlucose: getVitalSignUnit('bloodGlucose')
-    }
-  };
-};
-
-export default HealthModeContext;
+export default DataRecordingContext;

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { queryOne, queryAll, execute } = require('../database/helpers');
 const { authenticateToken, checkRole } = require('../middleware/auth');
+const { checkUserQuota } = require('../middleware/licenseCheck');
 const EmailService = require('../services/emailService');
 const { hashPassword } = require('../utils/password');
 
@@ -48,9 +49,10 @@ router.get('/:id', checkRole('admin', 'super_admin'), async (req, res) => {
   }
 });
 
-// 創建使用者（僅管理員）
+// 創建使用者（僅管理員，檢查 License 配額）
 router.post('/', [
   checkRole('admin', 'super_admin'),
+  checkUserQuota,
   body('username').notEmpty().isLength({ min: 3 }).withMessage('使用者名稱至少3個字元'),
   body('password').isLength({ min: 8 }).withMessage('密碼至少8個字元'),
   body('name').notEmpty().withMessage('姓名不能為空'),

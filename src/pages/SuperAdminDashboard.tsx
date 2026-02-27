@@ -6,7 +6,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import OrganizationManagement from "./OrganizationManagement";
-import SuperAdminHealthModes from "@/components/SuperAdminHealthModes";
+import SuperAdminDataRecordingModes from "@/components/SuperAdminDataRecordingModes";
 
 const SuperAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("organizations");
@@ -23,15 +23,15 @@ const SuperAdminDashboard = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="organizations">組織管理</TabsTrigger>
-          <TabsTrigger value="health-modes">健康模式</TabsTrigger>
+          <TabsTrigger value="data-recording-modes">數據記錄模式</TabsTrigger>
         </TabsList>
 
         <TabsContent value="organizations">
           <OrganizationManagement />
         </TabsContent>
 
-        <TabsContent value="health-modes">
-          <SuperAdminHealthModes />
+        <TabsContent value="data-recording-modes">
+          <SuperAdminDataRecordingModes />
         </TabsContent>
       </Tabs>
     </div>

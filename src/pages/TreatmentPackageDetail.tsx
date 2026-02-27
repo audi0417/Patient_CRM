@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +62,7 @@ export default function TreatmentPackageDetail() {
   const [loading, setLoading] = useState(true);
   const [showExecuteDialog, setShowExecuteDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PackageItem | null>(null);
+  const [deleteLogTarget, setDeleteLogTarget] = useState<PackageUsageLog | null>(null);
   const [executeData, setExecuteData] = useState<ExecutePackageData>({
     serviceItemId: 0,
     quantity: 1,
@@ -148,14 +159,10 @@ export default function TreatmentPackageDetail() {
   };
 
   // 刪除使用記錄
-  const handleDeleteLog = async (log: PackageUsageLog) => {
-    if (!packageDetail) return;
-    if (!confirm(`確定要刪除此執行記錄嗎？\n\n將會還原 ${log.quantity} ${log.unit}的使用次數。`)) {
-      return;
-    }
-
+  const confirmDeleteLog = async () => {
+    if (!packageDetail || !deleteLogTarget) return;
     try {
-      await treatmentApi.packages.deleteUsageLog(packageDetail.id, log.id);
+      await treatmentApi.packages.deleteUsageLog(packageDetail.id, deleteLogTarget.id);
       toast({
         title: "刪除成功",
         description: "執行記錄已刪除，使用次數已還原",
@@ -167,6 +174,8 @@ export default function TreatmentPackageDetail() {
         description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
+    } finally {
+      setDeleteLogTarget(null);
     }
   };
 
@@ -327,7 +336,7 @@ export default function TreatmentPackageDetail() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteLog(log)}
+                            onClick={() => setDeleteLogTarget(log)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -418,6 +427,27 @@ export default function TreatmentPackageDetail() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* 刪除記錄確認對話框 */}
+        <AlertDialog open={!!deleteLogTarget} onOpenChange={(open) => !open && setDeleteLogTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>確定要刪除執行記錄？</AlertDialogTitle>
+              <AlertDialogDescription>
+                確定要刪除此執行記錄嗎？將會還原 {deleteLogTarget?.quantity} {deleteLogTarget?.unit} 的使用次數。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteLog}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                確認刪除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

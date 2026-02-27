@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DemoProvider } from "@/contexts/DemoContext";
-import { DataModeProvider } from "@/contexts/DataModeContext";
+import { DataRecordingProvider } from "@/contexts/DataRecordingContext";
 import DemoScenarioManager from "@/components/demo/DemoScenarioManager";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -314,14 +314,14 @@ const App = () => (
         <Sonner />
         <DemoProvider>
           <AuthProvider>
-            <DataModeProvider>
+            <DataRecordingProvider>
               <NotificationProvider>
                 {/* Demo 場景管理器 - 監控並引導 Demo 流程 */}
                 <DemoScenarioManager />
                 {/* 根據 Demo 模式選擇路由 */}
                 {window.__isDemoMode ? <DemoRoutes /> : <AppRoutes />}
               </NotificationProvider>
-            </DataModeProvider>
+            </DataRecordingProvider>
           </AuthProvider>
         </DemoProvider>
       </TooltipProvider>

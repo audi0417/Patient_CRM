@@ -20,6 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -66,6 +76,7 @@ export default function TreatmentPackages() {
   const [startDate, setStartDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<TreatmentPackage | null>(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -223,13 +234,10 @@ export default function TreatmentPackages() {
   };
 
   // 刪除方案
-  const handleDelete = async (pkg: TreatmentPackage) => {
-    if (!confirm(`確定要刪除「${pkg.packageName}」嗎？\n\n此操作無法復原！`)) {
-      return;
-    }
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await treatmentApi.packages.delete(pkg.id);
+      await treatmentApi.packages.delete(deleteTarget.id);
       toast({
         title: "刪除成功",
         description: "療程方案已刪除",
@@ -241,6 +249,8 @@ export default function TreatmentPackages() {
         description: error instanceof Error ? error.message : "未知錯誤",
         variant: "destructive",
       });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -352,7 +362,7 @@ export default function TreatmentPackages() {
                             <Eye className="h-4 w-4" />
                           </Button>
                           {isAdmin && (
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(pkg)}>
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(pkg)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
@@ -474,6 +484,27 @@ export default function TreatmentPackages() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* 刪除確認對話框 */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>確定要刪除療程方案？</AlertDialogTitle>
+              <AlertDialogDescription>
+                確定要刪除「{deleteTarget?.packageName}」嗎？此操作無法復原！
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                確認刪除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
